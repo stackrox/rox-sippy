@@ -47,8 +47,9 @@ var (
 	// Default parameters, these are also hardcoded in the UI. Both must be updated.
 	// TODO: centralize these configurations for consumption by both the front and backends
 
-	DefaultColumnGroupBy = "Platform,Architecture,Network"
-	DefaultDBGroupBy     = "Platform,Architecture,Network,Topology,FeatureSet,Upgrade,Suite,Installer,LayeredProduct"
+	// ACS uses 6 variant dimensions instead of OCP's 28
+	DefaultColumnGroupBy = "CloudProvider,TestType,Architecture"
+	DefaultDBGroupBy     = "CloudProvider,TestType,Architecture,Framework,CISystem,Release"
 )
 
 // TODO: in several of the below functions we instantiate an entire ComponentReportGenerator
@@ -244,19 +245,23 @@ func (c *ComponentReportGenerator) GetCacheKey() GeneratorCacheKey {
 }
 
 // CacheVariants is used only in the cache key, not in the actual report.
+// ACS uses 6 dimensions: TestType, CloudProvider, Release, Framework, CISystem, Architecture
 type CacheVariants struct {
-	Network  []string `json:"network,omitempty"`
-	Upgrade  []string `json:"upgrade,omitempty"`
-	Arch     []string `json:"arch,omitempty"`
-	Platform []string `json:"platform,omitempty"`
-	Variant  []string `json:"variant,omitempty"`
+	TestType      []string `json:"test_type,omitempty"`
+	CloudProvider []string `json:"cloud_provider,omitempty"`
+	Release       []string `json:"release,omitempty"`
+	Framework     []string `json:"framework,omitempty"`
+	CISystem      []string `json:"ci_system,omitempty"`
+	Architecture  []string `json:"architecture,omitempty"`
+	Variant       []string `json:"variant,omitempty"` // kept for backwards compatibility
 }
 
 func (c *ComponentReportGenerator) GenerateCacheVariants(ctx context.Context) (CacheVariants, []error) {
 	errs := []error{}
 	columns := make(map[string][]string)
 
-	for _, column := range []string{"platform", "network", "arch", "upgrade", "variants"} {
+	// ACS uses 6 variant dimensions instead of OCP's 28
+	for _, column := range []string{"test_type", "cloud_provider", "release", "framework", "ci_system", "architecture", "variants"} {
 		values, err := c.getUniqueJUnitColumnValuesLast60Days(ctx, column, column == "variants")
 		if err != nil {
 			wrappedErr := errors.Wrapf(err, "couldn't fetch %s", column)
@@ -267,11 +272,13 @@ func (c *ComponentReportGenerator) GenerateCacheVariants(ctx context.Context) (C
 	}
 
 	return CacheVariants{
-		Platform: columns["platform"],
-		Network:  columns["network"],
-		Arch:     columns["arch"],
-		Upgrade:  columns["upgrade"],
-		Variant:  columns["variants"],
+		TestType:      columns["test_type"],
+		CloudProvider: columns["cloud_provider"],
+		Release:       columns["release"],
+		Framework:     columns["framework"],
+		CISystem:      columns["ci_system"],
+		Architecture:  columns["architecture"],
+		Variant:       columns["variants"],
 	}, errs
 }
 

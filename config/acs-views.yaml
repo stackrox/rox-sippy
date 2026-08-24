@@ -1,0 +1,216 @@
+---
+# ACS Component Readiness Views
+# These define the default views for comparing test pass rates between releases
+component_readiness:
+- name: 4.9-4.8
+  base_release:
+    release: "release-4.8"
+    relative_start: now-30d
+    relative_end: now
+  sample_release:
+    release: "release-4.9"
+    relative_start: now-7d
+    relative_end: now
+  variant_options:
+    # Column grouping for the main Component Readiness grid
+    column_group_by:
+      CloudProvider: {}
+      TestType: {}
+      Architecture: {}
+    # Detailed grouping for drill-down views
+    db_group_by:
+      CloudProvider: {}
+      TestType: {}
+      Architecture: {}
+      Framework: {}
+      CISystem: {}
+      Release: {}
+    # Variant values to include in the analysis
+    include_variants:
+      TestType:
+      - unit
+      - qa-e2e
+      - go-e2e
+      - upgrade
+      - perf
+      - ui-e2e
+      - compliance
+      - scanner
+      CloudProvider:
+      - gcp
+      - aws
+      - azure
+      - none
+      Architecture:
+      - amd64
+      - arm64
+      Framework:
+      - go-test
+      - spock
+      - cypress
+      CISystem:
+      - gha
+      - prow
+      - konflux
+      Release:
+      - main
+      - release-4.8
+      - release-4.9
+      - release-4.10
+  test_filters:
+    # No lifecycle filtering for ACS (no equivalent to OCP blocking/informing)
+  advanced_options:
+    minimum_failure: 3
+    confidence: 95
+    pity_factor: 5
+    ignore_missing: false
+    ignore_disruption: true
+    flake_as_failure: false
+    pass_rate_required_new_tests: 90  # ACS uses 90% instead of 95%
+    include_multi_release_analysis: true
+  metrics:
+    enabled: true
+  regression_tracking:
+    enabled: true
+  prime_cache:
+    enabled: true
+  automate_jira:
+    enabled: false  # Disable for MVP
+
+- name: 4.10-4.9
+  base_release:
+    release: "release-4.9"
+    relative_start: now-30d
+    relative_end: now
+  sample_release:
+    release: "release-4.10"
+    relative_start: now-7d
+    relative_end: now
+  variant_options:
+    column_group_by:
+      CloudProvider: {}
+      TestType: {}
+      Architecture: {}
+    db_group_by:
+      CloudProvider: {}
+      TestType: {}
+      Architecture: {}
+      Framework: {}
+      CISystem: {}
+      Release: {}
+    include_variants:
+      TestType:
+      - unit
+      - qa-e2e
+      - go-e2e
+      - upgrade
+      - perf
+      - ui-e2e
+      - compliance
+      - scanner
+      CloudProvider:
+      - gcp
+      - aws
+      - azure
+      - none
+      Architecture:
+      - amd64
+      - arm64
+      Framework:
+      - go-test
+      - spock
+      - cypress
+      CISystem:
+      - gha
+      - prow
+      - konflux
+      Release:
+      - main
+      - release-4.9
+      - release-4.10
+  advanced_options:
+    minimum_failure: 3
+    confidence: 95
+    pity_factor: 5
+    ignore_missing: false
+    ignore_disruption: true
+    flake_as_failure: false
+    pass_rate_required_new_tests: 90
+    include_multi_release_analysis: true
+  metrics:
+    enabled: true
+  regression_tracking:
+    enabled: true
+  prime_cache:
+    enabled: true
+  automate_jira:
+    enabled: false
+
+- name: main-4.9
+  base_release:
+    release: "release-4.9"
+    relative_start: now-30d
+    relative_end: now
+  sample_release:
+    release: "main"
+    relative_start: now-7d
+    relative_end: now
+  variant_options:
+    column_group_by:
+      CloudProvider: {}
+      TestType: {}
+      Architecture: {}
+    db_group_by:
+      CloudProvider: {}
+      TestType: {}
+      Architecture: {}
+      Framework: {}
+      CISystem: {}
+      Release: {}
+    include_variants:
+      TestType:
+      - unit
+      - qa-e2e
+      - go-e2e
+      - upgrade
+      - perf
+      - ui-e2e
+      - compliance
+      - scanner
+      CloudProvider:
+      - gcp
+      - aws
+      - azure
+      - none
+      Architecture:
+      - amd64
+      - arm64
+      Framework:
+      - go-test
+      - spock
+      - cypress
+      CISystem:
+      - gha
+      - prow
+      - konflux
+      Release:
+      - main
+      - release-4.9
+      - release-4.10
+  advanced_options:
+    minimum_failure: 3
+    confidence: 95
+    pity_factor: 5
+    ignore_missing: false
+    ignore_disruption: true
+    flake_as_failure: false
+    pass_rate_required_new_tests: 90
+    include_multi_release_analysis: true
+  metrics:
+    enabled: true
+  regression_tracking:
+    enabled: true
+  prime_cache:
+    enabled: true
+  automate_jira:
+    enabled: false

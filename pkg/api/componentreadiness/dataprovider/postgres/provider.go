@@ -202,12 +202,17 @@ func (p *PostgresProvider) QueryUniqueVariantValues(ctx context.Context, _ reqop
 		return result, nil
 	}
 
-	// Map BQ column names to variant key names
+	// Map column names to ACS variant key names
 	fieldMap := map[string]string{
-		"platform": "Platform",
-		"network":  "Network",
+		"test_type":      "TestType",
+		"cloud_provider": "CloudProvider",
+		"release":        "Release",
+		"framework":      "Framework",
+		"ci_system":      "CISystem",
+		"architecture":   "Architecture",
+		// Legacy mappings for backwards compatibility
 		"arch":     "Architecture",
-		"upgrade":  "Upgrade",
+		"platform": "CloudProvider", // OCP "platform" maps to ACS "CloudProvider"
 	}
 	variantKey, ok := fieldMap[field]
 	if !ok {

@@ -83,7 +83,7 @@ var (
 	componentReadinessMetric = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "sippy_component_readiness",
 		Help: "Regression score for components",
-	}, []string{"release", "releaseStatus", "view", "component", "network", "arch", "platform"})
+	}, []string{"release", "releaseStatus", "view", "component", "test_type", "cloud_provider", "architecture"})
 	componentReadinessUniqueRegressionsMetric = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "sippy_component_readiness_unique_regressions",
 		Help: "Number of unique tests regressed per component",
@@ -254,21 +254,21 @@ func updateComponentReadinessMetricsForView(ctx context.Context, provider datapr
 			for _, regressedTest := range col.RegressedTests {
 				uniqueRegressedTestsByComponent.Insert(regressedTest.TestID)
 			}
-			// TODO: why specific variants here?
-			networkLabel, ok := col.Variants["Network"]
+			// ACS uses TestType, CloudProvider, Architecture as the primary variant dimensions for metrics
+			testTypeLabel, ok := col.Variants["TestType"]
 			if !ok {
-				networkLabel = ""
+				testTypeLabel = ""
+			}
+			cloudProviderLabel, ok := col.Variants["CloudProvider"]
+			if !ok {
+				cloudProviderLabel = ""
 			}
 			archLabel, ok := col.Variants["Architecture"]
 			if !ok {
 				archLabel = ""
 			}
-			platLabel, ok := col.Variants["Platform"]
-			if !ok {
-				platLabel = ""
-			}
 			componentReadinessMetric.WithLabelValues(view.SampleRelease.Name, releaseStatus, view.Name,
-				row.Component, networkLabel, archLabel, platLabel).Set(float64(col.Status))
+				row.Component, testTypeLabel, cloudProviderLabel, archLabel).Set(float64(col.Status))
 		}
 		componentReadinessTotalRegressionsMetric.WithLabelValues(view.SampleRelease.Name, releaseStatus, view.Name, row.Component).Set(float64(totalRegressedTestsByComponent))
 		componentReadinessUniqueRegressionsMetric.WithLabelValues(view.SampleRelease.Name, releaseStatus, view.Name, row.Component).Set(float64(uniqueRegressedTestsByComponent.Len()))

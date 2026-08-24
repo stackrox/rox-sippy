@@ -56,3 +56,13 @@ componentReadiness:
   # - ui: team-acs-ui
   # - compliance: team-core-workflows
   # - operator: team-automation
+
+  # ACS variant dimensions (6 total, vs OCP's 28)
+  # These match the variant registry in pkg/variantregistry/acs.go
+  variantColumns:
+  - TestType       # unit, qa-e2e, go-e2e, upgrade, perf, ui-e2e, compliance, scanner
+  - CloudProvider  # gcp, aws, azure, none
+  - Release        # main, release-4.X
+  - Framework      # go-test, spock, cypress
+  - CISystem       # gha, prow, konflux
+  - Architecture   # amd64, arm64
