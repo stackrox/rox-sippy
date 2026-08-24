@@ -5,8 +5,8 @@ import {
   Snackbar,
   Tooltip,
 } from '@mui/material'
-import RefreshIcon from '@mui/icons-material/Refresh'
 import React, { useState } from 'react'
+import RefreshIcon from '@mui/icons-material/Refresh'
 
 export default function RefreshButton() {
   const [loading, setLoading] = useState(false)

@@ -25,10 +25,9 @@ import {
   getTriagesAPIUrl,
 } from '../component_readiness/CompReadyUtils'
 import { makeStyles } from '@mui/styles'
-import { SippyCapabilitiesContext } from '../App'
 import BugButton from './BugButton'
 import PropTypes from 'prop-types'
-import React, { Fragment, useContext, useState } from 'react'
+import React, { Fragment, useState } from 'react'
 
 const useStyles = makeStyles((theme) => ({
   alignedButton: {

@@ -2,6 +2,30 @@
 
 ## Completed Tasks
 
+### BD-acs-sippy-4q4: Task 20: Write Kubernetes manifests
+**Worker**: devops-2 | **Files**: deploy/deployment.yaml,deploy/postgres-statefulset.yaml,deploy/cronjob.yaml,deploy/service.yaml,deploy/ingress.yaml,deploy/configmap.yaml,deploy/secret-template.yaml,deploy/kustomization.yaml
+Created K8s manifests: Deployment, PostgreSQL StatefulSet, daily CronJob, Service, Ingress, ConfigMap, Secret template, kustomization.yaml, README. All valid YAML with placeholder credentials.
+
+### BD-acs-sippy-cpj: Task 19: Create container image
+**Worker**: devops-1 | **Files**: Dockerfile
+Updated Dockerfile: multi-stage build (Go+React+runtime), binary renamed to acs-sippy, ACS config files included, UBI9 runtime, 287MB image, builds and runs successfully.
+
+### BD-acs-sippy-qxb: Task 17: Adapt remaining pages (Releases, PRs, Upgrades)
+**Worker**: frontend-5 | **Files**: sippy-ng/src/App.jsx,sippy-ng/src/components/Sidebar.jsx,sippy-ng/src/pull_requests/PullRequestsTable.jsx,sippy-ng/src/releases/ReleaseOverview.jsx,sippy-ng/src/releases/Upgrades.jsx
+Adapted remaining pages: updated Sidebar nav (ACS prioritization), removed payload columns from PRs, updated Upgrades title, changed app title to ACS Sippy, updated GitHub links to stackrox.
+
+### BD-acs-sippy-0c5: Task 16: Adapt Jobs and Tests pages
+**Worker**: frontend-4 | **Files**: sippy-ng/src/jobs/JobTable.jsx,sippy-ng/src/tests/TestTable.jsx
+Adapted Jobs/Tests pages: replaced OCP variant priority keys with ACS 6 dimensions, removed OCP-specific logic (JobTier styling, OpenShift search links, Find Bugs button).
+
+### BD-acs-sippy-co9: Task 15: Adapt Component Readiness page
+**Worker**: frontend-3 | **Files**: sippy-ng/src/component_readiness/CompReadyVars.jsx,sippy-ng/src/component_readiness/CompReadyMainInputs.jsx,sippy-ng/src/component_readiness/ComponentReadinessHelp.jsx
+Adapted CR page: replaced 28 OCP variants with 6 ACS dims, updated column grouping (CloudProvider,Architecture,TestType), simplified variant filters, removed OCP terminology from help.
+
+### BD-acs-sippy-bq2: Task 14: Update frontend API client
+**Worker**: frontend-2 | **Files**: sippy-ng/src/App.jsx,sippy-ng/src/components/RefreshButton.jsx,sippy-ng/src/component_readiness/CompReadyUtils.jsx,sippy-ng/src/component_readiness/ReleaseSelector.jsx
+Updated frontend API client: removed OCP payload references from Component Readiness, added RefreshButton component for /api/refresh, verified all API field names use ci_job_* naming.
+
 ### BD-acs-sippy-6kl: Task 12: Wire Component Readiness for ACS
 **Worker**: backend-7 | **Files**: pkg/api/componentreadiness/component_report.go,pkg/api/componentreadiness/dataprovider/postgres/provider.go,pkg/sippyserver/metrics/metrics.go,config/acs-views.yaml,config/acs.yaml
 Wired Component Readiness for ACS: updated variant dimensions (6 ACS dims vs 28 OCP), updated DefaultColumnGroupBy/DefaultDBGroupBy, CacheVariants, fieldMap, Prometheus metrics labels. Created acs-vie
