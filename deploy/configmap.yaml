@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: acs-sippy-config
+  labels:
+    app: acs-sippy
+data:
+  acs.yaml: |
+    # ACS Sippy Configuration
+    # This file defines release branches and job configurations for ACS CI analytics.
+    # Unlike OpenShift Sippy's auto-generated config, this is manually maintained for ACS.
+
+    prow:
+      # ACS uses multiple CI systems (GitHub Actions, Prow, Konflux).
+      # This URL field is kept for compatibility but not actively used since ACS
+      # data comes from BigQuery, not a Prow endpoint.
+      url: https://prow.ci.openshift.org/prowjobs.js
+
+    releases:
+      # Main development branch
+      "main":
+        # Jobs are auto-discovered from BigQuery based on branch name.
+        # Regexp patterns match jobs to this release when branch detection isn't sufficient.
+        regexp:
+          - ".*-main-.*"
+          - ".*-master-.*"
+        synthetic: false
+
+      # Active ACS release branches
+      "release-4.7":
+        regexp:
+          - ".*-release-4\\.7-.*"
+          - ".*-4\\.7-.*"
+        synthetic: false
+
+      "release-4.8":
+        regexp:
+          - ".*-release-4\\.8-.*"
+          - ".*-4\\.8-.*"
+        synthetic: false
+
+      "release-4.9":
+        regexp:
+          - ".*-release-4\\.9-.*"
+          - ".*-4\\.9-.*"
+        synthetic: false
+
+      "release-4.10":
+        regexp:
+          - ".*-release-4\\.10-.*"
+          - ".*-4\\.10-.*"
+        synthetic: false
+
+    # Component Readiness configuration
+    componentReadiness:
+      # Component ownership is managed in the database via jira_components and test_ownerships tables.
+      # Initial seeding happens through the seed-data command.
+      #
+      # Component-to-team mapping (for reference, actual data lives in DB):
+      # - scanner: team-vulnerability-mgmt
+      # - central: team-core
+      # - sensor: team-sensor-ecosystem
+      # - collector: team-collector
+      # - ui: team-acs-ui
+      # - compliance: team-core-workflows
+      # - operator: team-automation
+
+      # ACS variant dimensions (6 total, vs OCP's 28)
+      # These match the variant registry in pkg/variantregistry/acs.go
+      variantColumns:
+      - TestType       # unit, qa-e2e, go-e2e, upgrade, perf, ui-e2e, compliance, scanner
+      - CloudProvider  # gcp, aws, azure, none
+      - Release        # main, release-4.X
+      - Framework      # go-test, spock, cypress
+      - CISystem       # gha, prow, konflux
+      - Architecture   # amd64, arm64

@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: acs-sippy-bq-sync
+  labels:
+    app: acs-sippy
+    component: bq-sync
+spec:
+  # Run daily at 6 AM UTC
+  schedule: "0 6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app: acs-sippy
+        component: bq-sync
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: acs-sippy
+            component: bq-sync
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: bq-sync
+            image: acs-sippy:latest
+            command:
+            - /app/acs-sippy
+            - load
+            - --loader=bq-sync
+            env:
+            - name: SIPPY_DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: acs-sippy-secrets
+                  key: database-dsn
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/bigquery/credentials.json
+            - name: SIPPY_CONFIG
+              value: /etc/sippy/acs.yaml
+            volumeMounts:
+            - name: config
+              mountPath: /etc/sippy
+              readOnly: true
+            - name: bigquery-credentials
+              mountPath: /var/secrets/bigquery
+              readOnly: true
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+          volumes:
+          - name: config
+            configMap:
+              name: acs-sippy-config
+          - name: bigquery-credentials
+            secret:
+              secretName: acs-sippy-secrets
+              items:
+              - key: bigquery-credentials.json
+                path: credentials.json

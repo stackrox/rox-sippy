@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acs-sippy
+  labels:
+    app: acs-sippy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: acs-sippy
+  template:
+    metadata:
+      labels:
+        app: acs-sippy
+    spec:
+      containers:
+      - name: acs-sippy
+        image: acs-sippy:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SIPPY_DATABASE_DSN
+          valueFrom:
+            secretKeyRef:
+              name: acs-sippy-secrets
+              key: database-dsn
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/bigquery/credentials.json
+        - name: SIPPY_CONFIG
+          value: /etc/sippy/acs.yaml
+        - name: SIPPY_LISTEN_ADDR
+          value: ":8080"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/sippy
+          readOnly: true
+        - name: bigquery-credentials
+          mountPath: /var/secrets/bigquery
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+      volumes:
+      - name: config
+        configMap:
+          name: acs-sippy-config
+      - name: bigquery-credentials
+        secret:
+          secretName: acs-sippy-secrets
+          items:
+          - key: bigquery-credentials.json
+            path: credentials.json
