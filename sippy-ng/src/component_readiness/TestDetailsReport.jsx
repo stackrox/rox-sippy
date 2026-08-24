@@ -28,8 +28,6 @@ import { FileCopy, Help } from '@mui/icons-material'
 import { Link } from 'react-router-dom'
 import { pathForExactTestAnalysisWithFilter } from '../helpers'
 import { ReleasesContext, SippyCapabilitiesContext } from '../App'
-import { usePageContextForChat } from '../chat/store/useChatStore'
-import AskSippyButton from '../chat/AskSippyButton'
 import BugButton from '../bugs/BugButton'
 import BugTable from '../bugs/BugTable'
 import CompReadyCancelled from './CompReadyCancelled'
@@ -96,8 +94,9 @@ function TestsReportTabPanel(props) {
 // This is page 5 which runs when you click a test cell on the right of page 4 or page 4a
 export default function TestDetailsReport(props) {
   const { accessibilityModeOn } = useContext(AccessibilityModeContext)
-  const { setPageContextForChat, unsetPageContextForChat } =
-    usePageContextForChat()
+  // Chat functionality removed
+  const setPageContextForChat = () => {}
+  const unsetPageContextForChat = () => {}
 
   const [activeTabIndex, setActiveTabIndex] = React.useState(0)
 
@@ -482,11 +481,6 @@ View the [test details report|${document.location.href}] for additional context.
         gap={1}
         width="100%"
       >
-        <AskSippyButton
-          slashCommand="component-readiness-regression-analysis"
-          commandArgs={{ url: window.location.href }}
-          tooltip="Ask Sippy AI to analyze this test regression"
-        />
         <Tooltip title="Frequently Asked Questions">
           <Link
             to="/component_readiness/help"

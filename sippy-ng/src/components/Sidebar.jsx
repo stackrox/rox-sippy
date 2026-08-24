@@ -1,15 +1,8 @@
 import {
-  Apps,
   AppsOutage,
   BugReport,
   ChevronRight,
-  Code,
-  Dashboard,
-  Favorite,
-  FileCopyOutlined,
   GitHub,
-  NotificationsActive,
-  SmartToy,
 } from '@mui/icons-material'
 import { DEFAULT_TEST_FILTERS } from '../constants'
 import { LaunderedListItem } from './Laundry'
@@ -20,17 +13,13 @@ import {
   pathForTestByVariant,
   pathForTestsWithFilter,
   safeEncodeURIComponent,
-  useNewInstallTests,
   withoutUnstable,
   withSort,
 } from '../helpers'
 import { SippyCapabilitiesContext } from '../App'
 import { styled } from '@mui/styles'
-import ApartmentIcon from '@mui/icons-material/Apartment'
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import Collapse from '@mui/material/Collapse'
 import Divider from '@mui/material/Divider'
-import ExitToAppIcon from '@mui/icons-material/ExitToApp'
 import HomeIcon from '@mui/icons-material/Home'
 import InfoIcon from '@mui/icons-material/Info'
 import List from '@mui/material/List'
@@ -149,7 +138,6 @@ export default function Sidebar(props) {
   }
 
   function renderReleaseItems(release) {
-    const newInstall = useNewInstallTests(release)
     return (
       <List component="div" disablePadding sx={{ pl: 3 }}>
         <ListItem
@@ -165,30 +153,6 @@ export default function Sidebar(props) {
             <ListItemText primary="Overview" />
           </StyledListItemButton>
         </ListItem>
-        {props.releaseConfig.release_attrs?.[release]?.capabilities
-          ?.payloadTags && (
-          <SippyCapabilitiesContext.Consumer>
-            {(value) => {
-              if (value.includes('openshift_releases')) {
-                return (
-                  <ListItem
-                    key={'release-tags-' + release}
-                    component={Link}
-                    to={`/release/${release}/streams`}
-                    className={classes.nested}
-                  >
-                    <StyledListItemButton>
-                      <ListItemIcon>
-                        <FileCopyOutlined />
-                      </ListItemIcon>
-                      <ListItemText primary="Payload Streams" />
-                    </StyledListItemButton>
-                  </ListItem>
-                )
-              }
-            }}
-          </SippyCapabilitiesContext.Consumer>
-        )}
         <ListItem
           key={'release-jobs-' + release}
           component={Link}
@@ -211,34 +175,19 @@ export default function Sidebar(props) {
 
         {props.releaseConfig.release_attrs?.[release]?.capabilities
           ?.pullRequests && (
-          <Fragment>
-            <ListItem
-              key={'release-pull-requests-' + release}
-              component={Link}
-              to={`/pull_requests/${release}`}
-              className={classes.nested}
-            >
-              <StyledListItemButton>
-                <ListItemIcon>
-                  <GitHub />
-                </ListItemIcon>
-                <ListItemText primary="Pull Requests" />
-              </StyledListItemButton>
-            </ListItem>
-            <ListItem
-              key={'release-repositories-' + release}
-              component={Link}
-              to={`/repositories/${release}`}
-              className={classes.nested}
-            >
-              <StyledListItemButton>
-                <ListItemIcon>
-                  <Code />
-                </ListItemIcon>
-                <ListItemText primary="Repositories" />
-              </StyledListItemButton>
-            </ListItem>
-          </Fragment>
+          <ListItem
+            key={'release-pull-requests-' + release}
+            component={Link}
+            to={`/pull_requests/${release}`}
+            className={classes.nested}
+          >
+            <StyledListItemButton>
+              <ListItemIcon>
+                <GitHub />
+              </ListItemIcon>
+              <ListItemText primary="Pull Requests" />
+            </StyledListItemButton>
+          </ListItem>
         )}
 
         <ListItem
@@ -261,107 +210,6 @@ export default function Sidebar(props) {
             <ListItemText primary="Tests" />
           </StyledListItemButton>
         </ListItem>
-
-        {props.releaseConfig.release_attrs?.[release]?.capabilities
-          ?.featureGates && (
-          <SippyCapabilitiesContext.Consumer>
-            {(value) => {
-              if (value.includes('openshift_releases')) {
-                return (
-                  <ListItem
-                    key={'release-feature-gates-' + release}
-                    component={Link}
-                    to={'/feature_gates/' + release}
-                    className={classes.nested}
-                  >
-                    <StyledListItemButton>
-                      <ListItemIcon>
-                        <Apps />
-                      </ListItemIcon>
-                      <ListItemText primary="Feature Gates" />
-                    </StyledListItemButton>
-                  </ListItem>
-                )
-              }
-            }}
-          </SippyCapabilitiesContext.Consumer>
-        )}
-
-        <SippyCapabilitiesContext.Consumer>
-          {(value) => {
-            if (value.includes('openshift_releases')) {
-              return (
-                <ListItem
-                  key={'release-upgrade-' + release}
-                  component={Link}
-                  to={'/upgrade/' + release}
-                  className={classes.nested}
-                >
-                  <StyledListItemButton>
-                    <ListItemIcon>
-                      <ArrowUpwardIcon />
-                    </ListItemIcon>
-                    <ListItemText primary="Upgrade" />
-                  </StyledListItemButton>
-                </ListItem>
-              )
-            }
-          }}
-        </SippyCapabilitiesContext.Consumer>
-
-        <SippyCapabilitiesContext.Consumer>
-          {(value) => {
-            if (value.includes('openshift_releases')) {
-              return (
-                <ListItem
-                  key={'release-install-' + release}
-                  component={Link}
-                  to={'/install/' + release}
-                  className={classes.nested}
-                >
-                  <StyledListItemButton>
-                    <ListItemIcon>
-                      <ExitToAppIcon />
-                    </ListItemIcon>
-                    <ListItemText primary="Install" />
-                  </StyledListItemButton>
-                </ListItem>
-              )
-            }
-          }}
-        </SippyCapabilitiesContext.Consumer>
-
-        <SippyCapabilitiesContext.Consumer>
-          {(value) => {
-            if (value.includes('openshift_releases')) {
-              const link = newInstall
-                ? pathForTestByVariant(
-                    release,
-                    'install should succeed: infrastructure'
-                  )
-                : pathForTestByVariant(
-                    release,
-                    '[sig-sippy] infrastructure should work'
-                  )
-
-              return (
-                <ListItem
-                  key={'release-infrastructure-' + release}
-                  component={Link}
-                  to={link}
-                  className={classes.nested}
-                >
-                  <StyledListItemButton>
-                    <ListItemIcon>
-                      <ApartmentIcon />
-                    </ListItemIcon>
-                    <ListItemText primary="Infrastructure" />
-                  </StyledListItemButton>
-                </ListItem>
-              )
-            }
-          }}
-        </SippyCapabilitiesContext.Consumer>
       </List>
     )
   }
@@ -404,75 +252,6 @@ export default function Sidebar(props) {
                       <ListItemText primary="Component Readiness" />
                     </StyledListItemButton>
                   </ListItem>
-
-                  <SippyCapabilitiesContext.Consumer>
-                    {(value) => {
-                      if (value.includes('chat')) {
-                        return (
-                          <ListItem
-                            key={'chat-agent'}
-                            component={Link}
-                            to={'/chat'}
-                            className={classes.nested}
-                          >
-                            <StyledListItemButton>
-                              <ListItemIcon>
-                                <SmartToy />
-                              </ListItemIcon>
-                              <ListItemText primary="Chat Assistant" />
-                            </StyledListItemButton>
-                          </ListItem>
-                        )
-                      }
-                    }}
-                  </SippyCapabilitiesContext.Consumer>
-
-                  <ListItem
-                    component="a"
-                    target="_blank"
-                    href="https://alertmanager-trt-service.dptools.openshift.org/#/alerts?receiver=trt-monitoring-trt-trt-alerts-slack-notifications"
-                    key="Alerts"
-                  >
-                    <ListItemIcon>
-                      <NotificationsActive />
-                    </ListItemIcon>
-                    <ListItemText primary="Alert Manager" />
-                  </ListItem>
-
-                  <ListItem
-                    component="a"
-                    target="_blank"
-                    href="https://grafana-loki.ci.openshift.org/dashboards/f/4X8Jfhs4z/openshift-ci-observability"
-                    key="ObservabilityDashboard"
-                  >
-                    <ListItemIcon>
-                      <Dashboard />
-                    </ListItemIcon>
-                    <ListItemText primary="CI Observability Dashboards" />
-                  </ListItem>
-                  <SippyCapabilitiesContext.Consumer>
-                    {(value) => {
-                      if (value.includes('build_clusters')) {
-                        return (
-                          <Fragment>
-                            <ListItem
-                              key={'build-cluster-health'}
-                              component={Link}
-                              to={`/build_clusters`}
-                              className={classes.nested}
-                            >
-                              <StyledListItemButton>
-                                <ListItemIcon>
-                                  <Favorite />
-                                </ListItemIcon>
-                                <ListItemText primary="Build Cluster Health" />
-                              </StyledListItemButton>
-                            </ListItem>
-                          </Fragment>
-                        )
-                      }
-                    }}
-                  </SippyCapabilitiesContext.Consumer>
                 </List>
               </Fragment>
             )

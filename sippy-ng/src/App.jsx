@@ -33,36 +33,20 @@ import { QueryParamProvider } from 'use-query-params'
 import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6'
 import { TestAnalysis } from './tests/TestAnalysis'
 import { useCookies } from 'react-cookie'
-import { useDrawer } from './chat/store/useChatStore'
 import AccessibilityToggle from './components/AccessibilityToggle'
 import AIDisclaimerDialog from './components/AIDisclaimerDialog'
 import Alert from '@mui/material/Alert'
-import BuildClusterDetails from './build_clusters/BuildClusterDetails'
-import BuildClusterOverview from './build_clusters/BuildClusterOverview'
-import ChatInterface from './chat/ChatInterface'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
-import CollapsibleChatDrawer from './chat/CollapsibleChatDrawer'
 import ComponentReadiness from './component_readiness/ComponentReadiness'
 import Drawer from '@mui/material/Drawer'
-import EventsChart from './prow_job_runs/EventsChart'
-import FeatureGateDetail from './tests/FeatureGateDetail'
-import FeatureGates from './tests/FeatureGates'
 import IconButton from '@mui/material/IconButton'
-import Install from './releases/Install'
-import IntervalsChart from './prow_job_runs/IntervalsChart'
 import Jobs from './jobs/Jobs'
 import MenuIcon from '@mui/icons-material/Menu'
 import MuiAppBar from '@mui/material/AppBar'
-import PayloadStream from './releases/PayloadStream'
-import PayloadStreams from './releases/PayloadStreams'
 import PullRequests from './pull_requests/PullRequests'
 import React, { Fragment, useEffect } from 'react'
 import ReleaseOverview from './releases/ReleaseOverview'
-import ReleasePayloadDetails from './releases/ReleasePayloadDetails'
-import ReleasePayloads from './releases/ReleasePayloads'
-import Repositories from './repositories/Repositories'
-import RepositoryDetails from './repositories/RepositoryDetails'
 import Sidebar from './components/Sidebar'
 import Tests from './tests/Tests'
 import Toolbar from '@mui/material/Toolbar'
@@ -197,39 +181,6 @@ const RedirectLatestReleaseWrapper = (component) => {
  * This approach allows us to upgrade to React Router v6 while keeping the original component
  * interfaces unchanged, minimizing code changes throughout the application.
  */
-const ReleasePayloadDetailsWrapper = () => {
-  const { release, tag } = useParams()
-
-  return RedirectLatestReleaseWrapper(
-    <ReleasePayloadDetails
-      key={'release-details-' + release}
-      release={release}
-      releaseTag={tag}
-    />
-  )
-}
-
-const PayloadStreamWrapper = () => {
-  const { release, arch, stream } = useParams()
-  return RedirectLatestReleaseWrapper(
-    <PayloadStream release={release} arch={arch} stream={stream} />
-  )
-}
-
-const PayloadStreamsWrapper = () => {
-  const { release } = useParams()
-  return RedirectLatestReleaseWrapper(
-    <PayloadStreams key={'release-streams-' + release} release={release} />
-  )
-}
-
-const ReleasePayloadsWrapper = () => {
-  const { release } = useParams()
-  return RedirectLatestReleaseWrapper(
-    <ReleasePayloads key={'release-tags-' + release} release={release} />
-  )
-}
-
 const ReleaseOverviewWrapper = () => {
   const { release } = useParams()
   return RedirectLatestReleaseWrapper(
@@ -256,47 +207,6 @@ const JobsWrapper = () => {
       key={'jobs-' + release}
       title={'Job results for ' + release}
       release={release}
-    />
-  )
-}
-
-const FeatureGateDetailWrapper = () => {
-  const { release, feature_gate } = useParams()
-  const navigate = useNavigate()
-  const releases = React.useContext(ReleasesContext)
-
-  const effectiveRelease =
-    release === 'latest' ? findFirstNonGARelease(releases) : release
-
-  React.useEffect(() => {
-    if (release === 'latest' && effectiveRelease) {
-      navigate(`/feature_gates/${effectiveRelease}/${feature_gate}`, {
-        replace: true,
-      })
-    }
-  }, [release, effectiveRelease, feature_gate, navigate])
-
-  if (release === 'latest') {
-    return null
-  }
-
-  return (
-    <FeatureGateDetail
-      key={'fg-detail-' + release + '-' + feature_gate}
-      release={release}
-      featureGate={feature_gate}
-    />
-  )
-}
-
-const FeatureGatesWrapper = () => {
-  const { release } = useParams()
-  const releases = React.useContext(ReleasesContext)
-  return RedirectLatestReleaseWrapper(
-    <FeatureGates
-      key={'jobs-' + release}
-      release={release}
-      releases={releases}
     />
   )
 }
@@ -337,67 +247,11 @@ const ComponentReadinessWrapper = () => {
   )
 }
 
-const InstallWrapper = () => {
-  const { release } = useParams()
-  return RedirectLatestReleaseWrapper(
-    <Install key={'install-' + release} release={release} />
-  )
-}
-
-const BuildClusterDetailsWrapper = () => {
-  const { cluster } = useParams()
-
-  return <BuildClusterDetails key={'cluster-' + cluster} cluster={cluster} />
-}
-
-const RepositoryDetailsWrapper = () => {
-  const { release, org, repo } = useParams()
-  return RedirectLatestReleaseWrapper(
-    <RepositoryDetails release={release} org={org} repo={repo} />
-  )
-}
-
-const RepositoriesWrapper = () => {
-  const { release } = useParams()
-  return RedirectLatestReleaseWrapper(<Repositories release={release} />)
-}
-
 const PullRequestsWrapper = () => {
   const { release } = useParams()
   return RedirectLatestReleaseWrapper(
     <PullRequests key={'pr-' + release} release={release} />
   )
-}
-
-const IntervalsChartWrapper = () => {
-  const { jobrunid, jobname, repoinfo, pullnumber } = useParams()
-
-  return (
-    <IntervalsChart
-      jobRunID={jobrunid}
-      jobName={jobname}
-      repoInfo={repoinfo}
-      pullNumber={pullnumber}
-    />
-  )
-}
-
-const EventsChartWrapper = () => {
-  const { jobrunid, jobname, repoinfo, pullnumber } = useParams()
-
-  return (
-    <EventsChart
-      jobRunID={jobrunid}
-      jobName={jobname}
-      repoInfo={repoinfo}
-      pullNumber={pullnumber}
-    />
-  )
-}
-
-const ChatInterfaceWrapper = () => {
-  const { id } = useParams()
-  return <ChatInterface mode="fullPage" conversationId={id} />
 }
 
 function App(_props) {
@@ -542,12 +396,8 @@ function App(_props) {
   let defaultRelease = findFirstNonGARelease(releases)
   if (fetchError !== '') {
     landingPage = <Alert severity="error">{fetchError}</Alert>
-  } else if (defaultRelease.length > 0) {
-    landingPage = (
-      <ReleaseOverview key={defaultRelease} release={defaultRelease} />
-    )
   } else {
-    landingPage = 'No releases found! Have you configured Sippy correctly?'
+    landingPage = <Navigate to="/component_readiness/main" replace />
   }
 
   const startDate = getReportStartDate(reportDate)
@@ -683,26 +533,6 @@ function App(_props) {
                         >
                           <Routes>
                             <Route
-                              path="/release/:release/tags/:tag/*"
-                              element={<ReleasePayloadDetailsWrapper />}
-                            />
-
-                            <Route
-                              path="/release/:release/streams/:arch/:stream/*"
-                              element={<PayloadStreamWrapper />}
-                            />
-
-                            <Route
-                              path="/release/:release/streams"
-                              element={<PayloadStreamsWrapper />}
-                            />
-
-                            <Route
-                              path="/release/:release/tags"
-                              element={<ReleasePayloadsWrapper />}
-                            />
-
-                            <Route
                               path="/release/:release"
                               element={<ReleaseOverviewWrapper />}
                             />
@@ -720,16 +550,6 @@ function App(_props) {
                             <Route
                               path="/jobs/:release/*"
                               element={<JobsWrapper />}
-                            />
-
-                            <Route
-                              path="/feature_gates/:release/:feature_gate"
-                              element={<FeatureGateDetailWrapper />}
-                            />
-
-                            <Route
-                              path="/feature_gates/:release"
-                              element={<FeatureGatesWrapper />}
                             />
 
                             <Route
@@ -753,69 +573,13 @@ function App(_props) {
                             />
 
                             <Route
-                              path="/install/:release/*"
-                              element={<InstallWrapper />}
-                            />
-
-                            <Route
-                              path="/build_clusters/:cluster"
-                              element={<BuildClusterDetailsWrapper />}
-                            />
-
-                            <Route
-                              path="/build_clusters"
-                              element={<BuildClusterOverview />}
-                            />
-
-                            <Route
-                              path="/repositories/:release/:org/:repo"
-                              element={<RepositoryDetailsWrapper />}
-                            />
-
-                            <Route
-                              path="/repositories/:release"
-                              element={<RepositoriesWrapper />}
-                            />
-
-                            <Route
                               path="/pull_requests/:release"
                               element={<PullRequestsWrapper />}
                             />
 
                             <Route
-                              path="/job_runs/:jobrunid/:jobname?/:repoinfo?/:pullnumber?/intervals"
-                              element={<IntervalsChartWrapper />}
-                            />
-                            <Route
-                              path="/job_runs/:jobrunid/:jobname?/:repoinfo?/:pullnumber?/events"
-                              element={<EventsChartWrapper />}
-                            />
-
-                            {sippyCapabilities.includes('chat') && (
-                              <>
-                                <Route
-                                  path="/chat"
-                                  element={<ChatInterface mode="fullPage" />}
-                                />
-                                <Route
-                                  path="/chat/:id"
-                                  element={<ChatInterfaceWrapper />}
-                                />
-                              </>
-                            )}
-
-                            <Route
                               path="/"
-                              element={
-                                sippyCapabilities.includes('local_db') ? (
-                                  landingPage
-                                ) : (
-                                  <Navigate
-                                    to="/component_readiness/main"
-                                    replace
-                                  />
-                                )
-                              }
+                              element={landingPage}
                             />
                           </Routes>
                         </ErrorBoundary>
@@ -823,7 +587,6 @@ function App(_props) {
                     </div>
                   </QueryParamProvider>
                 </AccessibilityModeProvider>
-                {showWithCapability('chat', <GlobalChatControls />)}
               </SippyCapabilitiesContext.Provider>
             </ReportEndContext.Provider>
           </ReleasesContext.Provider>
@@ -833,26 +596,6 @@ function App(_props) {
   )
 
   return content
-}
-
-// Component that uses the drawer state
-function GlobalChatControls() {
-  const { isDrawerOpen, openDrawer, closeDrawer } = useDrawer()
-  const location = useLocation()
-
-  // Don't show chat drawer on the main /chat page
-  const isOnChatPage = location.pathname.includes('/chat')
-  if (isOnChatPage) {
-    return null
-  }
-
-  return (
-    <CollapsibleChatDrawer
-      open={isDrawerOpen}
-      onOpen={openDrawer}
-      onClose={closeDrawer}
-    />
-  )
 }
 
 export default App

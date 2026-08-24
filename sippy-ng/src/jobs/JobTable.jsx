@@ -16,7 +16,6 @@ import { GridView } from '../datagrid/GridView'
 import { Link } from 'react-router-dom'
 import { makeStyles } from '@mui/styles'
 import { NumberParam, StringParam, useQueryParam } from 'use-query-params'
-import { usePageContextForChat } from '../chat/store/useChatStore'
 import { withStyles } from '@mui/styles'
 import Alert from '@mui/material/Alert'
 import GridToolbar from '../datagrid/GridToolbar'
@@ -407,8 +406,9 @@ const useStyles = makeStyles((_theme) => ({
 function JobTable(props) {
   const { classes } = props
   const gridClasses = useStyles()
-  const { setPageContextForChat, unsetPageContextForChat } =
-    usePageContextForChat()
+  // Chat functionality removed
+  const setPageContextForChat = () => {}
+  const unsetPageContextForChat = () => {}
 
   const [fetchError, setFetchError] = React.useState('')
   const [isLoaded, setLoaded] = React.useState(false)

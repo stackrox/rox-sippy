@@ -36,7 +36,6 @@ import { Line } from 'react-chartjs-2'
 import { Link } from 'react-router-dom'
 import { ReportEndContext } from '../App'
 import { scale } from 'chroma-js'
-import { usePageContextForChat } from '../chat/store/useChatStore'
 import Alert from '@mui/material/Alert'
 import BugTable from '../bugs/BugTable'
 import Divider from '@mui/material/Divider'
@@ -53,8 +52,9 @@ export function JobAnalysis(props) {
   const [isLoaded, setLoaded] = React.useState(false)
   const [analysis, setAnalysis] = React.useState({ by_period: {} })
   const [bugsURL, setBugsURL] = React.useState('')
-  const { setPageContextForChat, unsetPageContextForChat } =
-    usePageContextForChat()
+  // Chat functionality removed
+  const setPageContextForChat = () => {}
+  const unsetPageContextForChat = () => {}
 
   const [filterModel, setFilterModel] = useStableJSONQueryParam('filters')
   const [period, setPeriod] = useQueryParam('period', StringParam)

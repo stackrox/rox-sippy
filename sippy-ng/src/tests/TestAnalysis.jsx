@@ -38,7 +38,6 @@ import { TEST_THRESHOLDS } from '../constants'
 import { TestDurationChart } from './TestDurationChart'
 import { TestOutputs } from './TestOutputs'
 import { TestStackedChart } from './TestStackedChart'
-import { usePageContextForChat } from '../chat/store/useChatStore'
 import Alert from '@mui/material/Alert'
 import BugButton from '../bugs/BugButton'
 import BugTable from '../bugs/BugTable'
@@ -59,8 +58,9 @@ export function TestAnalysis(props) {
   const [fetchError, setFetchError] = React.useState('')
   const [testName = props.test] = useQueryParam('test', SafeStringParam)
   const [period = 'default'] = useQueryParam('period', StringParam)
-  const { setPageContextForChat, unsetPageContextForChat } =
-    usePageContextForChat()
+  // Chat functionality removed
+  const setPageContextForChat = () => {}
+  const unsetPageContextForChat = () => {}
 
   const [filterModel, setFilterModel] = useStableJSONQueryParam('filters', {
     items: [

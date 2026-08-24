@@ -36,7 +36,6 @@ import {
 } from './CompReadyUtils'
 import { Link } from 'react-router-dom'
 import { SippyCapabilitiesContext } from '../App'
-import { usePageContextForChat } from '../chat/store/useChatStore'
 import IconButton from '@mui/material/IconButton'
 import PropTypes from 'prop-types'
 import React, { Fragment, useContext, useEffect } from 'react'
@@ -65,8 +64,9 @@ export default function ComponentReadinessToolBar(props) {
   const capabilitiesContext = React.useContext(SippyCapabilitiesContext)
   const localDBEnabled = capabilitiesContext.includes('local_db')
   const varsContext = useContext(CompReadyVarsContext)
-  const { setPageContextForChat, unsetPageContextForChat } =
-    usePageContextForChat()
+  // Chat functionality removed
+  const setPageContextForChat = () => {}
+  const unsetPageContextForChat = () => {}
 
   React.useEffect(() => {
     // triage entries will only be available when there is a postgres connection

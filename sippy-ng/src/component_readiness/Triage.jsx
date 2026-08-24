@@ -10,9 +10,7 @@ import {
   jiraUrlPrefixDeprecated,
 } from './CompReadyUtils'
 import { SippyCapabilitiesContext } from '../App'
-import { usePageContextForChat } from '../chat/store/useChatStore'
 import { useTheme } from '@mui/material/styles'
-import AskSippyButton from '../chat/AskSippyButton'
 import CompSeverityIcon from './CompSeverityIcon'
 import LaunderedLink from '../components/Laundry'
 import PropTypes from 'prop-types'
@@ -29,8 +27,9 @@ import UpsertTriageModal from './UpsertTriageModal'
 
 export default function Triage({ id }) {
   const theme = useTheme()
-  const { setPageContextForChat, unsetPageContextForChat } =
-    usePageContextForChat()
+  // Chat functionality removed
+  const setPageContextForChat = () => {}
+  const unsetPageContextForChat = () => {}
   const [isLoaded, setIsLoaded] = React.useState(false)
   const [triage, setTriage] = React.useState({})
   const [message, setMessage] = React.useState('')
@@ -196,11 +195,6 @@ export default function Triage({ id }) {
       >
         <h2 style={{ margin: 0 }}>Triage Details</h2>
         <Box display="flex" alignItems="center" gap={1}>
-          <AskSippyButton
-            slashCommand="triage-failure-analysis"
-            commandArgs={{ triage_id: triage.id, view: view }}
-            tooltip="Ask Sippy AI to analyze this triage record's test failures"
-          />
           {localDBEnabled && <TriageAuditLogsModal triage={triage} />}
           {triageEnabled && (
             <Fragment>

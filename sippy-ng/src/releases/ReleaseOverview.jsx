@@ -9,7 +9,6 @@ import {
 import { Link } from 'react-router-dom'
 import { makeStyles } from '@mui/styles'
 import { ReleasesContext } from '../App'
-import { usePageContextForChat } from '../chat/store/useChatStore'
 import Alert from '@mui/material/Alert'
 import Grid from '@mui/material/Grid'
 import InfoIcon from '@mui/icons-material/Info'
@@ -17,7 +16,6 @@ import PropTypes from 'prop-types'
 import React, { Fragment, useEffect } from 'react'
 import RecentTestFailures from './RecentTestFailures'
 import ReleaseKeyDates from './ReleaseKeyDates'
-import ReleasePayloadAcceptance from './ReleasePayloadAcceptance'
 import SimpleBreadcrumbs from '../components/SimpleBreadcrumbs'
 import TopLevelIndicators from './TopLevelIndicators'
 
@@ -76,8 +74,9 @@ const useStyles = makeStyles((theme) => ({
 
 export default function ReleaseOverview(props) {
   const classes = useStyles()
-  const { setPageContextForChat, unsetPageContextForChat } =
-    usePageContextForChat()
+  // Chat functionality removed
+  const setPageContextForChat = () => {}
+  const unsetPageContextForChat = () => {}
 
   const [fetchError, setFetchError] = React.useState('')
   const [isLoaded, setLoaded] = React.useState(false)
@@ -264,40 +263,6 @@ export default function ReleaseOverview(props) {
             <Grid item xs={12}>
               <RecentTestFailures release={props.release} />
             </Grid>
-
-            {releases?.release_attrs?.[props.release]?.capabilities
-              ?.payloadTags && (
-              <Grid item xs={12}>
-                <Card elevation={5} className={classes.card}>
-                  <Box className={classes.cardHeader}>
-                    <Typography
-                      variant="h6"
-                      component={Link}
-                      to={`/release/${props.release}/tags`}
-                      className={classes.cardTitle}
-                    >
-                      Payload Acceptance
-                    </Typography>
-                    <Tooltip
-                      title={
-                        'These cards show the last accepted payload for each architecture/stream combination.'
-                      }
-                    >
-                      <InfoIcon className={classes.infoIcon} />
-                    </Tooltip>
-                  </Box>
-
-                  <Grid
-                    container
-                    spacing={3}
-                    justifyContent="flex-start"
-                    alignItems="stretch"
-                  >
-                    <ReleasePayloadAcceptance release={props.release} />
-                  </Grid>
-                </Card>
-              </Grid>
-            )}
           </Grid>
         </Container>
       </Box>
