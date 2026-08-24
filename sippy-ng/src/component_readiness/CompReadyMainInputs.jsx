@@ -32,18 +32,7 @@ export default function CompReadyMainInputs({ controlsOpts }) {
   const classes = useStyles(theme)
   // checkBoxHiddenIncludeVariants defines what variants are excluded when creating Include Variant CheckBox
   // This could also be deduced from varsContext.dbGroupByVariants
-  const checkBoxHiddenIncludeVariants = new Set([
-    'Aggregation',
-    'FromRelease',
-    'FromReleaseMajor',
-    'FromReleaseMinor',
-    'NetworkStack',
-    'Release',
-    'ReleaseMajor',
-    'ReleaseMinor',
-    'Scheduler',
-    'SecurityMode',
-  ])
+  const checkBoxHiddenIncludeVariants = new Set(['Release'])
 
   const varsContext = useContext(CompReadyVarsContext)
   const _navigate = useNavigate()

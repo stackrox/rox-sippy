@@ -19,20 +19,17 @@ const faqs = [
   },
   {
     question: 'What if a test name changes?',
-    answer: `If a test is renamed, it's still possible for component readiness to analyze the full history of the test under all names, if the rename is handled in the <a href="https://github.com/openshift-eng/ci-test-mapping/">
-    <u>test mapping repository</u></a>. See the README in that repository for information and examples.`,
+    answer: `If a test is renamed, it's still possible for component readiness to analyze the full history of the test under all names, if the rename is handled through the test mapping configuration.`,
   },
   {
     question: 'Why are some of the green squares incomplete or dim?',
     answer: `This indicates that there is no history for at least one test during the selected time period. This can occur for a number of reasons, including that the test is new,
-      the test was removed, or the test was renamed. Test renames or removals should be handled through the <a href="https://github.com/openshift-eng/ci-test-mapping/">
-      <u>test mapping repository</u></a>.`,
+      the test was removed, or the test was renamed. Test renames or removals should be handled through the test mapping configuration.`,
   },
   {
     question:
       "How do I change a test's assignment to a particular component or capability?",
-    answer: `Test mappings can be handled through the <a href="https://github.com/openshift-eng/ci-test-mapping/">
-      <u>test mapping repository</u></a>.`,
+    answer: `Test mappings can be handled through the test mapping configuration.`,
   },
   {
     question: 'How do I report a bug or feature request?',

@@ -38,18 +38,13 @@ const CustomBooleanParam = {
 
 const defaultIncludeVariants = [
   'Architecture:amd64',
-  'FeatureSet:default',
-  'Installer:ipi',
-  'Installer:upi',
-  'Owner:eng',
-  'Platform:aws',
-  'Platform:azure',
-  'Platform:gcp',
-  'Platform:metal',
-  'Platform:vsphere',
-  'Topology:ha',
-  'CGroupMode:v2',
-  'ContainerRuntime:runc',
+  'CloudProvider:gcp',
+  'CloudProvider:aws',
+  'Framework:go-test',
+  'Framework:spock',
+  'CISystem:gha',
+  'TestType:qa-e2e',
+  'TestType:go-e2e',
 ]
 
 // with ReleaseContext, use the list of GA releases and their dates to determine the default base and sample releases.
@@ -254,23 +249,14 @@ export const CompReadyVarsProvider = ({ children }) => {
     setColumnGroupByCheckedItems(
       params.columnGroupBy
         ? params.columnGroupBy.split(',')
-        : ['Platform', 'Architecture', 'Network']
+        : ['CloudProvider', 'Architecture', 'TestType']
     )
 
     // Initialize dbGroupByVariants
     setDbGroupByVariants(
       params.dbGroupBy
         ? params.dbGroupBy.split(',')
-        : [
-            'Platform',
-            'Architecture',
-            'Network',
-            'Topology',
-            'FeatureSet',
-            'Upgrade',
-            'Suite',
-            'Installer',
-          ]
+        : ['TestType', 'CloudProvider', 'Framework', 'CISystem', 'Architecture']
     )
 
     // Initialize baseRelease
