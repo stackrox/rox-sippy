@@ -62,7 +62,6 @@ import (
 	"github.com/openshift/sippy/pkg/db/models"
 	"github.com/openshift/sippy/pkg/db/query"
 	"github.com/openshift/sippy/pkg/filter"
-	"github.com/openshift/sippy/pkg/synthetictests"
 	"github.com/openshift/sippy/pkg/testidentification"
 	"github.com/openshift/sippy/pkg/util"
 	"github.com/openshift/sippy/pkg/util/param"
@@ -80,7 +79,6 @@ func NewServer(
 	mode Mode,
 	listenAddr string,
 	corsAllowedOrigin string,
-	syntheticTestManager synthetictests.SyntheticTestManager,
 	variantManager testidentification.VariantManager,
 	sippyNG fs.FS,
 	static fs.FS,
@@ -101,11 +99,10 @@ func NewServer(
 ) *Server {
 
 	server := &Server{
-		mode:                 mode,
-		listenAddr:           listenAddr,
-		corsAllowedOrigin:    corsAllowedOrigin,
-		syntheticTestManager: syntheticTestManager,
-		variantManager:       variantManager,
+		mode:              mode,
+		listenAddr:        listenAddr,
+		corsAllowedOrigin: corsAllowedOrigin,
+		variantManager:    variantManager,
 		jobartifactsManager:  jobartifacts.NewManager(context.Background()),
 		sippyNG:              sippyNG,
 		static:               static,
@@ -160,11 +157,10 @@ var matViewUniqueNumberOfJobRuns = promauto.NewGaugeVec(prometheus.GaugeOpts{
 }, []string{"lookback_days"})
 
 type Server struct {
-	mode                 Mode
-	listenAddr           string
-	corsAllowedOrigin    string
-	syntheticTestManager synthetictests.SyntheticTestManager
-	variantManager       testidentification.VariantManager
+	mode              Mode
+	listenAddr        string
+	corsAllowedOrigin string
+	variantManager    testidentification.VariantManager
 	jobartifactsManager  *jobartifacts.Manager
 	sippyNG              fs.FS
 	static               fs.FS

@@ -20,7 +20,6 @@ import (
 	"github.com/openshift/sippy/pkg/apis/cache"
 	v1 "github.com/openshift/sippy/pkg/apis/config/v1"
 	"github.com/openshift/sippy/pkg/bigquery"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/flags"
 	"github.com/openshift/sippy/pkg/flags/configflags"
 	"github.com/openshift/sippy/pkg/sippyserver"
@@ -154,13 +153,8 @@ func (f *ComponentReadinessFlags) runServerMode() error {
 			return errors.WithMessage(err, "couldn't get bigquery client")
 		}
 
-		gcsClient, err = gcs.NewGCSClient(context.TODO(),
-			f.GoogleCloudFlags.ServiceAccountCredentialFile,
-			f.GoogleCloudFlags.OAuthClientCredentialFile,
-		)
-		if err != nil {
-			log.WithError(err).Warn("unable to create GCS client, some APIs may not work")
-		}
+		// TODO(ACS): GCS client removed (OCP-specific prowloader/gcs package deleted)
+		// gcsClient remains nil
 
 		if bigQueryClient != nil && f.CacheFlags.EnablePersistentCaching {
 			bigQueryClient = f.CacheFlags.DecorateBiqQueryClientWithPersistentCache(bigQueryClient)

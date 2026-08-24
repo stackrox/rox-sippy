@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/openshift/sippy/pkg/api"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/db"
 )
 
@@ -71,6 +70,12 @@ func JobRunEvents(gcsClient *storage.Client, dbc *db.DB, jobRunID int64, gcsBuck
 		gcsPath = path
 	}
 
+	// TODO(ACS): GCS event extraction removed (OCP-specific prowloader/gcs package deleted)
+	logger.Info("GCS event extraction not available (OCP-specific feature removed)")
+	return &EventListResponse{Items: []KubeEvent{}, JobRunURL: jobRunURL}, nil
+
+	/*
+	// Original GCS-based code below (removed for ACS)
 	gcsJobRun := gcs.NewGCSJobRun(gcsClient.Bucket(gcsBucket), gcsPath)
 	matches, err := gcsJobRun.FindAllMatches(context.TODO(), gcs.GlobEventsJSON)
 	if err != nil {

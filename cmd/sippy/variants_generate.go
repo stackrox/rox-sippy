@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/pflag"
 	"google.golang.org/api/option"
 
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/flags"
 	"github.com/openshift/sippy/pkg/flags/configflags"
 	"github.com/openshift/sippy/pkg/variantregistry"
@@ -80,14 +79,7 @@ func NewVariantsGenerateCommand() *cobra.Command {
 				log.WithError(err).Error("CRITICAL error getting BigQuery client which prevents generating job variants")
 				return err
 			}
-			gcsClient, err := gcs.NewGCSClient(context.TODO(),
-				f.GoogleCloudFlags.ServiceAccountCredentialFile,
-				f.GoogleCloudFlags.OAuthClientCredentialFile,
-			)
-			if err != nil {
-				log.WithError(err).Error("CRITICAL error getting GCS client which prevents generating job variants")
-				return err
-			}
+			// TODO(ACS): GCS client removed (OCP-specific prowloader/gcs package deleted)
 
 			views, err := f.ComponentReadinessFlags.ParseViewsFile()
 			if err != nil {
@@ -110,7 +102,7 @@ func NewVariantsGenerateCommand() *cobra.Command {
 					f.BigQueryFlags.BigQueryProject,
 					f.BigQueryFlags.BigQueryDataset,
 					f.BigqueryJobsTable,
-					gcsClient,
+					nil, // gcsClient removed (OCP-specific)
 					config,
 					views.ComponentReadiness,
 					syntheticReleaseJobOverrides)

@@ -27,8 +27,6 @@ import (
 	"github.com/openshift/sippy/pkg/apis/openshift"
 	sippyprocessingv1 "github.com/openshift/sippy/pkg/apis/sippyprocessing/v1"
 	"github.com/openshift/sippy/pkg/bigquery"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/db"
 	"github.com/openshift/sippy/pkg/db/models"
 	"github.com/openshift/sippy/pkg/db/query"
@@ -1233,15 +1231,8 @@ func GetJobRunSummary(ctx context.Context, dbc *db.DB, gcsClient *storage.Client
 
 	failures := extractTestOutputs(jr)
 
-	// Extract data from GCS bucket
-	gcsPath, err := prowloader.GetGCSPathForProwJobURL(jLog, jr.URL)
-	if err != nil {
-		return nil, err
-	}
-	bkt := gcsClient.Bucket(jr.GCSBucket)
-	gcsJr := gcs.NewGCSJobRun(bkt, gcsPath)
-
-	clusterOperators := getUnavailableOrDegradedOperators(gcsJr, jLog)
+	// TODO(ACS): Cluster operator status extraction removed (OCP-specific GCS bucket structure)
+	var clusterOperators []ClusterOperatorStatus
 
 	jrData := &JobRunData{
 		// Basic job information
@@ -1278,39 +1269,6 @@ func GetJobRunSummary(ctx context.Context, dbc *db.DB, gcsClient *storage.Client
 	}
 
 	return jrData, nil
-}
-
-func getUnavailableOrDegradedOperators(jr *gcs.GCSJobRun, jLog *log.Entry) []ClusterOperatorStatus {
-	start := time.Now()
-	jLog.Info("Fetching cluster operators...")
-	// Operator statuses
-	coData := jr.FindFirstFile("", regexp.MustCompile("clusteroperators.json"))
-	if coData == nil {
-		jLog.Infof("Cluster operators not found in %+v", time.Since(start))
-		return nil
-	}
-
-	var statuses []ClusterOperatorStatus
-	var coList openshift.ClusterOperatorList
-	if err := json.Unmarshal(coData, &coList); err != nil {
-		jLog.WithError(err).Warn("Failed to parse cluster operator list")
-		return nil
-	}
-	for _, co := range coList.Items {
-		for _, condition := range co.Status.Conditions {
-			if (condition.Type == "Degraded" && condition.Status == "True") || (condition.Type == "Available" && condition.Status == "False") {
-				statuses = append(statuses, ClusterOperatorStatus{
-					Name:    co.Metadata.Name,
-					Status:  condition.Status,
-					Reason:  condition.Reason,
-					Message: condition.Message,
-				})
-			}
-		}
-
-	}
-	jLog.Infof("Cluster operators found in %+v", time.Since(start))
-	return statuses
 }
 
 func extractTestOutputs(jr *models.ProwJobRun) map[string]string {

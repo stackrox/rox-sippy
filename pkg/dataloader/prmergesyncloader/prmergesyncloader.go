@@ -12,10 +12,20 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/github"
 	"github.com/openshift/sippy/pkg/db"
 	"github.com/openshift/sippy/pkg/db/models"
 )
+
+// Client is a stub for GitHub client (OCP-specific prowloader/github package removed for ACS)
+type Client struct{}
+
+func (c *Client) ListRecentlyClosedPRs(org, repo string) ([]interface{}, error) {
+	return nil, nil
+}
+
+func (c *Client) IsWithinRateLimitThreshold() bool {
+	return false
+}
 
 type mergedPR struct {
 	org      string
@@ -28,11 +38,11 @@ type mergedPR struct {
 type PRMergeSyncLoader struct {
 	ctx      context.Context
 	dbc      *db.DB
-	ghClient *github.Client
+	ghClient *Client
 	errors   []error
 }
 
-func New(ctx context.Context, dbc *db.DB, ghClient *github.Client) *PRMergeSyncLoader {
+func New(ctx context.Context, dbc *db.DB, ghClient *Client) *PRMergeSyncLoader {
 	return &PRMergeSyncLoader{
 		ctx:      ctx,
 		dbc:      dbc,

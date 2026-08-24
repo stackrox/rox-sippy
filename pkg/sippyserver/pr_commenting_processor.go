@@ -24,12 +24,26 @@ import (
 	"github.com/openshift/sippy/pkg/apis/cache"
 	"github.com/openshift/sippy/pkg/apis/prow"
 	"github.com/openshift/sippy/pkg/bigquery"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/db"
 	"github.com/openshift/sippy/pkg/db/models"
 	"github.com/openshift/sippy/pkg/github/commenter"
 	"github.com/openshift/sippy/pkg/util"
 )
+
+// Stub types and functions for removed GCS functionality (OCP-specific prowloader/gcs package)
+type gcsJobRun struct{}
+
+func (g *gcsJobRun) GetFile(path string) ([]byte, error)           { return nil, nil }
+func (g *gcsJobRun) FindFirstFile(prefix string, re interface{}) []byte { return nil }
+
+type gcsStub struct{}
+
+func (g gcsStub) GetDefaultRiskAnalysisSummaryFile() string { return "" }
+func (g gcsStub) NewGCSJobRun(bucket *storage.BucketHandle, path string) *gcsJobRun {
+	return &gcsJobRun{}
+}
+
+var gcs = gcsStub{}
 
 var (
 	writeCommentMetric = promauto.NewHistogramVec(prometheus.HistogramOpts{

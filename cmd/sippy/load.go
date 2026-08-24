@@ -23,7 +23,6 @@ import (
 	"google.golang.org/api/option"
 
 	bqcachedclient "github.com/openshift/sippy/pkg/bigquery"
-	"github.com/openshift/sippy/pkg/dataloader/featuregateloader"
 	"github.com/openshift/sippy/pkg/dataloader/variantsyncer"
 	"github.com/openshift/sippy/pkg/flags/configflags"
 	"github.com/openshift/sippy/pkg/sippyserver"
@@ -35,16 +34,10 @@ import (
 	"github.com/openshift/sippy/pkg/dataloader/gateststatus"
 	"github.com/openshift/sippy/pkg/dataloader/jiraloader"
 	"github.com/openshift/sippy/pkg/dataloader/loaderwithmetrics"
-	"github.com/openshift/sippy/pkg/dataloader/prmergesyncloader"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/github"
 	releasedefloader "github.com/openshift/sippy/pkg/dataloader/releasedefloader"
-	"github.com/openshift/sippy/pkg/dataloader/releaseloader"
 	"github.com/openshift/sippy/pkg/dataloader/testownershiploader"
 	"github.com/openshift/sippy/pkg/db"
 	"github.com/openshift/sippy/pkg/flags"
-	"github.com/openshift/sippy/pkg/github/commenter"
 )
 
 type LoadFlags struct {
@@ -108,7 +101,7 @@ func (f *LoadFlags) BindFlags(fs *pflag.FlagSet) {
 	f.JiraFlags.BindFlags(fs)
 
 	fs.BoolVar(&f.InitDatabase, "init-database", false, "Migrate the DB before loading")
-	fs.StringArrayVar(&f.Loaders, "loader", []string{"release-definitions", "pr-merge-sync", "prow", "releases", "jira", "github", "bugs", "test-mapping", "feature-gates", "ga-test-status"}, "Which data sources to use for data loading")
+	fs.StringArrayVar(&f.Loaders, "loader", []string{"release-definitions", "jira", "bugs", "test-mapping", "ga-test-status"}, "Which data sources to use for data loading")
 	fs.StringArrayVar(&f.Releases, "release", f.Releases, "Which releases to load (one per arg instance)")
 	fs.StringArrayVar(&f.Architectures, "arch", f.Architectures, "Which architectures to load (one per arg instance)")
 	fs.StringVar(&f.JobVariantsInputFile, "job-variants-input-file", "expected-job-variants.json", "JSON input file for the job-variants loader")
@@ -294,35 +287,6 @@ func NewLoadCommand() *cobra.Command {
 					loaders = append(loaders, rcl)
 				}
 
-				if l == "releases" {
-					if dbErr != nil {
-						return dbErr
-					}
-					loaders = append(loaders, releaseloader.New(ctx, dbc, bqc, f.Releases, f.Architectures, releaseConfigs))
-				}
-
-				if l == "pr-merge-sync" {
-					if dbErr != nil {
-						return dbErr
-					}
-					ghClient := github.New(ctx, github.OpenshiftOrg)
-					loaders = append(loaders, prmergesyncloader.New(ctx, dbc, ghClient))
-				}
-
-				// Prow Loader
-				if l == "prow" {
-					refreshMatviews = true
-					if dbErr != nil {
-						return dbErr
-					}
-					prowLoader, err := f.prowLoader(ctx, dbc, config, releaseConfigs, promPusher)
-					if err != nil {
-						return err
-					}
-
-					loaders = append(loaders, prowLoader)
-				}
-
 				// JIRA Loader
 				if l == "jira" {
 					if dbErr != nil {
@@ -380,17 +344,6 @@ func NewLoadCommand() *cobra.Command {
 						return err
 					}
 					loaders = append(loaders, vs)
-				}
-
-				// Feature gates
-				if l == "feature-gates" {
-					refreshMatviews = true
-					if dbErr != nil {
-						return dbErr
-					}
-					ghc := github.New(ctx, github.OpenshiftOrg)
-					fgLoader := featuregateloader.New(ctx, dbc, ghc.APIClient(), releaseConfigs)
-					loaders = append(loaders, fgLoader)
 				}
 
 				if l == "ga-test-status" {
@@ -488,89 +441,6 @@ func (f *LoadFlags) jobVariantsLoader(ctx context.Context) (dataloader.DataLoade
 		f.BigQueryFlags.BigQueryDataset, "job_variants", expectedVariants)
 	return syncer, nil
 
-}
-
-func (f *LoadFlags) prowLoader(ctx context.Context, dbc *db.DB, sippyConfig *v1.SippyConfig, releaseConfigs []sippyv1.Release, promPusher *push.Pusher) (dataloader.DataLoader, error) {
-	gcsClient, err := gcs.NewGCSClient(ctx,
-		f.GoogleCloudFlags.ServiceAccountCredentialFile,
-		f.GoogleCloudFlags.OAuthClientCredentialFile,
-	)
-	if err != nil {
-		log.WithError(err).Error("CRITICAL error getting GCS client which prevents importing prow jobs")
-		return nil, err
-	}
-
-	opCtx, ctx := bqcachedclient.OpCtxForCronEnv(ctx, "load")
-	bigQueryClient, err := bqcachedclient.New(
-		ctx, opCtx, nil,
-		f.GoogleCloudFlags.ServiceAccountCredentialFile, f.BigQueryFlags.BigQueryProject, f.BigQueryFlags.BigQueryDataset, f.BigQueryFlags.ReleasesTable)
-	if err != nil {
-		log.WithError(err).Error("CRITICAL error getting BigQuery client which prevents importing prow jobs")
-		return nil, err
-	}
-
-	var githubClient *github.Client
-	for _, l := range f.Loaders {
-		if l == "github" {
-			githubClient = github.New(ctx, github.OpenshiftOrg)
-			break
-		}
-	}
-
-	ghCommenter, err := commenter.NewGitHubCommenter(githubClient, dbc, f.GithubCommenterFlags.ExcludeReposCommenting, f.GithubCommenterFlags.IncludeReposCommenting)
-	if err != nil {
-		log.WithError(err).Error("CRITICAL error initializing GitHub commenter which prevents importing prow jobs")
-		return nil, err
-	}
-
-	releases := f.Releases
-	if len(releases) == 0 { // if not specified, use those defined in the Releases table
-		for _, config := range releaseConfigs {
-			releases = append(releases, config.Release) // could filter by capability if needed
-		}
-	}
-
-	syntheticReleaseJobOverrides, err := variantregistry.BuildSyntheticReleaseJobOverrides(sippyConfig.Releases)
-	if err != nil {
-		return nil, fmt.Errorf("error building synthetic release job overrides: %w", err)
-	}
-
-	var loadSince *time.Time
-	if f.ProwLoadSince != "" {
-		t, err := parseProwLoadSince(f.ProwLoadSince)
-		if err != nil {
-			return nil, fmt.Errorf("invalid --prow-load-since value %q: %w", f.ProwLoadSince, err)
-		}
-		loadSince = &t
-	}
-
-	return prowloader.New(
-		ctx,
-		dbc,
-		gcsClient,
-		bigQueryClient,
-		githubClient,
-		f.ModeFlags.GetVariantManager(ctx, bigQueryClient),
-		f.ModeFlags.GetSyntheticTestManager(),
-		releases,
-		sippyConfig,
-		ghCommenter,
-		promPusher,
-		loadSince,
-		syntheticReleaseJobOverrides), nil
-}
-
-// parseProwLoadSince parses a time value that is either an absolute RFC3339 timestamp
-// or a Go duration string (e.g. "72h") interpreted as a duration ago from now.
-func parseProwLoadSince(val string) (time.Time, error) {
-	if t, err := time.Parse(time.RFC3339, val); err == nil {
-		return t, nil
-	}
-	d, err := time.ParseDuration(val)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("must be an RFC3339 timestamp (e.g. 2024-01-15T00:00:00Z) or a duration (e.g. 72h)")
-	}
-	return time.Now().Add(-d), nil
 }
 
 // ensurePartitionsForReleases creates partitions for all configured releases.

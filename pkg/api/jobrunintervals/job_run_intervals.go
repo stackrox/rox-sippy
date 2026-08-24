@@ -12,7 +12,6 @@ import (
 
 	"github.com/openshift/sippy/pkg/api"
 	apitype "github.com/openshift/sippy/pkg/apis/api"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/db"
 )
 
@@ -42,8 +41,14 @@ func JobRunIntervals(gcsClient *storage.Client, dbc *db.DB, jobRunID int64, gcsB
 		gcsPath = path
 	}
 
-	gcsJobRun := gcs.NewGCSJobRun(gcsClient.Bucket(gcsBucket), gcsPath)
+	// TODO(ACS): GCS interval extraction removed (OCP-specific prowloader/gcs package deleted)
+	logger.Info("GCS interval extraction not available (OCP-specific feature removed)")
 	intervals := &apitype.EventIntervalList{}
+	return intervals, nil
+
+	/*
+	// Original GCS-based code below (removed for ACS)
+	gcsJobRun := gcs.NewGCSJobRun(gcsClient.Bucket(gcsBucket), gcsPath)
 	intervalFiles, err := gcsJobRun.FindAllMatches(context.TODO(), gcs.GlobIntervalsJSON)
 	if err != nil {
 		return intervals, err

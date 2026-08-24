@@ -20,7 +20,6 @@ import (
 	"github.com/openshift/sippy/pkg/apis/cache"
 	"github.com/openshift/sippy/pkg/bigquery"
 	"github.com/openshift/sippy/pkg/bigquery/bqlabel"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/db/models"
 	"github.com/openshift/sippy/pkg/flags"
 	"github.com/openshift/sippy/pkg/flags/configflags"
@@ -137,13 +136,8 @@ func NewServeCommand() *cobra.Command {
 				return err
 			}
 
-			gcsClient, err = gcs.NewGCSClient(context.TODO(),
-				f.GoogleCloudFlags.ServiceAccountCredentialFile,
-				f.GoogleCloudFlags.OAuthClientCredentialFile,
-			)
-			if err != nil {
-				log.WithError(err).Warn("unable to create GCS client, some APIs may not work")
-			}
+			// TODO(ACS): GCS client removed (OCP-specific prowloader/gcs package deleted)
+			// gcsClient remains nil
 
 			// Make sure the db is initialized, otherwise let the user know:
 			prowJobs := []models.ProwJob{}

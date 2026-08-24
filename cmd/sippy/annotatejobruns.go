@@ -16,7 +16,6 @@ import (
 	bqcachedclient "github.com/openshift/sippy/pkg/bigquery"
 	"github.com/openshift/sippy/pkg/bigquery/bqlabel"
 	"github.com/openshift/sippy/pkg/componentreadiness/jobrunannotator"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/flags/configflags"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -162,13 +161,8 @@ Example run: sippy annotate-job-runs  --google-service-account-credential-file=f
 				log.WithError(err).Fatal("error getting BigQuery client")
 			}
 
-			gcsClient, err := gcs.NewGCSClient(context.TODO(),
-				f.GoogleCloudFlags.ServiceAccountCredentialFile,
-				f.GoogleCloudFlags.OAuthClientCredentialFile,
-			)
-			if err != nil {
-				log.WithError(err).Fatal("error getting gcs client")
-			}
+			// TODO(ACS): GCS client removed (OCP-specific prowloader/gcs package deleted)
+			// gcsClient is no longer available
 
 			if bigQueryClient != nil && f.CacheFlags.EnablePersistentCaching {
 				bigQueryClient = f.CacheFlags.DecorateBiqQueryClientWithPersistentCache(bigQueryClient)
@@ -192,7 +186,7 @@ Example run: sippy annotate-job-runs  --google-service-account-credential-file=f
 			jobRunannotator, err := jobrunannotator.NewJobRunAnnotator(
 				bigQueryClient,
 				cacheOpts,
-				gcsClient,
+				nil, // gcsClient removed (OCP-specific)
 				dbc,
 				cacheClient,
 				f.Execute,

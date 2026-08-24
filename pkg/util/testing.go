@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/db"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm/logger"
@@ -47,15 +46,9 @@ func GetDbHandle(t *testing.T) *db.DB {
 }
 
 func GetGcsBucket(t *testing.T) *storage.BucketHandle {
-	pathToGcsCredentials := os.Getenv("TEST_GCS_CREDS_PATH")
-	if pathToGcsCredentials == "" {
-		t.Skip("TEST_GCS_CREDS_PATH environment variable is not set; skipping GCS tests")
-	}
-	gcsClient, err := gcs.NewGCSClient(context.TODO(), pathToGcsCredentials, "")
-	if err != nil {
-		logrus.WithError(err).Fatalf("CRITICAL error getting GCS client with credentials at %s", pathToGcsCredentials)
-	}
-	return gcsClient.Bucket(GcsBucketRoot)
+	// TODO(ACS): GCS bucket support removed (OCP-specific prowloader/gcs package deleted)
+	t.Skip("GCS bucket tests not supported in ACS Sippy")
+	return nil
 }
 
 type PseudoCache struct {

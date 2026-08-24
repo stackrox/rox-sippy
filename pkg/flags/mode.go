@@ -7,7 +7,6 @@ import (
 
 	bqcachedclient "github.com/openshift/sippy/pkg/bigquery"
 	"github.com/openshift/sippy/pkg/sippyserver"
-	"github.com/openshift/sippy/pkg/synthetictests"
 	"github.com/openshift/sippy/pkg/testidentification"
 )
 
@@ -51,12 +50,4 @@ func (f *ModeFlags) GetVariantManager(ctx context.Context, bqc *bqcachedclient.C
 	default:
 		panic("only ocp or none is allowed")
 	}
-}
-
-func (f *ModeFlags) GetSyntheticTestManager() synthetictests.SyntheticTestManager {
-	if f.Mode == ModeOpenshift {
-		return synthetictests.NewOpenshiftSyntheticTestManager()
-	}
-
-	return synthetictests.NewEmptySyntheticTestManager()
 }

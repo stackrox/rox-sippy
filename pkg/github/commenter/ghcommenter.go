@@ -10,13 +10,20 @@ import (
 	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/github"
 	"github.com/openshift/sippy/pkg/db"
 	"github.com/openshift/sippy/pkg/db/models"
 )
 
+// Client is a stub for GitHub client (OCP-specific prowloader/github package removed for ACS)
+type Client struct{}
+
+// NewClient creates a new GitHub client stub
+func NewClient() *Client {
+	return &Client{}
+}
+
 type GitHubCommenter struct {
-	githubClient *github.Client
+	githubClient *Client
 	dbc          *db.DB
 	includeRepos map[string]sets.Set[string]
 	excludeRepos map[string]sets.Set[string]
@@ -24,7 +31,7 @@ type GitHubCommenter struct {
 
 const TrtCommentIDKey = `trt_comment_id`
 
-func NewGitHubCommenter(githubClient *github.Client, dbc *db.DB, excludedRepos, includedRepos []string) (*GitHubCommenter, error) {
+func NewGitHubCommenter(githubClient *Client, dbc *db.DB, excludedRepos, includedRepos []string) (*GitHubCommenter, error) {
 	ghCommenter := &GitHubCommenter{}
 	ghCommenter.githubClient = githubClient
 	ghCommenter.dbc = dbc
