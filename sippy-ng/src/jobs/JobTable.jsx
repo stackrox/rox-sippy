@@ -1,21 +1,20 @@
 import './JobTable.css'
 import { BOOKMARKS, JOB_THRESHOLDS } from '../constants'
-import { BugReport, DirectionsRun, GridOn } from '@mui/icons-material'
 import { Button, Container, Tooltip, Typography } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
+import { DirectionsRun, GridOn } from '@mui/icons-material'
+import { generateClasses } from '../datagrid/utils'
+import { GridView } from '../datagrid/GridView'
+import { Link } from 'react-router-dom'
+import { makeStyles } from '@mui/styles'
+import { NumberParam, StringParam, useQueryParam } from 'use-query-params'
 import {
-  escapeRegex,
   pathForExactJobAnalysis,
   pathForExactJobRuns,
   relativeTime,
   safeEncodeURIComponent,
   useStableJSONQueryParam,
 } from '../helpers'
-import { generateClasses } from '../datagrid/utils'
-import { GridView } from '../datagrid/GridView'
-import { Link } from 'react-router-dom'
-import { makeStyles } from '@mui/styles'
-import { NumberParam, StringParam, useQueryParam } from 'use-query-params'
 import { withStyles } from '@mui/styles'
 import Alert from '@mui/material/Alert'
 import GridToolbar from '../datagrid/GridToolbar'
@@ -162,30 +161,6 @@ export const getColumns = (config, _openBugzillaDialog) => {
       },
       filterable: false,
       hide: config.briefTable,
-    },
-    link: {
-      field: 'link',
-      sortable: false,
-      headerName: ' ',
-      flex: 0.4,
-
-      filterable: false,
-      hide: config.briefTable,
-      renderCell: (params) => {
-        return (
-          <Tooltip title="Find Bugs">
-            <Button
-              target="_blank"
-              startIcon={<BugReport />}
-              href={
-                'https://search.dptools.openshift.org/?search=' +
-                safeEncodeURIComponent(escapeRegex(params.row.name)) +
-                '&maxAge=336h&context=1&type=bug&name=&excludeName=&maxMatches=5&maxBytes=20971520&groupBy=job'
-              }
-            />
-          </Tooltip>
-        )
-      },
     },
     average_retests_to_merge: {
       field: 'average_retests_to_merge',

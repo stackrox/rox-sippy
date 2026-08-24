@@ -4,7 +4,6 @@ import {
   Error as ErrorIcon,
   Info,
   InfoOutlined,
-  Search,
 } from '@mui/icons-material'
 import {
   Backdrop,
@@ -16,7 +15,6 @@ import {
 } from '@mui/material'
 import { BOOKMARKS, DEFAULT_TEST_FILTERS, TEST_THRESHOLDS } from '../constants'
 import {
-  escapeRegex,
   filterFor,
   pathForExactTestAnalysisWithFilter,
   pathForJobRunsWithTestFailure,
@@ -28,7 +26,7 @@ import {
 import { generateClasses } from '../datagrid/utils'
 import { GridView } from '../datagrid/GridView'
 import { Link, useLocation } from 'react-router-dom'
-import { makeStyles, useTheme } from '@mui/styles'
+import { makeStyles } from '@mui/styles'
 import { NumberParam, StringParam, useQueryParam } from 'use-query-params'
 import { StyledDataGrid } from '../datagrid/StyledDataGrid'
 import { useCookies } from 'react-cookie'
@@ -62,15 +60,14 @@ function chooseVariantsToDisplay(variants) {
   // Filter out default variants first
   const filteredVariants = variants.filter((item) => !item.endsWith(':default'))
 
-  // Priority order for variant keys
+  // Priority order for variant keys (ACS-specific)
   const priorityKeys = [
-    'JobTier',
-    'Platform',
+    'TestType',
+    'CloudProvider',
+    'Release',
+    'Framework',
+    'CISystem',
     'Architecture',
-    'NetworkStack',
-    'Topology',
-    'FeatureSet',
-    'Upgrade',
   ]
 
   // Parse variants into key-value pairs
@@ -99,8 +96,8 @@ function chooseVariantsToDisplay(variants) {
     }
   })
 
-  // Fill remaining slots with other variants, for non OCP sippy users it will
-  // just be whatever order their variants appear in the ci_jobs table.
+  // Fill remaining slots with other variants in the order they appear
+  // in the ci_jobs table.
   let i = 0
   while (result.length < 8 && i < remainingVariants.length) {
     result.push(remainingVariants[i])
@@ -108,14 +105,6 @@ function chooseVariantsToDisplay(variants) {
   }
 
   return result
-}
-
-function isComponentReadinessIncludedJobTier(variant) {
-  return (
-    variant === 'JobTier:blocking' ||
-    variant === 'JobTier:informing' ||
-    variant === 'JobTier:standard'
-  )
 }
 
 const useStyles = makeStyles((_theme) => ({
@@ -128,7 +117,6 @@ const useStyles = makeStyles((_theme) => ({
 function TestTable(props) {
   const { classes } = props
   const gridClasses = useStyles()
-  const theme = useTheme()
   const location = useLocation().pathname
 
   const [fetchError, setFetchError] = React.useState('')
@@ -486,16 +474,6 @@ function TestTable(props) {
     </div>
   )
 
-  const getVariantStyle = (variant) => {
-    // Special treatment for JobTier to help users better understand if their test is feeding component readiness or not
-    if (isComponentReadinessIncludedJobTier(variant)) {
-      return { color: theme.palette.success.dark }
-    } else if (variant.startsWith('JobTier:')) {
-      return { color: theme.palette.error.dark }
-    }
-    return {}
-  }
-
   const lifecycleIcon = (lifecycles) => {
     if (!lifecycles || lifecycles.length === 0) {
       return null
@@ -568,30 +546,11 @@ function TestTable(props) {
       renderCell: (params) => {
         const displayVariants = chooseVariantsToDisplay(params.value)
 
-        // Check if the job has a tier not covered by component readiness
-        const hasNonCRJobTier =
-          params.value &&
-          params.value.some(
-            (variant) =>
-              variant.startsWith('JobTier:') &&
-              !isComponentReadinessIncludedJobTier(variant)
-          )
-
         const tooltipContent = params.value ? (
           <div>
             {params.value.map((variant, index) => (
               <div key={index}>{variant}</div>
             ))}
-            {hasNonCRJobTier && (
-              <>
-                <br />
-                <div>
-                  <b>WARNING:</b> Test results from jobs with this JobTier are
-                  not included in the main release blocking views for component
-                  readiness, and will not be monitored for regressions.
-                </div>
-              </>
-            )}
           </div>
         ) : (
           ''
@@ -601,9 +560,7 @@ function TestTable(props) {
           <Tooltip sx={{ whiteSpace: 'pre' }} title={tooltipContent}>
             <div className="variants-list">
               {displayVariants.map((variant, index) => (
-                <div key={index} style={getVariantStyle(variant)}>
-                  {variant}
-                </div>
+                <div key={index}>{variant}</div>
               ))}
             </div>
           </Tooltip>
@@ -807,19 +764,6 @@ function TestTable(props) {
 
         return (
           <Grid container justifyContent="space-evenly">
-            <Tooltip title="Search CI Logs">
-              <IconButton
-                target="_blank"
-                href={
-                  'https://search.dptools.openshift.org/?search=' +
-                  safeEncodeURIComponent(escapeRegex(params.row.name)) +
-                  '&maxAge=336h&context=1&type=bug%2Bjunit&name=&excludeName=&maxMatches=5&maxBytes=20971520&groupBy=job'
-                }
-                size="large"
-              >
-                <Search />
-              </IconButton>
-            </Tooltip>
             <Tooltip title="See job runs that failed this test">
               <IconButton
                 component={Link}
