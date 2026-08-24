@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/openshift/sippy/pkg/apis/api"
-	"github.com/openshift/sippy/pkg/dataloader/prowloader/gcs"
 	"github.com/openshift/sippy/pkg/db/models"
 	"github.com/openshift/sippy/pkg/util"
 	"github.com/sirupsen/logrus"

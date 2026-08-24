@@ -31,7 +31,7 @@ const ticketCTE = `WITH TicketData AS (
     t.*,
     c.message AS comment
   FROM
-    openshift-ci-data-analysis.jira_data.tickets_dedup t
+    acs-san-stackroxci.ci_metrics.tickets_dedup t
   LEFT JOIN UNNEST(t.comments) AS c
   WHERE ` + ticketRecencyFilter + `
 )
@@ -50,7 +50,7 @@ SELECT
   ARRAY(SELECT name FROM UNNEST(components)) AS components,
   t.labels AS labels,
   t.release_blocker.value AS release_blocker
-FROM openshift-ci-data-analysis.jira_data.tickets_dedup t
+FROM acs-san-stackroxci.ci_metrics.tickets_dedup t
 WHERE ` + ticketRecencyFilter + `
 `
 
@@ -59,7 +59,7 @@ SELECT DISTINCT
   t.issue.id AS jira_id,
   j.name AS link_name
 FROM TicketData t
-JOIN openshift-gce-devel.ci_analysis_us.component_mapping_latest j
+JOIN acs-san-stackroxci.ci_metrics.component_mapping_latest j
   ON STRPOS(t.summary, j.name) > 0
   OR STRPOS(t.description, j.name) > 0
   OR STRPOS(t.comment, j.name) > 0
@@ -73,7 +73,7 @@ SELECT DISTINCT
 FROM TicketData t
 JOIN (
   SELECT DISTINCT prowjob_job_name AS name
-  FROM openshift-gce-devel.ci_analysis_us.jobs
+  FROM acs-san-stackroxci.ci_metrics.jobs
   WHERE prowjob_job_name IS NOT NULL
     AND prowjob_job_name != ""
 ) j

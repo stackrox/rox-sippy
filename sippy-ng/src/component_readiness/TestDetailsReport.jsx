@@ -368,7 +368,7 @@ export default function TestDetailsReport(props) {
   if (testDetailsApiCall.startsWith('/')) {
     // In production mode, there is no hostname so we add it so that 'new URL' will work
     // for both production and development modes.
-    url = new URL('http://sippy.dptools.openshift.org' + testDetailsApiCall)
+    url = new URL('http://localhost' + testDetailsApiCall)
   } else {
     url = new URL(testDetailsApiCall)
   }

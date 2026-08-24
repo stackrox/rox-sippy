@@ -148,11 +148,11 @@ export const BOOKMARKS = {
     operatorValue: '=',
     value: '100',
   },
-  NO_OPENSHIFT_TESTS_SHOULD_WORK: {
+  NO_CI_TESTS_SHOULD_WORK: {
     columnField: 'name',
     not: true,
     operatorValue: 'contains',
-    value: 'openshift-tests should work',
+    value: 'ci-tests should work',
   },
   WITHOUT_OVERALL_JOB_RESULT: {
     columnField: 'name',
@@ -192,6 +192,6 @@ export const DEFAULT_TEST_FILTERS = [
   BOOKMARKS.NO_AGGREGATED,
   BOOKMARKS.WITHOUT_OVERALL_JOB_RESULT,
   BOOKMARKS.NO_STEP_GRAPH,
-  BOOKMARKS.NO_OPENSHIFT_TESTS_SHOULD_WORK,
+  BOOKMARKS.NO_CI_TESTS_SHOULD_WORK,
   BOOKMARKS.NO_100_FLAKE,
 ]

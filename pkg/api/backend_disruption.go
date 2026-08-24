@@ -38,7 +38,7 @@ func GetBackendDisruptionByRun(ctx context.Context, bigQueryClient *bq.Client, j
     ReleaseTag,
     MasterNodesUpdated,
     JobRunStatus
-FROM ` + "`openshift-ci-data-analysis.ci_data.BackendDisruption`" + `
+FROM ` + "`acs-san-stackroxci.ci_metrics.BackendDisruption`" + `
 WHERE JobRunName IN UNNEST(@JobRunNames)` + timeFilter + filterStr + `
 ORDER BY JobRunName, DisruptionSeconds DESC`
 

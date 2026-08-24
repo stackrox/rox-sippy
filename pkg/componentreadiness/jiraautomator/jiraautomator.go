@@ -608,7 +608,7 @@ func (j JiraAutomator) Run() error {
 func GetVariantJiraMap(ctx context.Context, bqClient *bqclient.Client) (map[Variant]JiraComponent, error) {
 	result := map[Variant]JiraComponent{}
 
-	queryString := "SELECT * FROM openshift-gce-devel.ci_analysis_us.variant_mapping_latest"
+	queryString := "SELECT * FROM acs-san-stackroxci.ci_metrics.variant_mapping_latest"
 	q := bqClient.Query(ctx, bqlabel.VariantJiraMap, queryString)
 	it, err := q.Read(ctx)
 	if err != nil {

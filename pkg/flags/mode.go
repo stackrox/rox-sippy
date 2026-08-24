@@ -15,23 +15,23 @@ type ModeFlags struct {
 }
 
 const (
-	ModeOpenshift = "ocp"
-	ModeNone      = "none"
+	ModeACS  = "acs"
+	ModeNone = "none"
 )
 
 func NewModeFlags() *ModeFlags {
 	return &ModeFlags{
-		Mode: ModeOpenshift,
+		Mode: ModeACS,
 	}
 }
 
 func (f *ModeFlags) BindFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&f.Mode, "mode", f.Mode, "Mode to use: {ocp,none}")
+	fs.StringVar(&f.Mode, "mode", f.Mode, "Mode to use: {acs,none}")
 }
 
 func (f *ModeFlags) GetServerMode() sippyserver.Mode {
-	if f.Mode == ModeOpenshift {
-		return sippyserver.ModeOpenShift
+	if f.Mode == ModeACS {
+		return sippyserver.ModeACS
 	}
 
 	return sippyserver.ModeKubernetes
@@ -39,8 +39,8 @@ func (f *ModeFlags) GetServerMode() sippyserver.Mode {
 
 func (f *ModeFlags) GetVariantManager(ctx context.Context, bqc *bqcachedclient.Client) testidentification.VariantManager {
 	switch f.Mode {
-	case ModeOpenshift:
-		mgr, err := testidentification.NewOpenshiftVariantManager(ctx, bqc)
+	case ModeACS:
+		mgr, err := testidentification.NewACSVariantManager(ctx, bqc)
 		if err != nil {
 			panic(err)
 		}
@@ -48,6 +48,6 @@ func (f *ModeFlags) GetVariantManager(ctx context.Context, bqc *bqcachedclient.C
 	case ModeNone:
 		return testidentification.NewEmptyVariantManager()
 	default:
-		panic("only ocp or none is allowed")
+		panic("only acs or none is allowed")
 	}
 }

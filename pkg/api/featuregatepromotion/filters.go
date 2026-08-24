@@ -48,7 +48,7 @@ func CapabilityRegressionsFilter(featureGate string) filter.Filter {
 			{Field: "current_working_percentage", Operator: filter.OperatorArithmeticLessThan, Value: "92"},
 			{Field: "current_runs", Operator: filter.OperatorArithmeticGreaterThanOrEquals, Value: "1"},
 			{Field: "name", Not: true, Operator: filter.OperatorContains, Value: "install should succeed"},
-			{Field: "name", Not: true, Operator: filter.OperatorContains, Value: "openshift-tests should work"},
+			{Field: "name", Not: true, Operator: filter.OperatorContains, Value: "ci-tests should work"},
 			{Field: "name", Not: true, Operator: filter.OperatorContains, Value: "infrastructure should work"},
 		},
 		LinkOperator: filter.LinkOperatorAnd,

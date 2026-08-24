@@ -64,7 +64,7 @@ func TestGitHubCommenter_IsRepoIncluded(t *testing.T) {
 		{
 			name:           "test default org included",
 			include:        []string{`repo1`},
-			org:            "openshift",
+			org:            "stackrox",
 			repo:           "repo1",
 			expectIncluded: true,
 		},
@@ -78,7 +78,7 @@ func TestGitHubCommenter_IsRepoIncluded(t *testing.T) {
 		{
 			name:           "test default org excluded",
 			exclude:        []string{`repo1`},
-			org:            "openshift",
+			org:            "stackrox",
 			repo:           "repo1",
 			expectIncluded: false,
 		},
@@ -92,21 +92,21 @@ func TestGitHubCommenter_IsRepoIncluded(t *testing.T) {
 		{
 			name:           "test multi excluded excluded",
 			exclude:        []string{`repo1`, `org1/repo2`},
-			org:            "openshift",
+			org:            "stackrox",
 			repo:           "repo1",
 			expectIncluded: false,
 		},
 		{
 			name:        "test bad excluded",
 			exclude:     []string{`repo1`, `org1/repo2`, `org2/repo1/bad`},
-			org:         "openshift",
+			org:         "stackrox",
 			repo:        "repo1",
 			expectError: true,
 		},
 		{
 			name:        "test bad included",
 			include:     []string{`repo1`, `org1/repo2`, `org2/repo1/bad`},
-			org:         "openshift",
+			org:         "stackrox",
 			repo:        "repo1",
 			expectError: true,
 		},

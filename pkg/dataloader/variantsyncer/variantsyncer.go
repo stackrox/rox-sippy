@@ -20,7 +20,7 @@ type VariantSyncer struct {
 }
 
 func New(dbc *db.DB, bqc *bqcached.Client) (*VariantSyncer, error) {
-	mgr, err := testidentification.NewOpenshiftVariantManager(context.TODO(), bqc)
+	mgr, err := testidentification.NewACSVariantManager(context.TODO(), bqc)
 	if err != nil {
 		return nil, err
 	}

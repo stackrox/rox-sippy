@@ -24,8 +24,7 @@ type VariantManager interface {
 	IsJobNeverStable(jobName string) bool
 }
 
-// NewOpenshiftVariantManager creates a variant manager (stub - returns empty manager for ACS)
-// TODO(ACS): Replace with ACS-specific variant manager
-func NewOpenshiftVariantManager(ctx context.Context, bqc interface{}) (VariantManager, error) {
+// NewACSVariantManager creates an ACS variant manager (stub - returns empty manager)
+func NewACSVariantManager(ctx context.Context, bqc interface{}) (VariantManager, error) {
 	return NewEmptyVariantManager(), nil
 }

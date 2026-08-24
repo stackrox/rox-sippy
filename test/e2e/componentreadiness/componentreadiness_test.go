@@ -57,8 +57,8 @@ func TestRegressionCacheLoader(t *testing.T) {
 	ctx := context.Background()
 	opCtx, ctx := bqcachedclient.OpCtxForCronEnv(ctx, "e2e")
 	bqClient, err := bqcachedclient.New(ctx, opCtx, cacheClient,
-		credFile, "openshift-gce-devel", "ci_analysis_us",
-		"openshift-ci-data-analysis.ci_data.Releases")
+		credFile, "acs-san-stackroxci", "ci_metrics",
+		"acs-san-stackroxci.ci_metrics.Releases")
 	require.NoError(t, err, "error creating bigquery client")
 
 	// Parse the e2e views

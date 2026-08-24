@@ -80,7 +80,7 @@ func PrintOverallReleaseHealthFromDB(w http.ResponseWriter, dbc *db.DB, release 
 
 	// NOTE: this is not actually representing the percentage of tests that passed, it's representing
 	// the percentage of time that all tests passed. We should probably fix that.
-	if testsIndicator, found := query.TestReportExcludeVariants(dbc, release, testidentification.OpenShiftTestsName, excludedVariants); found {
+	if testsIndicator, found := query.TestReportExcludeVariants(dbc, release, testidentification.CITestsName, excludedVariants); found {
 		indicators["tests"] = testsIndicator
 	}
 

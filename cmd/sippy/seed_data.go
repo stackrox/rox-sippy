@@ -1105,22 +1105,22 @@ func seedPresubmitData(dbc *db.DB) error {
 	// SHA linked to the earliest run, and a newer SHA linked to the rest.
 	prs := []models.ProwPullRequest{
 		{
-			Org:    "openshift",
-			Repo:   "origin",
+			Org:    "stackrox",
+			Repo:   "stackrox",
 			Number: 99001,
 			Author: "test-author-1",
 			Title:  "Test PR 99001",
 			SHA:    "abc123def456",
-			Link:   "https://github.com/openshift/origin/pull/99001",
+			Link:   "https://github.com/stackrox/stackrox/pull/99001",
 		},
 		{
-			Org:    "openshift",
-			Repo:   "origin",
+			Org:    "stackrox",
+			Repo:   "stackrox",
 			Number: 99002,
 			Author: "test-author-2",
 			Title:  "Test PR 99002",
 			SHA:    "789abc012def",
-			Link:   "https://github.com/openshift/origin/pull/99002",
+			Link:   "https://github.com/stackrox/stackrox/pull/99002",
 		},
 	}
 	oldSHAPR := models.ProwPullRequest{
@@ -1130,7 +1130,7 @@ func seedPresubmitData(dbc *db.DB) error {
 		Author: "test-author-1",
 		Title:  "Test PR 99001",
 		SHA:    "old111old222",
-		Link:   "https://github.com/openshift/origin/pull/99001?old=1",
+		Link:   "https://github.com/stackrox/stackrox/pull/99001?old=1",
 	}
 
 	for i, pr := range prs {
@@ -1494,7 +1494,7 @@ func seedReleasePayloads(dbc *db.DB) error {
 
 		prDefs := []models.ReleasePullRequest{
 			{
-				URL:           fmt.Sprintf("https://github.com/openshift/origin/pull/%d", 50000+i*10),
+				URL:           fmt.Sprintf("https://github.com/stackrox/stackrox/pull/%d", 50000+i*10),
 				PullRequestID: fmt.Sprintf("%d", 50000+i*10),
 				Name:          "origin",
 				Description:   fmt.Sprintf("Synthetic PR for payload %s", tagName),
@@ -1566,7 +1566,7 @@ func seedReleasePayloads(dbc *db.DB) error {
 				Kind:           jrd.kind,
 				State:          jrd.state,
 				TransitionTime: releaseTime.Add(time.Duration(k) * time.Hour),
-				URL:            fmt.Sprintf("https://prow.ci.openshift.org/view/gs/test-platform-results/logs/%s/%d", jrd.jobName, 90000+i*100+k),
+				URL:            fmt.Sprintf("https://gcsweb.acs.redhat.com/gcs/acs-ci-results/logs/%s/%d", jrd.jobName, 90000+i*100+k),
 			}
 			if err := dbc.DB.Create(&jobRun).Error; err != nil {
 				return fmt.Errorf("failed to create release job run: %w", err)

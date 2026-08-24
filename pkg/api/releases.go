@@ -143,7 +143,7 @@ func GetPayloadStreamTestFailures(dbc *db.DB, release, stream, arch string, filt
 	logger.WithField("failedPayloads", len(onlyFailedPayloads)).Debug("failed payloads")
 
 	subquery := query.GetTestFailuresForPayloadStream(
-		dbc.DB, release, stream, arch, reportEnd, testidentification.OpenShiftTestsName)
+		dbc.DB, release, stream, arch, reportEnd, testidentification.CITestsName)
 	q := dbc.DB.Table("(?) as test_failures", subquery)
 	q, err = filter.FilterableDBResult(q, filterOpts, nil)
 	if err != nil {
@@ -295,7 +295,7 @@ func GetPayloadTestFailures(dbc *db.DB, payloadTag string, logger log.FieldLogge
 
 func processFailedTests(failedTests []models.PayloadFailedTest, testNameToAnalysis map[string]*apitype.TestFailureAnalysis) {
 	for _, ft := range failedTests {
-		if ft.Name == testidentification.OpenShiftTestsName {
+		if ft.Name == testidentification.CITestsName {
 			// Skip the "all tests passed" test we inject, it's not relevant here.
 			continue
 		}

@@ -32,7 +32,7 @@ func (f *ConfigFlags) GetConfig() (*v1.SippyConfig, error) {
 
 	if f.Path == "" {
 		sippyConfig.Prow = v1.ProwConfig{
-			URL: "https://prow.ci.openshift.org/prowjobs.js",
+			URL: "",
 		}
 	} else {
 		data, err := os.ReadFile(f.Path)

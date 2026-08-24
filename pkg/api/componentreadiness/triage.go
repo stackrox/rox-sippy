@@ -156,7 +156,7 @@ func reportOnJiraUsedForTriage(jiraClient *jira.Client, triage models.Triage, ba
 		logger.Warnf("URL (%s) is not an OCPBUGS card, cannot comment", triage.URL)
 		return
 	}
-	baseURL := "https://sippy-auth.dptools.openshift.org"
+	baseURL := "https://sippy.acs.redhat.com"
 	if req != nil {
 		if origin := req.Header.Get("Origin"); origin != "" {
 			if u, err := url.Parse(origin); err == nil && u.Scheme != "" && u.Host != "" {

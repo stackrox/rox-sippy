@@ -78,7 +78,7 @@ var (
 			AdvancedOption: flakeFailAdvancedOption,
 		},
 	}
-	installerColumnGroupByVariants           = sets.New("Platform", "Architecture", "Network", "Installer")
+	installerColumnGroupByVariants           = sets.New("CloudProvider", "Architecture", "TestType", "CISystem")
 	groupByInstallerComponentReportGenerator = ComponentReportGenerator{
 		ReqOptions: reqopts.RequestOptions{
 			VariantOption: reqopts.Variants{
@@ -142,9 +142,9 @@ var (
 					Capability: "cap11",
 					TestID:     "1",
 					RequestedVariants: map[string]string{
-						"Platform":     "aws",
-						"Architecture": "amd64",
-						"Network":      "ovn",
+						"CloudProvider": "aws",
+						"Architecture":  "amd64",
+						"TestType":      "unit",
 					},
 				},
 			},
@@ -177,66 +177,58 @@ func TestGenerateComponentReport(t *testing.T) {
 	awsAMD64OVNTest := crtest.KeyWithVariants{
 		TestID: "1",
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "ovn",
-			"Upgrade":      "upgrade-micro",
-			"Topology":     "ha",
-			"FeatureSet":   "techpreview",
-			"Suite":        "serial",
-			"Installer":    "ipi",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "unit",
+			"Framework":     "junit",
+			"CISystem":      "github-actions",
+			"Release":       "4.5",
 		},
 	}
 	awsAMD64OVNTestKey := awsAMD64OVNTest.Encode()
 	awsAMD64SDNTest := crtest.KeyWithVariants{
 		TestID: "2",
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "sdn",
-			"Upgrade":      "upgrade-micro",
-			"Topology":     "ha",
-			"FeatureSet":   "techpreview",
-			"Suite":        "serial",
-			"Installer":    "ipi",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "integration",
+			"Framework":     "junit",
+			"CISystem":      "github-actions",
+			"Release":       "4.5",
 		},
 	}
 	awsAMD64SDNTestKey := awsAMD64SDNTest.Encode()
 	awsAMD64SDNInstallerUPITest := crtest.KeyWithVariants{
 		TestID: "2",
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "sdn",
-			"Upgrade":      "upgrade-micro",
-			"Topology":     "ha",
-			"FeatureSet":   "techpreview",
-			"Suite":        "serial",
-			"Installer":    "upi",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "integration",
+			"Framework":     "junit",
+			"CISystem":      "jenkins",
+			"Release":       "4.5",
 		},
 	}
 	awsAMD64SDNInstallerUPITestKey := awsAMD64SDNInstallerUPITest.Encode()
 	awsAMD64OVN2Test := crtest.KeyWithVariants{
 		TestID: "3",
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "ovn",
-			"Upgrade":      "upgrade-micro",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "unit",
+			"Framework":     "junit",
 		},
 	}
 	awsAMD64OVN2TestKey := awsAMD64OVN2Test.Encode()
 	awsAMD64OVNInstallerIPITest := crtest.KeyWithVariants{
 		TestID: "1",
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "ovn",
-			"Upgrade":      "upgrade-micro",
-			"Topology":     "ha",
-			"FeatureSet":   "techpreview",
-			"Suite":        "serial",
-			"Installer":    "ipi",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "unit",
+			"Framework":     "junit",
+			"CISystem":      "github-actions",
+			"Release":       "4.5",
 		},
 	}
 	awsAMD64OVNVariantsTestKey := awsAMD64OVNInstallerIPITest.Encode()
@@ -359,56 +351,52 @@ func TestGenerateComponentReport(t *testing.T) {
 	}
 	columnAWSAMD64OVN := crtest.ColumnIdentification{
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "ovn",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "unit",
 		},
 	}
 	columnAWSAMD64OVNInstallerIPI := crtest.ColumnIdentification{
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "ovn",
-			"Installer":    "ipi",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "unit",
+			"CISystem":      "github-actions",
 		},
 	}
 	columnAWSAMD64SDN := crtest.ColumnIdentification{
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "sdn",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "integration",
 		},
 	}
 	columnAWSAMD64SDNInstallerUPI := crtest.ColumnIdentification{
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "sdn",
-			"Installer":    "upi",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "integration",
+			"CISystem":      "jenkins",
 		},
 	}
 	columnAWSAMD64OVNFull := crtest.ColumnIdentification{
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "ovn",
-			"Upgrade":      "upgrade-micro",
-			"Topology":     "ha",
-			"FeatureSet":   "techpreview",
-			"Suite":        "serial",
-			"Installer":    "ipi",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "unit",
+			"Framework":     "junit",
+			"CISystem":      "github-actions",
+			"Release":       "4.5",
 		},
 	}
 	columnAWSAMD64SDNFull := crtest.ColumnIdentification{
 		Variants: map[string]string{
-			"Platform":     "aws",
-			"Architecture": "amd64",
-			"Network":      "sdn",
-			"Upgrade":      "upgrade-micro",
-			"Topology":     "ha",
-			"FeatureSet":   "techpreview",
-			"Suite":        "serial",
-			"Installer":    "ipi",
+			"CloudProvider": "aws",
+			"Architecture":  "amd64",
+			"TestType":      "integration",
+			"Framework":     "junit",
+			"CISystem":      "github-actions",
+			"Release":       "4.5",
 		},
 	}
 	rowComponent1 := crtest.RowIdentification{
@@ -458,12 +446,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						},
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.NotSignificant,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.MissingBasisAndSample,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.NotSignificant,
 							},
 						},
 					},
@@ -473,12 +461,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						},
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.NotSignificant,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -503,6 +491,10 @@ func TestGenerateComponentReport(t *testing.T) {
 					{
 						RowIdentification: rowComponent1,
 						Columns: []crtype.ReportColumn{
+							{
+								ColumnIdentification: columnAWSAMD64SDN,
+								Status:               crtest.MissingBasisAndSample,
+							},
 							{
 								ColumnIdentification: columnAWSAMD64OVN,
 								Status:               crtest.ExtremeRegression,
@@ -593,22 +585,18 @@ func TestGenerateComponentReport(t *testing.T) {
 									},
 								},
 							},
-							{
-								ColumnIdentification: columnAWSAMD64SDN,
-								Status:               crtest.MissingBasisAndSample,
-							},
 						},
 					},
 					{
 						RowIdentification: rowComponent2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.SignificantImprovement,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -632,12 +620,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2Cap21,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.NotSignificant,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -645,12 +633,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2Cap22,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.NotSignificant,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -674,12 +662,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2Cap21,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.SignificantImprovement,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -687,12 +675,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2Cap22,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.SignificantImprovement,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -716,12 +704,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2Cap22Test2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.NotSignificant,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -745,12 +733,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2Cap22Test2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.SignificantImprovement,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -774,12 +762,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2Cap22Test2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: filterColumnIDByDefault(columnAWSAMD64OVNFull),
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: filterColumnIDByDefault(columnAWSAMD64SDNFull),
 								Status:               crtest.NotSignificant,
+							},
+							{
+								ColumnIdentification: filterColumnIDByDefault(columnAWSAMD64OVNFull),
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -803,12 +791,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2Cap22Test2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: filterColumnIDByDefault(columnAWSAMD64OVNFull),
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: filterColumnIDByDefault(columnAWSAMD64SDNFull),
 								Status:               crtest.SignificantImprovement,
+							},
+							{
+								ColumnIdentification: filterColumnIDByDefault(columnAWSAMD64OVNFull),
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -842,6 +830,10 @@ func TestGenerateComponentReport(t *testing.T) {
 					{
 						RowIdentification: rowComponent1,
 						Columns: []crtype.ReportColumn{
+							{
+								ColumnIdentification: columnAWSAMD64SDN,
+								Status:               crtest.MissingBasisAndSample,
+							},
 							{
 								ColumnIdentification: columnAWSAMD64OVN,
 								Status:               crtest.SignificantRegression,
@@ -890,22 +882,18 @@ func TestGenerateComponentReport(t *testing.T) {
 									},
 								},
 							},
-							{
-								ColumnIdentification: columnAWSAMD64SDN,
-								Status:               crtest.MissingBasisAndSample,
-							},
 						},
 					},
 					{
 						RowIdentification: rowComponent2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.NotSignificant,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -940,12 +928,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent1,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.NotSignificant,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.MissingBasisAndSample,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.NotSignificant,
 							},
 						},
 					},
@@ -953,12 +941,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.NotSignificant,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -982,12 +970,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent1,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.NotSignificant,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.MissingBasisAndSample,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.NotSignificant,
 							},
 						},
 					},
@@ -995,12 +983,12 @@ func TestGenerateComponentReport(t *testing.T) {
 						RowIdentification: rowComponent2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.NotSignificant,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},
@@ -1071,6 +1059,10 @@ func TestGenerateComponentReport(t *testing.T) {
 					{
 						RowIdentification: rowComponent1,
 						Columns: []crtype.ReportColumn{
+							{
+								ColumnIdentification: columnAWSAMD64SDN,
+								Status:               crtest.MissingBasisAndSample,
+							},
 							{
 								ColumnIdentification: columnAWSAMD64OVN,
 								Status:               crtest.ExtremeRegression,
@@ -1161,22 +1153,18 @@ func TestGenerateComponentReport(t *testing.T) {
 									},
 								},
 							},
-							{
-								ColumnIdentification: columnAWSAMD64SDN,
-								Status:               crtest.MissingBasisAndSample,
-							},
 						},
 					},
 					{
 						RowIdentification: rowComponent2,
 						Columns: []crtype.ReportColumn{
 							{
-								ColumnIdentification: columnAWSAMD64OVN,
-								Status:               crtest.MissingBasisAndSample,
-							},
-							{
 								ColumnIdentification: columnAWSAMD64SDN,
 								Status:               crtest.SignificantImprovement,
+							},
+							{
+								ColumnIdentification: columnAWSAMD64OVN,
+								Status:               crtest.MissingBasisAndSample,
 							},
 						},
 					},

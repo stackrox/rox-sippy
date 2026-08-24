@@ -16,10 +16,23 @@ import (
 	"github.com/openshift/sippy/pkg/db/models"
 )
 
+// PullRequestBranch holds the head branch SHA for a pull request.
+type PullRequestBranch struct {
+	SHA *string
+}
+
+// PullRequest is a minimal representation of a GitHub pull request,
+// replacing the go-github type that was removed with the OCP prowloader.
+type PullRequest struct {
+	Number   *int
+	MergedAt *time.Time
+	Head     *PullRequestBranch
+}
+
 // Client is a stub for GitHub client (OCP-specific prowloader/github package removed for ACS)
 type Client struct{}
 
-func (c *Client) ListRecentlyClosedPRs(org, repo string) ([]interface{}, error) {
+func (c *Client) ListRecentlyClosedPRs(org, repo string) ([]*PullRequest, error) {
 	return nil, nil
 }
 

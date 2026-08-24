@@ -183,7 +183,7 @@ func getCapabilityRegressions(dbc *db.DB, release, featureGate string) ([]Capabi
 	end := dr.End.AddDays(-1)
 	start := dr.Start.AddDays(-1)
 
-	excludedNames := []string{"install should succeed", "openshift-tests should work", "infrastructure should work"}
+	excludedNames := []string{"install should succeed", "ci-tests should work", "infrastructure should work"}
 
 	type queryResult struct {
 		TestName          string  `gorm:"column:test_name"`

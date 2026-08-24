@@ -100,7 +100,7 @@ func buildOrgRepos(in []string) (map[string]sets.Set[string], error) {
 		}
 
 		if len(ar) < 2 {
-			org = `openshift`
+			org = `stackrox`
 			repo = r
 		} else {
 			org = ar[0]

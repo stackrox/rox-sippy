@@ -78,14 +78,14 @@ func GetTestRunsAndOutputsFromBigQuery(ctx context.Context, bigQueryClient *bq.C
 
 	queryStr := `WITH test_mapping AS (
   SELECT name, suite
-  FROM ` + "`openshift-gce-devel.ci_analysis_us.component_mapping_latest`" + `
+  FROM ` + "`acs-san-stackroxci.ci_metrics.component_mapping_latest`" + `
   WHERE id = @testID
 ),
 matching_runs AS (
   SELECT DISTINCT junit.prowjob_build_id
-  FROM ` + "`openshift-gce-devel.ci_analysis_us.junit`" + ` AS junit
+  FROM ` + "`acs-san-stackroxci.ci_metrics.junit`" + ` AS junit
   INNER JOIN test_mapping ON junit.test_name = test_mapping.name AND junit.testsuite = test_mapping.suite
-  INNER JOIN ` + "`openshift-gce-devel.ci_analysis_us.jobs`" + ` AS jobs ON junit.prowjob_build_id = jobs.prowjob_build_id
+  INNER JOIN ` + "`acs-san-stackroxci.ci_metrics.jobs`" + ` AS jobs ON junit.prowjob_build_id = jobs.prowjob_build_id
   WHERE junit.modified_time BETWEEN DATETIME(@startDate) AND DATETIME(@endDate)
     AND jobs.prowjob_job_name NOT LIKE '%aggregat%'` + filterStr + `
 ),
@@ -102,7 +102,7 @@ failed_test_counts AS (
         END) AS row_num,
       CASE WHEN d.flake_count > 0 THEN 0 ELSE d.success_val END AS adjusted_success_val,
       CASE WHEN d.flake_count > 0 THEN 1 ELSE 0 END AS adjusted_flake_count
-    FROM ` + "`openshift-gce-devel.ci_analysis_us.junit`" + ` d
+    FROM ` + "`acs-san-stackroxci.ci_metrics.junit`" + ` d
     INNER JOIN matching_runs mr ON d.prowjob_build_id = mr.prowjob_build_id
     WHERE d.modified_time BETWEEN DATETIME(@startDate) AND DATETIME(@endDate)
       AND d.skipped = false
@@ -112,9 +112,9 @@ failed_test_counts AS (
 )
 SELECT junit.prowjob_build_id, junit.test_name, junit.success, junit.test_id, junit.branch, junit.prowjob_name, junit.failure_content,
        jobs.prowjob_url, jobs.prowjob_start, COALESCE(ftc.failed_tests, 0) AS failed_tests
-FROM ` + "`openshift-gce-devel.ci_analysis_us.junit`" + ` AS junit
+FROM ` + "`acs-san-stackroxci.ci_metrics.junit`" + ` AS junit
 INNER JOIN test_mapping ON junit.test_name = test_mapping.name AND junit.testsuite = test_mapping.suite
-INNER JOIN ` + "`openshift-gce-devel.ci_analysis_us.jobs`" + ` AS jobs ON junit.prowjob_build_id = jobs.prowjob_build_id
+INNER JOIN ` + "`acs-san-stackroxci.ci_metrics.jobs`" + ` AS jobs ON junit.prowjob_build_id = jobs.prowjob_build_id
 LEFT JOIN failed_test_counts ftc ON junit.prowjob_build_id = ftc.prowjob_build_id
 WHERE junit.modified_time BETWEEN DATETIME(@startDate) AND DATETIME(@endDate)
   AND jobs.prowjob_job_name NOT LIKE '%aggregat%'` + filterStr + `

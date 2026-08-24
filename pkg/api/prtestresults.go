@@ -139,7 +139,7 @@ func GetPRTestResults(dbc *db.DB, org, repo string, prNumber int, latestSHAOnly 
 func PrintPRTestResultsJSON(w http.ResponseWriter, req *http.Request, dbc *db.DB) {
 	org := param.SafeRead(req, "org")
 	if org == "" {
-		org = "openshift"
+		org = "stackrox"
 	}
 
 	repo := param.SafeRead(req, "repo")

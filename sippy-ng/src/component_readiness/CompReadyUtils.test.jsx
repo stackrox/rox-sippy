@@ -97,7 +97,7 @@ describe('convertApiUrlToUiUrl', () => {
 
   test('rewrites generic /api/ prefix to /sippy-ng/', () => {
     expect(
-      convertApiUrlToUiUrl('https://sippy.dptools.openshift.org/api/other/path')
+      convertApiUrlToUiUrl('https://sippy.acs.redhat.com/api/other/path')
     ).toBe('/sippy-ng/other/path')
   })
 

@@ -50,7 +50,7 @@ type EventListResponse struct {
 // JobRunEvents fetches events.json for a given job run from the GCS path
 // artifacts/*e2e*/gather-extra/artifacts/events.json
 func JobRunEvents(gcsClient *storage.Client, dbc *db.DB, jobRunID int64, gcsBucket, gcsPath string, logger *log.Entry) (*EventListResponse, error) {
-	jobRunURL := fmt.Sprintf("https://prow.ci.openshift.org/view/gs/%s/%s", gcsBucket, gcsPath)
+	jobRunURL := fmt.Sprintf("https://gcsweb.acs.redhat.com/gcs/%s/%s", gcsBucket, gcsPath)
 
 	jobRun, err := api.FetchJobRun(dbc, jobRunID, false, nil, logger)
 	if err != nil {

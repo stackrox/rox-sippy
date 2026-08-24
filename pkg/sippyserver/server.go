@@ -67,11 +67,10 @@ import (
 	"github.com/openshift/sippy/pkg/util/param"
 )
 
-// Mode defines the server mode of operation, OpenShift or upstream Kubernetes.
 type Mode string
 
 const (
-	ModeOpenShift  Mode = "openshift"
+	ModeACS        Mode = "acs"
 	ModeKubernetes Mode = "kube"
 )
 
@@ -431,8 +430,8 @@ func (s *Server) hasCapabilities(capabilities []string) bool {
 
 func (s *Server) determineCapabilities() {
 	capabilities := make([]string, 0)
-	if s.mode == ModeOpenShift {
-		capabilities = append(capabilities, OpenshiftCapability)
+	if s.mode == ModeACS {
+		capabilities = append(capabilities, ACSCapability)
 	}
 
 	if s.bigQueryClient != nil || s.crDataProvider != nil {
@@ -1328,7 +1327,7 @@ func (s *Server) jsonTestsReportFromDB(w http.ResponseWriter, req *http.Request)
 
 func (s *Server) jsonTestsReportFromBigQuery(w http.ResponseWriter, req *http.Request) {
 	// Fall back to postgres if dataset is not ci_analysis_us
-	if s.bigQueryClient == nil || s.bigQueryClient.Dataset != "ci_analysis_us" {
+	if s.bigQueryClient == nil || s.bigQueryClient.Dataset != "ci_metrics" {
 		s.jsonTestsReportFromDB(w, req)
 		return
 	}
@@ -1747,7 +1746,7 @@ func (s *Server) jsonJobRunIntervals(w http.ResponseWriter, req *http.Request) {
 	var gcsPath string
 	if len(jobName) > 0 {
 		if len(repoInfo) > 0 {
-			if repoInfo == "openshift_origin" {
+			if repoInfo == "stackrox_stackrox" {
 				// GCS bucket path for openshift/origin PRs
 				gcsPath = fmt.Sprintf("pr-logs/pull/%s/%s/%s", pullNumber, jobName, jobRunIDStr)
 			} else {
@@ -1801,7 +1800,7 @@ func (s *Server) jsonJobRunEvents(w http.ResponseWriter, req *http.Request) {
 	var gcsPath string
 	if len(jobName) > 0 {
 		if len(repoInfo) > 0 {
-			if repoInfo == "openshift_origin" {
+			if repoInfo == "stackrox_stackrox" {
 				gcsPath = fmt.Sprintf("pr-logs/pull/%s/%s/%s", pullNumber, jobName, jobRunIDStr)
 			} else {
 				gcsPath = fmt.Sprintf("pr-logs/pull/%s/%s/%s/%s", repoInfo, pullNumber, jobName, jobRunIDStr)

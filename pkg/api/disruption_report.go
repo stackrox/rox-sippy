@@ -44,7 +44,7 @@ func (c *disruptionReportGenerator) getDisruptionDeltasFromBigQuery(ctx context.
 	// We'll publish a metric for whatever is in the views, which need to be updated for each GA release:
 	queryString := fmt.Sprintf(`
 						SELECT *
-						FROM openshift-ci-data-analysis.ci_data.%s
+						FROM acs-san-stackroxci.ci_metrics.%s
 						WHERE LookbackDays = 3`, c.ViewName)
 
 	query := c.client.Query(ctx, bqlabel.DisruptionDelta, queryString)

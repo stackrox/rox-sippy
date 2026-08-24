@@ -416,7 +416,7 @@ export function TestAnalysis(props) {
             <Card className="test-failure-card" elevation={5}>
               <Typography variant="h5">
                 Issues
-                <Tooltip title="Issues links to all known Jira issues mentioning this test. Only OCPBUGS project is indexed, not the mirrored older bugs from Bugzilla. Issues are shown from all releases.">
+                <Tooltip title="Issues links to all known Jira issues mentioning this test. Issues are shown from all releases.">
                   <InfoIcon />
                 </Tooltip>
               </Typography>

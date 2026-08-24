@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-const artifactURLFmt = "https://gcsweb-ci.apps.ci.l2s4.p1.openshiftapps.com/gcs/%s/%s"
+const artifactURLFmt = "https://gcsweb.acs.redhat.com/gcs/%s/%s"
 
 type JobArtifactQuery struct {
 	GcsBucket *storage.BucketHandle

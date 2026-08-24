@@ -6,7 +6,7 @@ prow:
   # ACS uses multiple CI systems (GitHub Actions, Prow, Konflux).
   # This URL field is kept for compatibility but not actively used since ACS
   # data comes from BigQuery, not a Prow endpoint.
-  url: https://prow.ci.openshift.org/prowjobs.js
+  url: ""
 
 releases:
   # Main development branch

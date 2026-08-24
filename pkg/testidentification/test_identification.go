@@ -27,7 +27,7 @@ const (
 	InstallTestName        = `[sig-sippy] install should work`
 	InstallTimeoutTestName = `[sig-sippy] install should not timeout`
 	UpgradeTestName        = `[sig-sippy] upgrade should work`
-	OpenShiftTestsName     = `[sig-sippy] openshift-tests should work`
+	CITestsName = `[sig-sippy] ci-tests should work`
 
 	InstallTestNamePrefix     = `install should succeed: `
 	InstallConfigTestName     = `install should succeed: configuration`

@@ -122,7 +122,7 @@ const prefilledOptions = new Map([
     'LimitExceeded in CCO pod log',
     {
       fileMatch:
-        'artifacts/*e2e*/gather-extra/artifacts/pods/openshift-cloud-credential-operator_cloud-credential-operator-*_cloud-credential-operator.log',
+        'artifacts/*e2e*/gather-extra/artifacts/pods/*_*.log',
       type: 'regex',
       regex: {
         match: 'level=error.*LimitExceeded',
@@ -457,7 +457,7 @@ export default function JobArtifactQuery(props) {
               'artifacts/*e2e*/gather-extra/build-log.txt',
               'artifacts/*e2e*/gather-extra/artifacts/audit_logs/*/*.log',
               'artifacts/*e2e*/gather-extra/artifacts/nodes/*/journal',
-              'artifacts/*e2e*/openshift-e2e-test/artifacts/junit/e2e-events*.json',
+              'artifacts/*e2e*/*/artifacts/junit/e2e-events*.json',
               'artifacts/**/{junit,monitor,e2e-monitor}*.xml',
               'artifacts/*e2e*/*-install-install*/artifacts/.openshift_install-*.log',
             ]}
@@ -1578,7 +1578,7 @@ export default function JobArtifactQuery(props) {
                         </Stack>
                       )}
                     >
-                      {['OCP', 'OKD', 'HCM'].map((product) => (
+                      {['ACS'].map((product) => (
                         <MenuItem key={product} value={product}>
                           <Checkbox
                             checked={selectedProducts.indexOf(product) > -1}

@@ -20,7 +20,7 @@ type BigQueryFlags struct {
 
 func NewBigQueryFlags() *BigQueryFlags {
 	return &BigQueryFlags{
-		ReleasesTable: "openshift-ci-data-analysis.ci_data.Releases",
+		ReleasesTable: "acs-san-stackroxci.ci_metrics.Releases",
 	}
 }
 

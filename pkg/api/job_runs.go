@@ -156,7 +156,7 @@ const jobRunsBaseSelect = `ci_job_runs.id,
 	ci_jobs.name,
 	ci_jobs.name AS job,
 	ci_jobs.variants,
-	regexp_replace(ci_jobs.name, 'periodic-ci-openshift-(multiarch|release)-(master|main)-(ci|nightly)-[0-9]+.[0-9]+-', '') AS brief_name,
+	ci_jobs.name AS brief_name,
 	ci_job_runs.overall_result,
 	ci_job_runs.url AS test_grid_url,
 	ci_job_runs.url,
@@ -199,7 +199,7 @@ func analyzeJobRunFilters(filterOpts *filter.FilterOptions, prColumns sets.Set[s
 var columnAliases = map[string]string{
 	"id":                  "ci_job_runs.id",
 	"job":                 "ci_jobs.name",
-	"brief_name":          "regexp_replace(ci_jobs.name, 'periodic-ci-openshift-(multiarch|release)-(master|main)-(ci|nightly)-[0-9]+.[0-9]+-', '')",
+	"brief_name":          "ci_jobs.name",
 	"prow_id":             "ci_job_runs.id",
 	"test_grid_url":       "ci_job_runs.url",
 	"timestamp":           `ci_job_runs."timestamp"`,
@@ -871,7 +871,7 @@ func runJobRunAnalysis(ctx context.Context, bqc *bigquery.Client, jobRun *models
 
 	for _, ft := range jobRun.Tests {
 
-		if ft.Test.Name == testidentification.OpenShiftTestsName || testidentification.IsIgnoredTest(ft.Test.Name) {
+		if ft.Test.Name == testidentification.CITestsName || testidentification.IsIgnoredTest(ft.Test.Name) {
 			continue
 		}
 
@@ -986,8 +986,8 @@ func isHighRiskInOtherPRs(ctx context.Context, bqc *bigquery.Client, failedTest 
 
 	queryStr := `
 		SELECT COUNT(*)
-		FROM ` + "`openshift-ci-data-analysis.ci_data_autodl.risk_analysis_test_results`" + `
-		INNER JOIN ` + "`openshift-gce-devel.ci_analysis_us.jobs`" + ` jobs
+		FROM ` + "`acs-san-stackroxci.ci_metrics.risk_analysis_test_results`" + `
+		INNER JOIN ` + "`acs-san-stackroxci.ci_metrics.jobs`" + ` jobs
 		  ON JobRunName=jobs.prowjob_build_id
 		WHERE PartitionTime BETWEEN TIMESTAMP(@StartTime) AND TIMESTAMP(@EndTime)
 		  AND RiskLevel >= 100

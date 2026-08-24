@@ -24,8 +24,8 @@ import (
 var (
 	includeVariants = map[string][]string{
 		"Architecture": {"amd64"},
-		"FeatureSet":   {"default", "techpreview"},
-		"Installer":    {"ipi", "upi"},
+		"Release":      {"4.5", "4.6"},
+		"CISystem":     {"github-actions", "jenkins"},
 	}
 )
 
@@ -37,13 +37,12 @@ func TestParseComponentReportRequest(t *testing.T) {
 	}
 
 	allJobVariants := crtest.JobVariants{Variants: map[string][]string{
-		"Architecture": {"amd64", "arm64", "s390x", "ppc64le", "heterogeneous"},
-		"FeatureSet":   {"default", "techpreview"},
-		"Installer":    {"ipi", "upi"},
-		"Network":      {"ovn", "sdn"},
-		"Platform":     {"aws", "gcp"},
-		"Topology":     {"ha", "single", "microshift", "external"},
-		"Upgrade":      {"micro", "minor", "none"},
+		"Architecture":  {"amd64", "arm64", "s390x", "ppc64le", "heterogeneous"},
+		"CloudProvider": {"aws", "gcp"},
+		"TestType":      {"unit", "integration", "e2e"},
+		"Framework":     {"junit", "pytest", "gotest"},
+		"CISystem":      {"github-actions", "jenkins"},
+		"Release":       {"4.5", "4.6"},
 	}}
 
 	view417main := crview.View{
@@ -79,20 +78,19 @@ func TestParseComponentReportRequest(t *testing.T) {
 	view417cross := view417main
 	view417cross.Name = "4.17-cross"
 	view417cross.VariantOptions = reqopts.Variants{
-		VariantCrossCompare: []string{"Topology"},
+		VariantCrossCompare: []string{"CISystem"},
 		IncludeVariants: map[string][]string{
 			"Architecture": {"amd64"},
-			"Installer":    {"ipi", "upi"},
-			"Topology":     {"ha"},
+			"CISystem":     {"github-actions"},
+			"Release":      {"4.5", "4.6"},
 		},
 		CompareVariants: map[string][]string{
 			"Architecture": {"amd64"},
-			"Installer":    {"ipi", "upi"},
-			"Topology":     {"single"},
+			"CISystem":     {"jenkins"},
+			"Release":      {"4.5", "4.6"},
 		},
-		// also remove Topology from columnGroupBy and dbGroupBy
-		ColumnGroupBy: sets.New("Platform", "Architecture", "Network"),
-		DBGroupBy:     sets.New("Platform", "Architecture", "Network", "Suite", "FeatureSet", "Upgrade", "Installer"),
+		ColumnGroupBy: sets.New("CloudProvider", "Architecture", "TestType"),
+		DBGroupBy:     sets.New("CloudProvider", "Architecture", "TestType", "Framework", "CISystem", "Release"),
 	}
 
 	views := []crview.View{
@@ -129,8 +127,8 @@ func TestParseComponentReportRequest(t *testing.T) {
 				{"baseRelease", "4.15"},
 				{"baseStartTime", "2024-02-01T00:00:00Z"},
 				{"confidence", "95"},
-				{"columnGroupBy", "Platform,Architecture,Network"},
-				{"dbGroupBy", "Platform,Architecture,Network,Topology,FeatureSet,Upgrade,Installer"},
+				{"columnGroupBy", "CloudProvider,Architecture,TestType"},
+				{"dbGroupBy", "CloudProvider,Architecture,TestType,Framework,CISystem,Release"},
 				{"ignoreDisruption", "true"},
 				{"ignoreMissing", "false"},
 				{"includeAllTests", "true"},
@@ -140,18 +138,18 @@ func TestParseComponentReportRequest(t *testing.T) {
 				{"sampleRelease", "4.16"},
 				{"sampleStartTime", "2024-04-04T00:00:05Z"},
 				{"includeVariant", "Architecture:amd64"},
-				{"includeVariant", "FeatureSet:default"},
-				{"includeVariant", "Installer:ipi"},
-				{"includeVariant", "Installer:upi"},
+				{"includeVariant", "Release:4.5"},
+				{"includeVariant", "CISystem:github-actions"},
+				{"includeVariant", "CISystem:jenkins"},
 			},
 			includeAllTests: true,
 			variantOption: reqopts.Variants{
-				ColumnGroupBy: sets.New("Platform", "Architecture", "Network"),
-				DBGroupBy:     sets.New("Platform", "Architecture", "Network", "Topology", "FeatureSet", "Upgrade", "Installer"),
+				ColumnGroupBy: sets.New("CloudProvider", "Architecture", "TestType"),
+				DBGroupBy:     sets.New("CloudProvider", "Architecture", "TestType", "Framework", "CISystem", "Release"),
 				IncludeVariants: map[string][]string{
 					"Architecture": {"amd64"},
-					"FeatureSet":   {"default"},
-					"Installer":    {"ipi", "upi"},
+					"Release":      {"4.5"},
+					"CISystem":     {"github-actions", "jenkins"},
 				},
 			},
 			baseRelease: reqopts.Release{
@@ -189,8 +187,8 @@ func TestParseComponentReportRequest(t *testing.T) {
 				{"baseRelease", "4.15"},
 				{"baseStartTime", "ga-30d"},
 				{"confidence", "95"},
-				{"columnGroupBy", "Platform,Architecture,Network"},
-				{"dbGroupBy", "Platform,Architecture,Network,Topology,FeatureSet,Upgrade,Installer"},
+				{"columnGroupBy", "CloudProvider,Architecture,TestType"},
+				{"dbGroupBy", "CloudProvider,Architecture,TestType,Framework,CISystem,Release"},
 				{"ignoreDisruption", "true"},
 				{"ignoreMissing", "false"},
 				{"minFail", "3"},
@@ -199,17 +197,17 @@ func TestParseComponentReportRequest(t *testing.T) {
 				{"sampleRelease", "4.16"},
 				{"sampleStartTime", "2024-04-04T00:00:05Z"},
 				{"includeVariant", "Architecture:amd64"},
-				{"includeVariant", "FeatureSet:default"},
-				{"includeVariant", "Installer:ipi"},
-				{"includeVariant", "Installer:upi"},
+				{"includeVariant", "Release:4.5"},
+				{"includeVariant", "CISystem:github-actions"},
+				{"includeVariant", "CISystem:jenkins"},
 			},
 			variantOption: reqopts.Variants{
-				ColumnGroupBy: sets.New("Platform", "Architecture", "Network"),
-				DBGroupBy:     sets.New("Platform", "Architecture", "Network", "Topology", "FeatureSet", "Upgrade", "Installer"),
+				ColumnGroupBy: sets.New("CloudProvider", "Architecture", "TestType"),
+				DBGroupBy:     sets.New("CloudProvider", "Architecture", "TestType", "Framework", "CISystem", "Release"),
 				IncludeVariants: map[string][]string{
 					"Architecture": {"amd64"},
-					"FeatureSet":   {"default"},
-					"Installer":    {"ipi", "upi"},
+					"Release":      {"4.5"},
+					"CISystem":     {"github-actions", "jenkins"},
 				},
 			},
 			baseRelease: reqopts.Release{
@@ -246,14 +244,14 @@ func TestParseComponentReportRequest(t *testing.T) {
 				{"view", "4.17-main"},
 			},
 			variantOption: reqopts.Variants{
-				ColumnGroupBy: sets.New("Platform", "Architecture", "Network"),
-				DBGroupBy:     sets.New("Platform", "Architecture", "Network", "Topology", "Suite", "FeatureSet", "Upgrade", "Installer", "LayeredProduct"),
+				ColumnGroupBy: sets.New("CloudProvider", "TestType", "Architecture"),
+				DBGroupBy:     sets.New("CloudProvider", "TestType", "Architecture", "Framework", "CISystem", "Release"),
 				IncludeVariants: map[string][]string{
 					"Architecture": {"amd64"},
-					"FeatureSet":   {"default", "techpreview"},
-					"Installer":    {"ipi", "upi"},
+					"Release":      {"4.5", "4.6"},
+					"CISystem":     {"github-actions", "jenkins"},
 				},
-				CompareVariants: nil, // the view is likely not to specify compare variants at all
+				CompareVariants: nil,
 			},
 			baseRelease: reqopts.Release{
 				Name:  "4.16",
@@ -294,16 +292,15 @@ func TestParseComponentReportRequest(t *testing.T) {
 			name: "view with includeVariant override replaces view defaults",
 			queryParams: [][]string{
 				{"view", "4.17-main"},
-				{"includeVariant", "Platform:gcp"},
-				{"includeVariant", "Topology:single"},
+				{"includeVariant", "CloudProvider:gcp"},
+				{"includeVariant", "TestType:e2e"},
 			},
 			variantOption: reqopts.Variants{
-				ColumnGroupBy: sets.New("Platform", "Architecture", "Network"),
-				DBGroupBy:     sets.New("Platform", "Architecture", "Network", "Topology", "Suite", "FeatureSet", "Upgrade", "Installer", "LayeredProduct"),
-				// URL params completely replace view's includeVariants
+				ColumnGroupBy: sets.New("CloudProvider", "TestType", "Architecture"),
+				DBGroupBy:     sets.New("CloudProvider", "TestType", "Architecture", "Framework", "CISystem", "Release"),
 				IncludeVariants: map[string][]string{
-					"Platform": {"gcp"},
-					"Topology": {"single"},
+					"CloudProvider": {"gcp"},
+					"TestType":      {"e2e"},
 				},
 				CompareVariants: nil,
 			},
@@ -341,39 +338,36 @@ func TestParseComponentReportRequest(t *testing.T) {
 				{"baseEndTime", "2024-02-28T23:59:59Z"},
 				{"baseRelease", "4.15"},
 				{"baseStartTime", "2024-02-01T00:00:00Z"},
-				{"columnGroupBy", "Platform,Network"},
-				{"dbGroupBy", "Platform,Network,FeatureSet,Upgrade,Installer"},
+				{"columnGroupBy", "CloudProvider,TestType"},
+				{"dbGroupBy", "CloudProvider,TestType,Release,Framework,CISystem"},
 				{"sampleEndTime", "2024-04-11T23:59:59Z"},
 				{"sampleRelease", "4.16"},
 				{"sampleStartTime", "2024-04-04T00:00:05Z"},
 				{"includeVariant", "Architecture:amd64"},
 				{"includeVariant", "Architecture:arm64"},
-				{"includeVariant", "Topology:ha"},
-				{"includeVariant", "FeatureSet:default"},
-				{"includeVariant", "Installer:ipi"},
-				{"includeVariant", "Installer:upi"},
+				{"includeVariant", "CISystem:github-actions"},
+				{"includeVariant", "Release:4.5"},
+				{"includeVariant", "CISystem:jenkins"},
 				{"variantCrossCompare", "Architecture"},
-				{"variantCrossCompare", "Topology"},
+				{"variantCrossCompare", "CISystem"},
 				{"compareVariant", "Architecture:s390x"},
 				{"compareVariant", "Architecture:ppc64le"},
-				{"compareVariant", "Topology:single"},
+				{"compareVariant", "CISystem:jenkins"},
 			},
 			variantOption: reqopts.Variants{
-				ColumnGroupBy: sets.New("Platform", "Network"),
-				DBGroupBy:     sets.New("Platform", "Network", "FeatureSet", "Upgrade", "Installer"),
+				ColumnGroupBy: sets.New("CloudProvider", "TestType"),
+				DBGroupBy:     sets.New("CloudProvider", "TestType", "Release", "Framework", "CISystem"),
 				IncludeVariants: map[string][]string{
 					"Architecture": {"amd64", "arm64"},
-					"Topology":     {"ha"},
-					"FeatureSet":   {"default"},
-					"Installer":    {"ipi", "upi"},
+					"CISystem":     {"github-actions", "jenkins"},
+					"Release":      {"4.5"},
 				},
 				CompareVariants: map[string][]string{
 					"Architecture": {"s390x", "ppc64le"},
-					"Topology":     {"single"},
-					"FeatureSet":   {"default"},
-					"Installer":    {"ipi", "upi"},
+					"CISystem":     {"jenkins"},
+					"Release":      {"4.5"},
 				},
-				VariantCrossCompare: []string{"Architecture", "Topology"},
+				VariantCrossCompare: []string{"Architecture", "CISystem"},
 			},
 			baseRelease: reqopts.Release{
 				Name:  "4.15",
@@ -409,18 +403,18 @@ func TestParseComponentReportRequest(t *testing.T) {
 				{"view", "4.17-cross"},
 			},
 			variantOption: reqopts.Variants{
-				ColumnGroupBy: sets.New("Platform", "Architecture", "Network"),
-				DBGroupBy:     sets.New("Platform", "Architecture", "Network", "Suite", "FeatureSet", "Upgrade", "Installer"),
+				ColumnGroupBy: sets.New("CloudProvider", "Architecture", "TestType"),
+				DBGroupBy:     sets.New("CloudProvider", "Architecture", "TestType", "Framework", "CISystem", "Release"),
 				IncludeVariants: map[string][]string{
 					"Architecture": {"amd64"},
-					"Installer":    {"ipi", "upi"},
-					"Topology":     {"ha"},
+					"CISystem":     {"github-actions"},
+					"Release":      {"4.5", "4.6"},
 				},
-				VariantCrossCompare: []string{"Topology"},
+				VariantCrossCompare: []string{"CISystem"},
 				CompareVariants: map[string][]string{
 					"Architecture": {"amd64"},
-					"Installer":    {"ipi", "upi"},
-					"Topology":     {"single"},
+					"CISystem":     {"jenkins"},
+					"Release":      {"4.5", "4.6"},
 				},
 			},
 			baseRelease: reqopts.Release{
@@ -500,15 +494,12 @@ func TestHATEOASLinkCacheConsistency(t *testing.T) {
 	}
 
 	allJobVariants := crtest.JobVariants{Variants: map[string][]string{
-		"Architecture":   {"amd64", "arm64"},
-		"FeatureSet":     {"default", "techpreview"},
-		"Installer":      {"ipi", "upi"},
-		"LayeredProduct": {"none"},
-		"Network":        {"ovn"},
-		"Platform":       {"aws", "gcp"},
-		"Suite":          {"unknown"},
-		"Topology":       {"ha", "single"},
-		"Upgrade":        {"micro", "minor", "none"},
+		"Architecture":  {"amd64", "arm64"},
+		"CloudProvider": {"aws", "gcp"},
+		"TestType":      {"unit", "integration", "e2e"},
+		"Framework":     {"junit", "pytest", "gotest"},
+		"CISystem":      {"github-actions", "jenkins"},
+		"Release":       {"4.5", "4.6"},
 	}}
 
 	view := crview.View{
@@ -565,7 +556,7 @@ func TestHATEOASLinkCacheConsistency(t *testing.T) {
 				TestID:            "openshift-tests:abc123",
 				Component:         "TestComponent",
 				Capability:        "TestCapability",
-				RequestedVariants: map[string]string{"Architecture": "amd64", "Platform": "aws"},
+				RequestedVariants: map[string]string{"Architecture": "amd64", "CloudProvider": "aws"},
 			},
 		},
 	}
@@ -582,7 +573,7 @@ func TestHATEOASLinkCacheConsistency(t *testing.T) {
 		reqopts.TestFilters{},
 		"TestComponent",
 		"TestCapability",
-		[]string{"Architecture:amd64", "Platform:aws"},
+		[]string{"Architecture:amd64", "CloudProvider:aws"},
 		"",
 		"",
 	)
