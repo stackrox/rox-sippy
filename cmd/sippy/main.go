@@ -19,11 +19,11 @@ var logLevel = "info"
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "sippy",
-	Short: "CIPI (Continuous Integration Private Investigator) aka Sippy",
-	Long: `Sippy reports on job and test statistics, sliced by various filters
-including name, suite, or NURP+ variants (network, upgrade, release,
-platform, etc).`,
+	Use:   "acs-sippy",
+	Short: "ACS Sippy - CI Analytics Dashboard for Advanced Cluster Security",
+	Long: `ACS Sippy reports on CI job and test statistics for ACS (Advanced Cluster Security).
+It loads data from BigQuery and provides analytics on test pass rates, job health,
+and component readiness, sliced by variants like test type, cloud provider, release, etc.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		PrintVersion(cmd, args)
 		level, err := log.ParseLevel(logLevel)

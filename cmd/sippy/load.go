@@ -29,6 +29,7 @@ import (
 	"github.com/openshift/sippy/pkg/variantregistry"
 
 	"github.com/openshift/sippy/pkg/dataloader"
+	"github.com/openshift/sippy/pkg/dataloader/bqloader"
 	"github.com/openshift/sippy/pkg/dataloader/bugloader"
 	"github.com/openshift/sippy/pkg/dataloader/gateststatus"
 	"github.com/openshift/sippy/pkg/dataloader/jiraloader"
@@ -100,7 +101,7 @@ func (f *LoadFlags) BindFlags(fs *pflag.FlagSet) {
 	f.JiraFlags.BindFlags(fs)
 
 	fs.BoolVar(&f.InitDatabase, "init-database", false, "Migrate the DB before loading")
-	fs.StringArrayVar(&f.Loaders, "loader", []string{"release-definitions", "jira", "bugs", "test-mapping", "ga-test-status"}, "Which data sources to use for data loading")
+	fs.StringArrayVar(&f.Loaders, "loader", []string{"bq-sync"}, "Which data sources to use for data loading (options: bq-sync, release-definitions, jira, bugs, test-mapping, ga-test-status, regression-cache, job-variants, sync-variants)")
 	fs.StringArrayVar(&f.Releases, "release", f.Releases, "Which releases to load (one per arg instance)")
 	fs.StringArrayVar(&f.Architectures, "arch", f.Architectures, "Which architectures to load (one per arg instance)")
 	fs.StringVar(&f.JobVariantsInputFile, "job-variants-input-file", "expected-job-variants.json", "JSON input file for the job-variants loader")
@@ -117,7 +118,7 @@ func NewLoadCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "load",
-		Short: "Load data in the database",
+		Short: "Load data from BigQuery into PostgreSQL",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			level, err := log.ParseLevel(f.LogLevel)
 			if err != nil {
@@ -214,6 +215,40 @@ func NewLoadCommand() *cobra.Command {
 
 			var regressionCacheAdded bool
 			for _, l := range f.Loaders {
+				// ACS BigQuery Sync Loader - simplified BQ → PostgreSQL sync
+				if l == "bq-sync" {
+					refreshMatviews = true
+					if bigqueryErr != nil {
+						return errors.Wrap(bigqueryErr, "CRITICAL error getting BigQuery client which prevents bq-sync loading")
+					}
+					if dbErr != nil {
+						return errors.Wrap(dbErr, "CRITICAL error getting postgres client which prevents bq-sync loading")
+					}
+
+					// Create BQ loader with ACS classifier
+					bqLoader, err := bqloader.NewBQLoader(
+						ctx,
+						dbc.DB,
+						bqc,
+						f.BigQueryFlags.BigQueryProject,
+						f.BigQueryFlags.BigQueryDataset,
+					)
+					if err != nil {
+						return errors.Wrap(err, "failed to create BQ loader")
+					}
+
+					// Set the ACS classifier for variant assignment
+					classifier := variantregistry.NewACSClassifier()
+					bqLoader.SetClassifier(classifier)
+
+					// Sync data from BigQuery
+					if err := bqLoader.Sync(ctx); err != nil {
+						return errors.Wrap(err, "BQ sync failed")
+					}
+
+					log.Info("BQ sync completed successfully")
+				}
+
 				if l == "release-definitions" {
 					if bigqueryErr != nil {
 						return errors.Wrap(bigqueryErr, "CRITICAL error getting BigQuery client which prevents release-definitions loading")

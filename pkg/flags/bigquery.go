@@ -25,8 +25,8 @@ func NewBigQueryFlags() *BigQueryFlags {
 }
 
 func (f *BigQueryFlags) BindFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&f.BigQueryProject, "bigquery-project", "openshift-gce-devel", "BigQuery project to use")
-	fs.StringVar(&f.BigQueryDataset, "bigquery-dataset", "ci_analysis_us", "Dataset to use")
+	fs.StringVar(&f.BigQueryProject, "bigquery-project", "acs-san-stackroxci", "BigQuery project to use")
+	fs.StringVar(&f.BigQueryDataset, "bigquery-dataset", "ci_metrics", "Dataset to use")
 	fs.StringVar(&f.ReleasesTable, "bigquery-releases-table", f.ReleasesTable, "BigQuery table containing release information")
 }
 
