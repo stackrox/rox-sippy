@@ -45,7 +45,6 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS test_release_summary AS
 SELECT
     t.id AS test_id,
     t.name AS test_name,
-    t.component,
     j.release,
     j.variants,
     COUNT(*) FILTER (WHERE jrt.status = 1) AS passes,
@@ -58,7 +57,7 @@ FROM ci_job_run_tests jrt
 JOIN ci_job_runs jr ON jr.id = jrt.ci_job_run_id
 JOIN ci_jobs j ON j.id = jr.ci_job_id
 JOIN tests t ON t.id = jrt.test_id
-GROUP BY t.id, t.name, t.component, j.release, j.variants
+GROUP BY t.id, t.name, j.release, j.variants
 WITH NO DATA;
 
 -- Required unique index for REFRESH CONCURRENTLY
@@ -68,6 +67,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_test_release_summary_unique
 -- Additional indexes for query performance
 CREATE INDEX IF NOT EXISTS idx_test_release_summary_release
     ON test_release_summary (release);
-
-CREATE INDEX IF NOT EXISTS idx_test_release_summary_component
-    ON test_release_summary (component);

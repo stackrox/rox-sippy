@@ -44,7 +44,6 @@ GROUP BY t.id, j.release, DATE(jr.timestamp AT TIME ZONE 'UTC'), j.ci_system`,
 SELECT
     t.id AS test_id,
     t.name AS test_name,
-    t.component,
     j.release,
     j.variants,
     COUNT(*) FILTER (WHERE jrt.status = 1) AS passes,
@@ -57,11 +56,10 @@ FROM ci_job_run_tests jrt
 JOIN ci_job_runs jr ON jr.id = jrt.ci_job_run_id
 JOIN ci_jobs j ON j.id = jr.ci_job_id
 JOIN tests t ON t.id = jrt.test_id
-GROUP BY t.id, t.name, t.component, j.release, j.variants`,
+GROUP BY t.id, t.name, j.release, j.variants`,
 		IndexColumns: []string{"test_id", "release", "variants"},
 		AdditionalIndexes: []string{
 			"release",
-			"component",
 		},
 		RefreshPhase: 0,
 	},
