@@ -191,8 +191,7 @@ func (f *ComponentReadinessFlags) runServerMode() error {
 		sippyserver.ModeOpenShift,
 		f.APIFlags.ListenAddr,
 		f.ComponentReadinessFlags.CORSAllowedOrigin,
-		nil,
-		nil,
+		nil, // variantManager
 		webRoot,
 		&resources.Static,
 		dbc,

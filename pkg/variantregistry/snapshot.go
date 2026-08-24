@@ -1,11 +1,15 @@
 package variantregistry
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 
+	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/storage"
+	"github.com/openshift/sippy/pkg/bigquery/bqlabel"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
@@ -16,6 +20,25 @@ import (
 
 // JobVariants is a map of jobs to variant key/value pairs
 type JobVariants map[string]map[string]string
+
+// OCPVariantLoader is a stub for the deleted OCP variant loader
+type OCPVariantLoader struct {
+	config                       *v1.SippyConfig
+	views                        []crview.View
+	syntheticReleaseJobOverrides *releaseoverride.SyntheticReleaseOverrides
+}
+
+// CalculateVariantsForJob calculates variants for a job (stub - returns empty map)
+func (o *OCPVariantLoader) CalculateVariantsForJob(log logrus.FieldLogger, job string, variants interface{}) map[string]string {
+	// TODO(ACS): Replace with ACS-specific variant calculation
+	return map[string]string{}
+}
+
+// validateComponentCapabilityVariants validates component capability variants (stub - always returns nil)
+func validateComponentCapabilityVariants(job string, variants map[string]string) error {
+	// TODO(ACS): Add ACS-specific validation if needed
+	return nil
+}
 
 type VariantSnapshot struct {
 	config                       *v1.SippyConfig
@@ -99,4 +122,28 @@ func isIgnoredJob(jobName string) bool {
 	}
 
 	return false
+}
+
+// NewOCPVariantLoader creates a new OCP variant loader (stub for ACS)
+// TODO(ACS): Replace with ACS-specific variant loader implementation
+func NewOCPVariantLoader(
+	bigQueryClient *bigquery.Client,
+	opCtx bqlabel.OperationalContext,
+	bigQueryProject, bigQueryDataSet, bigQueryTable string,
+	gcsClient *storage.Client,
+	config *v1.SippyConfig,
+	views []crview.View,
+	syntheticReleaseJobOverrides *releaseoverride.SyntheticReleaseOverrides,
+) *OCPVariantLoader {
+	return &OCPVariantLoader{
+		config:                       config,
+		views:                        views,
+		syntheticReleaseJobOverrides: syntheticReleaseJobOverrides,
+	}
+}
+
+// LoadExpectedJobVariants loads expected job variants (stub - returns empty map)
+// TODO(ACS): Implement ACS-specific job variant loading from BigQuery
+func (o *OCPVariantLoader) LoadExpectedJobVariants(ctx context.Context) (map[string]map[string]string, error) {
+	return map[string]map[string]string{}, nil
 }

@@ -28,7 +28,6 @@ import (
 	"github.com/openshift/sippy/pkg/sippyserver"
 	"github.com/openshift/sippy/pkg/variantregistry"
 
-	v1 "github.com/openshift/sippy/pkg/apis/config/v1"
 	"github.com/openshift/sippy/pkg/dataloader"
 	"github.com/openshift/sippy/pkg/dataloader/bugloader"
 	"github.com/openshift/sippy/pkg/dataloader/gateststatus"

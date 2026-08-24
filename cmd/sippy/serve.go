@@ -171,7 +171,6 @@ func NewServeCommand() *cobra.Command {
 				f.ModeFlags.GetServerMode(),
 				f.APIFlags.ListenAddr,
 				f.ComponentReadinessFlags.CORSAllowedOrigin,
-				f.ModeFlags.GetSyntheticTestManager(),
 				variantManager,
 				webRoot,
 				&resources.Static,

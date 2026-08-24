@@ -1,8 +1,6 @@
 package jobrunevents
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -73,44 +71,6 @@ func JobRunEvents(gcsClient *storage.Client, dbc *db.DB, jobRunID int64, gcsBuck
 	// TODO(ACS): GCS event extraction removed (OCP-specific prowloader/gcs package deleted)
 	logger.Info("GCS event extraction not available (OCP-specific feature removed)")
 	return &EventListResponse{Items: []KubeEvent{}, JobRunURL: jobRunURL}, nil
-
-	/*
-	// Original GCS-based code below (removed for ACS)
-	gcsJobRun := gcs.NewGCSJobRun(gcsClient.Bucket(gcsBucket), gcsPath)
-	matches, err := gcsJobRun.FindAllMatches(context.TODO(), gcs.GlobEventsJSON)
-	if err != nil {
-		return &EventListResponse{JobRunURL: jobRunURL}, err
-	}
-
-	if len(matches) == 0 {
-		logger.Info("no events.json file found")
-		return &EventListResponse{Items: []KubeEvent{}, JobRunURL: jobRunURL}, nil
-	}
-
-	eventsPath := matches[0]
-	logger.WithField("events_path", eventsPath).Info("found events.json")
-
-	content, err := gcsJobRun.GetContent(context.TODO(), eventsPath)
-	if err != nil {
-		logger.WithError(err).Errorf("error getting content for file: %s", eventsPath)
-		return nil, err
-	}
-
-	var rawEvents struct {
-		Items []rawKubeEvent `json:"items"`
-	}
-	if err := json.Unmarshal(content, &rawEvents); err != nil {
-		logger.WithError(err).Error("error unmarshaling events.json")
-		return nil, err
-	}
-
-	events := make([]KubeEvent, 0, len(rawEvents.Items))
-	for _, raw := range rawEvents.Items {
-		evt := flattenEvent(raw)
-		events = append(events, evt)
-	}
-
-	return &EventListResponse{Items: events, JobRunURL: jobRunURL}, nil
 }
 
 func flattenEvent(raw rawKubeEvent) KubeEvent {

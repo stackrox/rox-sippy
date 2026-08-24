@@ -12,7 +12,31 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-const invalidCharacters = ",:"
+const (
+	invalidCharacters = ",:"
+
+	// Variant dimension constants (from deleted ocp.go, kept for compatibility)
+	VariantAggregation      = "Aggregation"
+	VariantArch             = "Architecture"
+	VariantFeatureSet       = "FeatureSet"
+	VariantInstaller        = "Installer"
+	VariantNetwork          = "Network"
+	VariantNetworkAccess    = "NetworkAccess"
+	VariantNetworkStack     = "NetworkStack"
+	VariantOwner            = "Owner"
+	VariantPlatform         = "Platform"
+	VariantScheduler        = "Scheduler"
+	VariantSecurityMode     = "SecurityMode"
+	VariantSuite            = "Suite"
+	VariantProcedure        = "Procedure"
+	VariantJobTier          = "JobTier"
+	VariantTopology         = "Topology"
+	VariantUpgrade          = "Upgrade"
+	VariantContainerRuntime = "ContainerRuntime"
+	VariantCGroupMode       = "CGroupMode"
+	VariantRelease          = "Release"
+	VariantReleaseMinor     = "ReleaseMinor"
+)
 
 // JobVariantsLoader can be used to reconcile expected job variants with whatever is currently in the bigquery
 // tables.

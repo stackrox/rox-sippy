@@ -1,23 +1,26 @@
 {
-  "model": "claude-opus-4-6",
-  "enabledPlugins": {
-    "golang@ai-helpers": true,
-    "github@ai-helpers": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true
-  },
-  "extraKnownMarketplaces": {
-    "ai-helpers": {
-      "source": {
-        "source": "github",
-        "repo": "openshift-eng/ai-helpers"
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "bd prime",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
       }
-    },
-    "claude-plugins-official": {
-      "source": {
-        "source": "github",
-        "repo": "anthropics/claude-plugins-official"
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bd prime",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
       }
-    }
+    ]
   }
 }

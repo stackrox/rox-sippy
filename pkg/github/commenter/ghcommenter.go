@@ -17,9 +17,41 @@ import (
 // Client is a stub for GitHub client (OCP-specific prowloader/github package removed for ACS)
 type Client struct{}
 
+// PREntry represents a GitHub pull request entry
+type PREntry struct {
+	SHA      string
+	MergedAt *time.Time
+	State    *string
+}
+
 // NewClient creates a new GitHub client stub
 func NewClient() *Client {
 	return &Client{}
+}
+
+// PRFetch fetches a pull request (stub - always returns nil)
+func (c *Client) PRFetch(org, repo string, number int) (*PREntry, error) {
+	return nil, nil
+}
+
+// FindCommentID finds a comment ID (stub - always returns nil)
+func (c *Client) FindCommentID(org, repo string, number int, commentKey, commentID string) (*int64, *string, error) {
+	return nil, nil, nil
+}
+
+// GetPREntry gets a PR entry (stub - always returns nil)
+func (c *Client) GetPREntry(org, repo string, number int) (*PREntry, error) {
+	return nil, nil
+}
+
+// CreatePRComment creates a PR comment (stub - no-op)
+func (c *Client) CreatePRComment(org, repo string, number int, body string) error {
+	return nil
+}
+
+// DeletePRComment deletes a PR comment (stub - no-op)
+func (c *Client) DeletePRComment(org, repo string, commentID int64) error {
+	return nil
 }
 
 type GitHubCommenter struct {
@@ -100,7 +132,7 @@ func (ghc *GitHubCommenter) CreateCommentID(commentType models.CommentType, sha 
 	return fmt.Sprintf("TRT_%s", sha)
 }
 
-func (ghc *GitHubCommenter) GetCurrentState(org, repo string, number int) (*github.PREntry, error) {
+func (ghc *GitHubCommenter) GetCurrentState(org, repo string, number int) (*PREntry, error) {
 	return ghc.githubClient.PRFetch(org, repo, number)
 }
 

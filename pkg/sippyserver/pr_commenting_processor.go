@@ -33,12 +33,18 @@ import (
 // Stub types and functions for removed GCS functionality (OCP-specific prowloader/gcs package)
 type gcsJobRun struct{}
 
-func (g *gcsJobRun) GetFile(path string) ([]byte, error)           { return nil, nil }
+func (g *gcsJobRun) GetFile(path string) ([]byte, error)              { return nil, nil }
 func (g *gcsJobRun) FindFirstFile(prefix string, re interface{}) []byte { return nil }
+func (g *gcsJobRun) GetContent(ctx context.Context, path string) ([]byte, error) {
+	return nil, nil
+}
+func (g *gcsJobRun) ContentExists(ctx context.Context, path string) (bool, error) {
+	return false, nil
+}
 
 type gcsStub struct{}
 
-func (g gcsStub) GetDefaultRiskAnalysisSummaryFile() string { return "" }
+func (g gcsStub) GetDefaultRiskAnalysisSummaryFile() *regexp.Regexp { return nil }
 func (g gcsStub) NewGCSJobRun(bucket *storage.BucketHandle, path string) *gcsJobRun {
 	return &gcsJobRun{}
 }
@@ -712,7 +718,8 @@ func (aw *AnalysisWorker) getPrJobsIfFinished(logger *log.Entry, prRoot string) 
 		finishedJSON := fmt.Sprintf("%sfinished.json", latestPath)
 
 		// currently we only validate that the file exists, we aren't pulling anything out of it
-		if !gcsJobRun.ContentExists(context.TODO(), finishedJSON) {
+		exists, _ := gcsJobRun.ContentExists(context.TODO(), finishedJSON)
+		if !exists {
 			return nil // testing not yet complete for the PR
 		}
 
