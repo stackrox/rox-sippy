@@ -3,16 +3,36 @@ WORKDIR /go/src/sippy
 COPY . .
 ENV PATH="/go/bin:${PATH}"
 ENV GOPATH="/go"
-RUN dnf module enable nodejs:20 -y && dnf install -y go make npm && make build
-RUN go build -cover -coverpkg=./cmd/...,./pkg/... -mod=vendor -o ./sippy-cover ./cmd/sippy
 
-FROM registry.access.redhat.com/ubi9/ubi:latest AS base
-RUN mkdir -p /historical-data
+# Install build dependencies and build both frontend and backend
+RUN dnf module enable nodejs:20 -y && \
+    dnf install -y go make npm && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
+
+# Build frontend first (required for go:embed)
+RUN cd sippy-ng && npm ci --no-audit --ignore-scripts && npm run build
+
+# Build ACS Sippy binary
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+ARG GIT_TREE_STATE=unknown
+RUN go build \
+    -ldflags "-X github.com/openshift/sippy/pkg/version.commitFromGit=${GIT_COMMIT} -X github.com/openshift/sippy/pkg/version.buildDate=${BUILD_DATE} -X github.com/openshift/sippy/pkg/version.gitTreeState=${GIT_TREE_STATE}" \
+    -mod=vendor \
+    -o ./acs-sippy \
+    ./cmd/sippy
+
+FROM registry.access.redhat.com/ubi9/ubi:latest AS runtime
 RUN mkdir -p /config
-COPY --from=builder /go/src/sippy/sippy /bin/sippy
-COPY --from=builder /go/src/sippy/sippy-cover /bin/sippy-cover
-COPY --from=builder /go/src/sippy/sippy-daemon /bin/sippy-daemon
-COPY --from=builder /go/src/sippy/scripts/fetchdata.sh /bin/fetchdata.sh
-COPY --from=builder /go/src/sippy/config/*.yaml /config/
-ENTRYPOINT ["/bin/sippy"]
+
+# Copy the ACS Sippy binary
+COPY --from=builder /go/src/sippy/acs-sippy /bin/acs-sippy
+
+# Copy ACS configuration files
+COPY --from=builder /go/src/sippy/config/acs.yaml /config/
+COPY --from=builder /go/src/sippy/config/acs-views.yaml /config/
+
 EXPOSE 8080
+ENTRYPOINT ["/bin/acs-sippy"]
+CMD ["serve"]
