@@ -2,6 +2,14 @@
 
 ## Completed Tasks
 
+### BD-acs-sippy-6kl: Task 12: Wire Component Readiness for ACS
+**Worker**: backend-7 | **Files**: pkg/api/componentreadiness/component_report.go,pkg/api/componentreadiness/dataprovider/postgres/provider.go,pkg/sippyserver/metrics/metrics.go,config/acs-views.yaml,config/acs.yaml
+Wired Component Readiness for ACS: updated variant dimensions (6 ACS dims vs 28 OCP), updated DefaultColumnGroupBy/DefaultDBGroupBy, CacheVariants, fieldMap, Prometheus metrics labels. Created acs-vie
+
+### BD-acs-sippy-11r: Task 11: Implement API endpoints
+**Worker**: api-1 | **Files**: pkg/api/refresh.go,pkg/api/refresh_test.go,pkg/sippyserver/server.go,cmd/sippy/serve.go,cmd/sippy/component_readiness.go
+Implemented API endpoints: most existing endpoints work as-is, added new /api/refresh with 15-min rate limiting wired to BQLoader.Sync(), updated NewServer() to accept dataSyncer. Tests passing.
+
 ### BD-acs-sippy-2r1: Task 10: Create materialized views
 **Worker**: backend-6 | **Files**: pkg/db/migrations/000013_create_materialized_views.up.sql,pkg/db/migrations/000013_create_materialized_views.down.sql,pkg/db/views.go
 Created materialized views: test_daily_summary and test_release_summary with unique indexes for CONCURRENTLY refresh, migration 000013, wired into RefreshData pipeline.

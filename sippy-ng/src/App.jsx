@@ -35,6 +35,7 @@ import { TestAnalysis } from './tests/TestAnalysis'
 import { useCookies } from 'react-cookie'
 import AccessibilityToggle from './components/AccessibilityToggle'
 import AIDisclaimerDialog from './components/AIDisclaimerDialog'
+import RefreshButton from './components/RefreshButton'
 import Alert from '@mui/material/Alert'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -491,6 +492,7 @@ function App(_props) {
                             </IconButton>
                           </Tooltip>
                           <AccessibilityToggle />
+                          <RefreshButton />
                           <Tooltip
                             title={
                               testTableDBSource === 'bigquery'
@@ -577,10 +579,7 @@ function App(_props) {
                               element={<PullRequestsWrapper />}
                             />
 
-                            <Route
-                              path="/"
-                              element={landingPage}
-                            />
+                            <Route path="/" element={landingPage} />
                           </Routes>
                         </ErrorBoundary>
                       </Main>

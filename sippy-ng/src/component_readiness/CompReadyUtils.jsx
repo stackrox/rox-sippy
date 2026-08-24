@@ -523,9 +523,6 @@ export function getUpdatedUrlParts(vars) {
   vars.variantCrossCompare.forEach((item) => {
     queryParams.append('variantCrossCompare', item)
   })
-  vars.samplePayloadTags.forEach((item) => {
-    queryParams.append('samplePayloadTag', item)
-  })
   vars.testCapabilities.forEach((item) => {
     queryParams.append('testCapabilities', item)
   })

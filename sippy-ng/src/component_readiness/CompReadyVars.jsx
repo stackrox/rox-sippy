@@ -122,7 +122,6 @@ export const CompReadyVarsProvider = ({ children }) => {
     samplePROrg: StringParam,
     samplePRRepo: StringParam,
     samplePRNumber: StringParam,
-    samplePayloadTags: ArrayParam,
     dbGroupBy: StringParam, // This is comma-separated in the URL, e.g. Platform,Architecture,...
     columnGroupBy: StringParam, // This is comma-separated in the URL, e.g. Platform,Network,Architecture
     includeVariant: ArrayParam, // variants selected for inclusion in the basis and sample (unless cross-compared)
@@ -166,7 +165,6 @@ export const CompReadyVarsProvider = ({ children }) => {
   const [samplePROrg, setSamplePROrg] = React.useState('')
   const [samplePRRepo, setSamplePRRepo] = React.useState('')
   const [samplePRNumber, setSamplePRNumber] = React.useState('')
-  const [samplePayloadTags, setSamplePayloadTags] = React.useState([])
 
   const setBaseReleaseWithDates = (event) => {
     let release = event.target.value
@@ -307,7 +305,6 @@ export const CompReadyVarsProvider = ({ children }) => {
     setSamplePROrg(params.samplePROrg || '')
     setSamplePRRepo(params.samplePRRepo || '')
     setSamplePRNumber(params.samplePRNumber || '')
-    setSamplePayloadTags(params.samplePayloadTags || [])
 
     // Initialize includeVariantsCheckedItems
     setIncludeVariantsCheckedItems(
@@ -391,7 +388,6 @@ export const CompReadyVarsProvider = ({ children }) => {
       samplePROrg,
       samplePRRepo,
       samplePRNumber,
-      samplePayloadTags,
       dbGroupBy: dbGroupByVariants.join(','),
       columnGroupBy: columnGroupByCheckedItems.join(','),
       includeVariant: convertVariantItemsToParam(includeVariantsCheckedItems),
@@ -620,8 +616,6 @@ export const CompReadyVarsProvider = ({ children }) => {
         setSamplePRRepo,
         samplePRNumber,
         setSamplePRNumber,
-        samplePayloadTags,
-        setSamplePayloadTags,
         columnGroupByCheckedItems,
         setColumnGroupByCheckedItems,
         dbGroupByVariants,
