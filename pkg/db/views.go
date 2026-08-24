@@ -13,7 +13,59 @@ const replaceTimeNow = "|||TIMENOW|||"
 const timestampFormat = "2006-01-02 15:04:05"
 
 // TODO: for historical sippy we need to specify the pinnedDate and not use NOW
-var PostgresMatViews = []PostgresView{}
+var PostgresMatViews = []PostgresView{
+	{
+		Name: "test_daily_summary",
+		Definition: `
+SELECT
+    t.id AS test_id,
+    j.release,
+    DATE(jr.timestamp AT TIME ZONE 'UTC') AS day,
+    j.ci_system,
+    COUNT(*) FILTER (WHERE jrt.status = 1) AS passes,
+    COUNT(*) FILTER (WHERE jrt.status = 12) AS failures,
+    COUNT(*) FILTER (WHERE jrt.status = 13) AS flakes,
+    COUNT(*) AS total_runs
+FROM ci_job_run_tests jrt
+JOIN ci_job_runs jr ON jr.id = jrt.ci_job_run_id
+JOIN ci_jobs j ON j.id = jr.ci_job_id
+JOIN tests t ON t.id = jrt.test_id
+GROUP BY t.id, j.release, DATE(jr.timestamp AT TIME ZONE 'UTC'), j.ci_system`,
+		IndexColumns: []string{"test_id", "release", "day", "ci_system"},
+		AdditionalIndexes: []string{
+			"day",
+			"release",
+		},
+		RefreshPhase: 0,
+	},
+	{
+		Name: "test_release_summary",
+		Definition: `
+SELECT
+    t.id AS test_id,
+    t.name AS test_name,
+    t.component,
+    j.release,
+    j.variants,
+    COUNT(*) FILTER (WHERE jrt.status = 1) AS passes,
+    COUNT(*) FILTER (WHERE jrt.status = 12) AS failures,
+    COUNT(*) FILTER (WHERE jrt.status = 13) AS flakes,
+    COUNT(*) AS total_runs,
+    MIN(jr.timestamp) AS first_run,
+    MAX(jr.timestamp) AS last_run
+FROM ci_job_run_tests jrt
+JOIN ci_job_runs jr ON jr.id = jrt.ci_job_run_id
+JOIN ci_jobs j ON j.id = jr.ci_job_id
+JOIN tests t ON t.id = jrt.test_id
+GROUP BY t.id, t.name, t.component, j.release, j.variants`,
+		IndexColumns: []string{"test_id", "release", "variants"},
+		AdditionalIndexes: []string{
+			"release",
+			"component",
+		},
+		RefreshPhase: 0,
+	},
+}
 
 // PostgresViews are regular, non-materialized views:
 var PostgresViews = []PostgresView{}
