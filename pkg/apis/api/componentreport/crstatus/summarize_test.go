@@ -53,7 +53,7 @@ func TestSummarizeTestJobRuns_LifecyclePromotion(t *testing.T) {
 			for _, lc := range tc.lifecycles {
 				rows = append(rows, TestJobRunRows{
 					TestKeyStr: "test-key",
-					ProwJob:    "job-name",
+					CIJob:    "job-name",
 					Count:      crtest.Count{TotalCount: 1, SuccessCount: 1},
 					Lifecycle:  lc,
 				})

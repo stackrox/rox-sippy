@@ -207,7 +207,7 @@ func TestRunJobAnalysis(t *testing.T) {
 	for _, tc := range tests {
 
 		t.Run(tc.name, func(t *testing.T) {
-			fakeProwJobRun := buildFakeProwJobRun()
+			fakeCIJobRun := buildFakeCIJobRun()
 			// Assume to build out the failed tests as those we provided pass rates for.
 
 			var tests []apitype.Test
@@ -219,9 +219,9 @@ func TestRunJobAnalysis(t *testing.T) {
 			}
 
 			for _, t := range tests {
-				fakeProwJobRun.Tests = append(fakeProwJobRun.Tests, models.ProwJobRunTest{
-					ProwJobID:         fakeProwJobRun.ProwJobID,
-					ProwJobRunRelease: fakeProwJobRun.ProwJobRelease,
+				fakeCIJobRun.Tests = append(fakeCIJobRun.Tests, models.CIJobRunTest{
+					CIJobID:         fakeCIJobRun.CIJobID,
+					CIJobRunRelease: fakeCIJobRun.CIJobRelease,
 					Test:              models.Test{Name: t.Name},
 					Suite:             models.Suite{Name: t.SuiteName},
 					Status:            12,
@@ -255,7 +255,7 @@ func TestRunJobAnalysis(t *testing.T) {
 				}
 			}
 
-			result, err := runJobRunAnalysis(context.TODO(), nil, fakeProwJobRun, "4.12", 5, false, tc.jobNames, log.WithField("jobRunID", "test"), testResultsJobNamesLookupFunc, testResultsVariantsLookupFunc, false)
+			result, err := runJobRunAnalysis(context.TODO(), nil, fakeCIJobRun, "4.12", 5, false, tc.jobNames, log.WithField("jobRunID", "test"), testResultsJobNamesLookupFunc, testResultsVariantsLookupFunc, false)
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.expectedTestRisks), len(result.Tests))
 			for testName, expectedRisk := range tc.expectedTestRisks {
@@ -272,9 +272,9 @@ func TestRunJobAnalysis(t *testing.T) {
 	}
 }
 
-func buildFakeProwJobRun() *models.ProwJobRun {
-	fakeProwJobRun := &models.ProwJobRun{
-		ProwJob: models.ProwJob{
+func buildFakeCIJobRun() *models.CIJobRun {
+	fakeCIJobRun := &models.CIJobRun{
+		CIJob: models.CIJob{
 			Name:        "fake-prow-job",
 			Release:     "4.12",
 			Variants:    []string{"var1", "var2"},
@@ -290,20 +290,20 @@ func buildFakeProwJobRun() *models.ProwJobRun {
 				},
 			},
 		},
-		ProwJobID:             1000000000,
-		ProwJobRelease:        "4.12",
+		CIJobID:             1000000000,
+		CIJobRelease:        "4.12",
 		URL:                   "https://example.com/run/1000000000",
-		Tests:                 []models.ProwJobRunTest{}, // will be populated in the test cases
+		Tests:                 []models.CIJobRunTest{}, // will be populated in the test cases
 		TestCount:             5,
 		Failed:                true,
 		InfrastructureFailure: false,
 		Succeeded:             false,
 		OverallResult:         "F",
 	}
-	return fakeProwJobRun
+	return fakeCIJobRun
 }
 
-func getTestRisk(result apitype.ProwJobRunRiskAnalysis, testName string) *apitype.TestRiskAnalysis {
+func getTestRisk(result apitype.CIJobRunRiskAnalysis, testName string) *apitype.TestRiskAnalysis {
 	for _, ta := range result.Tests {
 		if ta.Name == testName {
 			return &ta
@@ -334,15 +334,15 @@ func TestSplitTestPreloads(t *testing.T) {
 		},
 		{
 			name:                "only Tests-related preloads",
-			preloads:            []string{"Tests.ProwJobRunTestOutput", "Tests.Suite"},
+			preloads:            []string{"Tests.CIJobRunTestOutput", "Tests.Suite"},
 			expectedOther:       nil,
-			expectedTestRelated: []string{"ProwJobRunTestOutput", "Suite"},
+			expectedTestRelated: []string{"CIJobRunTestOutput", "Suite"},
 		},
 		{
 			name:                "mixed preloads",
-			preloads:            []string{"PullRequests", "Tests.ProwJobRunTestOutput", "Annotations"},
+			preloads:            []string{"PullRequests", "Tests.CIJobRunTestOutput", "Annotations"},
 			expectedOther:       []string{"PullRequests", "Annotations"},
-			expectedTestRelated: []string{"ProwJobRunTestOutput"},
+			expectedTestRelated: []string{"CIJobRunTestOutput"},
 		},
 	}
 

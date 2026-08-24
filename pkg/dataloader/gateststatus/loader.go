@@ -19,10 +19,10 @@ import (
 	"github.com/openshift/sippy/pkg/db/models"
 )
 
-// GATestStatusLoader populates prow_ga_raw_test_data for releases that have reached GA.
+// GATestStatusLoader populates ci_ga_raw_test_data for releases that have reached GA.
 //
 // For each GA release, it queries BigQuery once for all configured windows
-// and persists the raw results in prow_ga_raw_test_data. This runs only when
+// and persists the raw results in ci_ga_raw_test_data. This runs only when
 // the raw data is missing or the GA date changed, or when forced.
 // Aggregation happens at query time in the Component Readiness provider.
 type GATestStatusLoader struct {
@@ -155,21 +155,21 @@ func (l *GATestStatusLoader) persist(release string, gaDate civil.Date, rows []s
 	}()
 
 	if _, err := tx.Exec(l.ctx,
-		"DELETE FROM prow_ga_raw_test_data WHERE release = $1", release); err != nil {
+		"DELETE FROM ci_ga_raw_test_data WHERE release = $1", release); err != nil {
 		return fmt.Errorf("deleting existing raw rows: %w", err)
 	}
 
 	if len(rows) > 0 {
 		insertStart := time.Now()
 		result, err := tx.Exec(l.ctx, `
-			INSERT INTO prow_ga_raw_test_data
-				(release, window_days, test_id, prow_job_id, suite_id, passes, failures, flakes, runs)
+			INSERT INTO ci_ga_raw_test_data
+				(release, window_days, test_id, ci_job_id, suite_id, passes, failures, flakes, runs)
 			SELECT
 				$1, tmp.window_days, t.id, pj.id, COALESCE(s.id, 0),
 				tmp.passes, tmp.failures, tmp.flakes, tmp.runs
 			FROM tmp_ga_raw tmp
 			INNER JOIN tests t ON t.name = tmp.test_name AND t.deleted_at IS NULL
-			INNER JOIN prow_jobs pj ON pj.name = tmp.job_name AND pj.deleted_at IS NULL
+			INNER JOIN ci_jobs pj ON pj.name = tmp.job_name AND pj.deleted_at IS NULL
 			LEFT JOIN suites s ON s.name = tmp.suite_name AND s.deleted_at IS NULL
 		`, release)
 		if err != nil {

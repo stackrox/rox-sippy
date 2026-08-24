@@ -16,32 +16,32 @@ import (
 const parallelWorkers = 4
 
 const insertSQL = `
-	INSERT INTO test_daily_totals (test_id, prow_job_id, suite_id, lifecycle, release, date,
+	INSERT INTO test_daily_totals (test_id, ci_job_id, suite_id, lifecycle, release, date,
 		successes, failures, flakes, runs,
 		first_failure_timestamp, last_failure_timestamp,
 		first_success_timestamp, last_success_timestamp)
 	SELECT
 		pjrt.test_id,
-		pjrt.prow_job_id,
+		pjrt.ci_job_id,
 		COALESCE(pjrt.suite_id, 0),
 		pjrt.lifecycle,
-		pjrt.prow_job_run_release,
-		date(pjrt.prow_job_run_timestamp),
+		pjrt.ci_job_run_release,
+		date(pjrt.ci_job_run_timestamp),
 		COUNT(*) FILTER (WHERE pjrt.status = 1),
 		COUNT(*) FILTER (WHERE pjrt.status = 12),
 		COUNT(*) FILTER (WHERE pjrt.status = 13),
 		COUNT(*),
-		MIN(pjrt.prow_job_run_timestamp) FILTER (WHERE pjrt.status = 12),
-		MAX(pjrt.prow_job_run_timestamp) FILTER (WHERE pjrt.status = 12),
-		MIN(pjrt.prow_job_run_timestamp) FILTER (WHERE pjrt.status = 1),
-		MAX(pjrt.prow_job_run_timestamp) FILTER (WHERE pjrt.status = 1)
-	FROM prow_job_run_tests pjrt
-	JOIN prow_job_runs pjr ON pjr.id = pjrt.prow_job_run_id AND pjr.prow_job_release = pjrt.prow_job_run_release AND pjr.timestamp = pjrt.prow_job_run_timestamp
-	WHERE pjrt.prow_job_run_timestamp >= ?::date
-	  AND pjrt.prow_job_run_timestamp < (?::date + INTERVAL '1 day')
-	  AND pjrt.prow_job_run_release = ?
+		MIN(pjrt.ci_job_run_timestamp) FILTER (WHERE pjrt.status = 12),
+		MAX(pjrt.ci_job_run_timestamp) FILTER (WHERE pjrt.status = 12),
+		MIN(pjrt.ci_job_run_timestamp) FILTER (WHERE pjrt.status = 1),
+		MAX(pjrt.ci_job_run_timestamp) FILTER (WHERE pjrt.status = 1)
+	FROM ci_job_run_tests pjrt
+	JOIN ci_job_runs pjr ON pjr.id = pjrt.ci_job_run_id AND pjr.ci_job_release = pjrt.ci_job_run_release AND pjr.timestamp = pjrt.ci_job_run_timestamp
+	WHERE pjrt.ci_job_run_timestamp >= ?::date
+	  AND pjrt.ci_job_run_timestamp < (?::date + INTERVAL '1 day')
+	  AND pjrt.ci_job_run_release = ?
 	  AND (pjr.labels IS NULL OR NOT (pjr.labels @> ARRAY['InfraFailure']))
-	GROUP BY pjrt.test_id, pjrt.prow_job_id, COALESCE(pjrt.suite_id, 0), pjrt.lifecycle, pjrt.prow_job_run_release, date(pjrt.prow_job_run_timestamp)`
+	GROUP BY pjrt.test_id, pjrt.ci_job_id, COALESCE(pjrt.suite_id, 0), pjrt.lifecycle, pjrt.ci_job_run_release, date(pjrt.ci_job_run_timestamp)`
 
 type summaryStore interface {
 	Releases() ([]string, error)

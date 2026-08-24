@@ -15,13 +15,13 @@ ALTER TABLE test_cumulative_summaries
     ADD COLUMN IF NOT EXISTS lifecycle TEXT NOT NULL DEFAULT 'blocking';
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_test_daily_totals_key
-    ON test_daily_totals (release, date, test_id, suite_id, lifecycle, prow_job_id)
+    ON test_daily_totals (release, date, test_id, suite_id, lifecycle, ci_job_id)
     INCLUDE (successes, failures, flakes, runs,
              first_failure_timestamp, last_failure_timestamp,
              first_success_timestamp, last_success_timestamp);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_test_cumulative_summaries_key
-    ON test_cumulative_summaries (release, date, test_id, suite_id, lifecycle, prow_job_id)
+    ON test_cumulative_summaries (release, date, test_id, suite_id, lifecycle, ci_job_id)
     INCLUDE (prefix_sum_successes, prefix_sum_failures, prefix_sum_flakes, prefix_sum_runs,
              prefix_max_last_failure, prefix_max_last_success);
 

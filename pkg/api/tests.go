@@ -56,7 +56,7 @@ func GetTestOutputsFromDB(dbc *db.DB, release, test string, filters *filter.Filt
 	return query.TestOutputs(dbc, release, test, includedVariants, excludedVariants, quantity)
 }
 
-func GetTestRunsAndOutputsFromBigQuery(ctx context.Context, bigQueryClient *bq.Client, testID string, prowJobRunIDs, prowJobNames []string, includeSuccess bool, startDate, endDate time.Time) ([]apitype.TestOutputBigQuery, error) {
+func GetTestRunsAndOutputsFromBigQuery(ctx context.Context, bigQueryClient *bq.Client, testID string, ciJobRunIDs, ciJobNames []string, includeSuccess bool, startDate, endDate time.Time) ([]apitype.TestOutputBigQuery, error) {
 	// Use component_mapping to resolve test_id to test_name/testsuite, which handles test renames.
 	// The test_id in junit may be stale (from before a rename), but component_mapping.id is canonical.
 	// We join on name/suite to find all junit rows for this test, regardless of when they were created.
@@ -67,13 +67,13 @@ func GetTestRunsAndOutputsFromBigQuery(ctx context.Context, bigQueryClient *bq.C
 		filterStr += `
   AND junit.success = false`
 	}
-	if len(prowJobRunIDs) > 0 {
+	if len(ciJobRunIDs) > 0 {
 		filterStr += `
-  AND junit.prowjob_build_id IN UNNEST(@prowJobRunIDs)`
+  AND junit.prowjob_build_id IN UNNEST(@ciJobRunIDs)`
 	}
-	for i := range prowJobNames {
+	for i := range ciJobNames {
 		filterStr += fmt.Sprintf(`
-  AND LOWER(junit.prowjob_name) LIKE CONCAT('%%', LOWER(@prowJobName%d), '%%')`, i)
+  AND LOWER(junit.prowjob_name) LIKE CONCAT('%%', LOWER(@ciJobName%d), '%%')`, i)
 	}
 
 	queryStr := `WITH test_mapping AS (
@@ -137,16 +137,16 @@ LIMIT 500`
 		},
 	}
 
-	if len(prowJobRunIDs) > 0 {
+	if len(ciJobRunIDs) > 0 {
 		q.Parameters = append(q.Parameters, bigquery.QueryParameter{
-			Name:  "prowJobRunIDs",
-			Value: prowJobRunIDs,
+			Name:  "ciJobRunIDs",
+			Value: ciJobRunIDs,
 		})
 	}
 
-	for i, name := range prowJobNames {
+	for i, name := range ciJobNames {
 		q.Parameters = append(q.Parameters, bigquery.QueryParameter{
-			Name:  fmt.Sprintf("prowJobName%d", i),
+			Name:  fmt.Sprintf("ciJobName%d", i),
 			Value: name,
 		})
 	}
@@ -161,15 +161,15 @@ LIMIT 500`
 	}
 
 	type testOutputRow struct {
-		ProwJobBuildID string                `bigquery:"prowjob_build_id"`
+		CIJobBuildID string                `bigquery:"prowjob_build_id"`
 		TestName       string                `bigquery:"test_name"`
 		Success        bool                  `bigquery:"success"`
 		TestID         string                `bigquery:"test_id"`
 		Branch         string                `bigquery:"branch"`
-		ProwJobName    string                `bigquery:"prowjob_name"`
+		CIJobName    string                `bigquery:"prowjob_name"`
 		FailureContent string                `bigquery:"failure_content"`
-		ProwJobURL     bigquery.NullString   `bigquery:"prowjob_url"`
-		ProwJobStart   bigquery.NullDateTime `bigquery:"prowjob_start"`
+		CIJobURL     bigquery.NullString   `bigquery:"prowjob_url"`
+		CIJobStart   bigquery.NullDateTime `bigquery:"prowjob_start"`
 		FailedTests    bigquery.NullInt64    `bigquery:"failed_tests"`
 	}
 
@@ -189,14 +189,14 @@ LIMIT 500`
 			Output:      row.FailureContent,
 			TestName:    row.TestName,
 			Success:     row.Success,
-			ProwJobName: row.ProwJobName,
+			CIJobName: row.CIJobName,
 			FailedTests: int(row.FailedTests.Int64),
 		}
-		if row.ProwJobURL.Valid {
-			output.ProwJobURL = row.ProwJobURL.StringVal
+		if row.CIJobURL.Valid {
+			output.CIJobURL = row.CIJobURL.StringVal
 		}
-		if row.ProwJobStart.Valid {
-			t := row.ProwJobStart.DateTime.In(time.UTC)
+		if row.CIJobStart.Valid {
+			t := row.CIJobStart.DateTime.In(time.UTC)
 			output.StartTime = &t
 		}
 		outputs = append(outputs, output)
@@ -409,14 +409,14 @@ func GetJobRunTestsCountByLookbackAt(dbc *db.DB, lookbackDays int, today civil.D
 	timeStart := time.Now()
 	log.WithField("lookbackDays", lookbackDays).Info("starting lookback count queries")
 
-	// Count job runs from prow_job_runs (one row per run, much smaller than prow_job_run_tests).
+	// Count job runs from ci_job_runs (one row per run, much smaller than ci_job_run_tests).
 	release, err := query.CurrentActiveRelease(dbc)
 	if err != nil {
 		return -1, -1, fmt.Errorf("determining current release: %w", err)
 	}
 	var jobRunsCount int64
-	err = dbc.DB.Table("prow_job_runs").
-		Where("prow_job_release = ?", release).
+	err = dbc.DB.Table("ci_job_runs").
+		Where("ci_job_release = ?", release).
 		Where("timestamp > ? AND deleted_at IS NULL", today.AddDays(-lookbackDays).In(time.UTC)).
 		Count(&jobRunsCount).
 		Error

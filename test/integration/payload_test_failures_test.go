@@ -41,10 +41,10 @@ func setupPayloadFixture(t *testing.T, dbc *db.DB) payloadFixture {
 	}
 
 	// Create prow jobs
-	blockingJob := models.ProwJob{Name: "periodic-ci-e2e-aws-ovn-4.16", Release: f.release}
+	blockingJob := models.CIJob{Name: "periodic-ci-e2e-aws-ovn-4.16", Release: f.release}
 	require.NoError(t, dbc.DB.Create(&blockingJob).Error)
 
-	infoJob := models.ProwJob{Name: "periodic-ci-e2e-gcp-informing-4.16", Release: f.release}
+	infoJob := models.CIJob{Name: "periodic-ci-e2e-gcp-informing-4.16", Release: f.release}
 	require.NoError(t, dbc.DB.Create(&infoJob).Error)
 
 	// Create tests
@@ -103,32 +103,32 @@ func setupPayloadFixture(t *testing.T, dbc *db.DB) payloadFixture {
 	otherRunTime := time.Date(2024, 6, 14, 3, 0, 0, 0, time.UTC)
 
 	// Prow job runs for each payload
-	recentRun := models.ProwJobRun{
-		ProwJobID: blockingJob.ID, ProwJobRelease: f.release,
+	recentRun := models.CIJobRun{
+		CIJobID: blockingJob.ID, CIJobRelease: f.release,
 		Timestamp: recentRunTime, URL: "https://prow/run/1",
 	}
 	require.NoError(t, dbc.DB.Create(&recentRun).Error)
 
-	oldRun := models.ProwJobRun{
-		ProwJobID: blockingJob.ID, ProwJobRelease: f.release,
+	oldRun := models.CIJobRun{
+		CIJobID: blockingJob.ID, CIJobRelease: f.release,
 		Timestamp: oldRunTime, URL: "https://prow/run/2",
 	}
 	require.NoError(t, dbc.DB.Create(&oldRun).Error)
 
-	acceptedRun := models.ProwJobRun{
-		ProwJobID: blockingJob.ID, ProwJobRelease: f.release,
+	acceptedRun := models.CIJobRun{
+		CIJobID: blockingJob.ID, CIJobRelease: f.release,
 		Timestamp: acceptedRunTime, URL: "https://prow/run/3",
 	}
 	require.NoError(t, dbc.DB.Create(&acceptedRun).Error)
 
-	otherStreamRun := models.ProwJobRun{
-		ProwJobID: blockingJob.ID, ProwJobRelease: f.release,
+	otherStreamRun := models.CIJobRun{
+		CIJobID: blockingJob.ID, CIJobRelease: f.release,
 		Timestamp: otherRunTime, URL: "https://prow/run/4",
 	}
 	require.NoError(t, dbc.DB.Create(&otherStreamRun).Error)
 
-	informingRun := models.ProwJobRun{
-		ProwJobID: infoJob.ID, ProwJobRelease: f.release,
+	informingRun := models.CIJobRun{
+		CIJobID: infoJob.ID, CIJobRelease: f.release,
 		Timestamp: recentRunTime, URL: "https://prow/run/5",
 	}
 	require.NoError(t, dbc.DB.Create(&informingRun).Error)
@@ -171,43 +171,43 @@ func setupPayloadFixture(t *testing.T, dbc *db.DB) payloadFixture {
 
 	// Test results (status 12 = failure)
 	// testA failed in recent blocking run
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: recentRun.ID, ProwJobID: blockingJob.ID,
-		ProwJobRunTimestamp: recentRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: recentRun.ID, CIJobID: blockingJob.ID,
+		CIJobRunTimestamp: recentRunTime, CIJobRunRelease: f.release,
 		TestID: f.testA.ID, Status: 12,
 	}).Error)
 	// testB failed in recent blocking run
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: recentRun.ID, ProwJobID: blockingJob.ID,
-		ProwJobRunTimestamp: recentRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: recentRun.ID, CIJobID: blockingJob.ID,
+		CIJobRunTimestamp: recentRunTime, CIJobRunRelease: f.release,
 		TestID: f.testB.ID, Status: 12,
 	}).Error)
 
 	// testA failed in old blocking run (outside window)
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: oldRun.ID, ProwJobID: blockingJob.ID,
-		ProwJobRunTimestamp: oldRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: oldRun.ID, CIJobID: blockingJob.ID,
+		CIJobRunTimestamp: oldRunTime, CIJobRunRelease: f.release,
 		TestID: f.testA.ID, Status: 12,
 	}).Error)
 
 	// testA failed in other stream run
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: otherStreamRun.ID, ProwJobID: blockingJob.ID,
-		ProwJobRunTimestamp: otherRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: otherStreamRun.ID, CIJobID: blockingJob.ID,
+		CIJobRunTimestamp: otherRunTime, CIJobRunRelease: f.release,
 		TestID: f.testA.ID, Status: 12,
 	}).Error)
 
 	// testA failed in informing run (should not appear: Kind != Blocking)
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: informingRun.ID, ProwJobID: infoJob.ID,
-		ProwJobRunTimestamp: recentRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: informingRun.ID, CIJobID: infoJob.ID,
+		CIJobRunTimestamp: recentRunTime, CIJobRunRelease: f.release,
 		TestID: f.testA.ID, Status: 12,
 	}).Error)
 
 	// testA passed in recent blocking run (status 1 = pass, should not appear)
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: recentRun.ID, ProwJobID: blockingJob.ID,
-		ProwJobRunTimestamp: recentRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: recentRun.ID, CIJobID: blockingJob.ID,
+		CIJobRunTimestamp: recentRunTime, CIJobRunRelease: f.release,
 		TestID: f.testA.ID, Status: 1,
 	}).Error)
 
@@ -293,12 +293,12 @@ func TestGetPayloadStreamTestFailures_MultiPayloadAggregation(t *testing.T) {
 	}
 	require.NoError(t, dbc.DB.Create(&secondTag).Error)
 
-	secondJob := models.ProwJob{Name: "periodic-ci-e2e-gcp-ovn-4.16", Release: f.release}
+	secondJob := models.CIJob{Name: "periodic-ci-e2e-gcp-ovn-4.16", Release: f.release}
 	require.NoError(t, dbc.DB.Create(&secondJob).Error)
 
 	secondRunTime := time.Date(2024, 6, 12, 2, 0, 0, 0, time.UTC)
-	secondRun := models.ProwJobRun{
-		ProwJobID: secondJob.ID, ProwJobRelease: f.release,
+	secondRun := models.CIJobRun{
+		CIJobID: secondJob.ID, CIJobRelease: f.release,
 		Timestamp: secondRunTime, URL: "https://prow/run/second",
 	}
 	require.NoError(t, dbc.DB.Create(&secondRun).Error)
@@ -309,9 +309,9 @@ func TestGetPayloadStreamTestFailures_MultiPayloadAggregation(t *testing.T) {
 		URL: secondRun.URL,
 	}).Error)
 
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: secondRun.ID, ProwJobID: secondJob.ID,
-		ProwJobRunTimestamp: secondRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: secondRun.ID, CIJobID: secondJob.ID,
+		CIJobRunTimestamp: secondRunTime, CIJobRunRelease: f.release,
 		TestID: f.testA.ID, Status: 12,
 	}).Error)
 
@@ -340,12 +340,12 @@ func TestGetPayloadStreamTestFailures_MultipleJobsPerPayload(t *testing.T) {
 
 	// Add a second blocking job that also fails for the recent payload,
 	// with test-a failing in it.
-	secondJob := models.ProwJob{Name: "periodic-ci-e2e-metal-ovn-4.16", Release: f.release}
+	secondJob := models.CIJob{Name: "periodic-ci-e2e-metal-ovn-4.16", Release: f.release}
 	require.NoError(t, dbc.DB.Create(&secondJob).Error)
 
 	secondRunTime := time.Date(2024, 6, 14, 3, 30, 0, 0, time.UTC)
-	secondRun := models.ProwJobRun{
-		ProwJobID: secondJob.ID, ProwJobRelease: f.release,
+	secondRun := models.CIJobRun{
+		CIJobID: secondJob.ID, CIJobRelease: f.release,
 		Timestamp: secondRunTime, URL: "https://prow/run/second-job",
 	}
 	require.NoError(t, dbc.DB.Create(&secondRun).Error)
@@ -356,9 +356,9 @@ func TestGetPayloadStreamTestFailures_MultipleJobsPerPayload(t *testing.T) {
 		URL: secondRun.URL,
 	}).Error)
 
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: secondRun.ID, ProwJobID: secondJob.ID,
-		ProwJobRunTimestamp: secondRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: secondRun.ID, CIJobID: secondJob.ID,
+		CIJobRunTimestamp: secondRunTime, CIJobRunRelease: f.release,
 		TestID: f.testA.ID, Status: 12,
 	}).Error)
 
@@ -400,14 +400,14 @@ func TestGetPayloadStreamTestFailures_ExcludesOpenShiftTestsName(t *testing.T) {
 	excludedTest := models.Test{Name: "[sig-sippy] openshift-tests should work"}
 	require.NoError(t, dbc.DB.Create(&excludedTest).Error)
 
-	var recentRun models.ProwJobRun
+	var recentRun models.CIJobRun
 	require.NoError(t, dbc.DB.Where("url = ?", "https://prow/run/1").First(&recentRun).Error)
 
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID:        recentRun.ID,
-		ProwJobID:           recentRun.ProwJobID,
-		ProwJobRunTimestamp: recentRun.Timestamp,
-		ProwJobRunRelease:   f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID:        recentRun.ID,
+		CIJobID:           recentRun.CIJobID,
+		CIJobRunTimestamp: recentRun.Timestamp,
+		CIJobRunRelease:   f.release,
 		TestID:              excludedTest.ID,
 		Status:              12,
 	}).Error)
@@ -431,7 +431,7 @@ func TestGetPayloadStreamTestFailures_BlockerScoreAndSortOrder(t *testing.T) {
 	stream := "nightly"
 	reportEnd := time.Date(2024, 7, 10, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{Name: "periodic-ci-e2e-aws-4.18", Release: release}
+	job := models.CIJob{Name: "periodic-ci-e2e-aws-4.18", Release: release}
 	require.NoError(t, dbc.DB.Create(&job).Error)
 
 	blockerTest := models.Test{Name: "test-always-fails"}
@@ -455,8 +455,8 @@ func TestGetPayloadStreamTestFailures_BlockerScoreAndSortOrder(t *testing.T) {
 		require.NoError(t, dbc.DB.Create(&tag).Error)
 
 		runTime := tagTime.Add(time.Hour)
-		run := models.ProwJobRun{
-			ProwJobID: job.ID, ProwJobRelease: release,
+		run := models.CIJobRun{
+			CIJobID: job.ID, CIJobRelease: release,
 			Timestamp: runTime, URL: fmt.Sprintf("https://prow/run/blocker-%d", i),
 		}
 		require.NoError(t, dbc.DB.Create(&run).Error)
@@ -468,17 +468,17 @@ func TestGetPayloadStreamTestFailures_BlockerScoreAndSortOrder(t *testing.T) {
 		}).Error)
 
 		// blockerTest fails in every payload
-		require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-			ProwJobRunID: run.ID, ProwJobID: job.ID,
-			ProwJobRunTimestamp: runTime, ProwJobRunRelease: release,
+		require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+			CIJobRunID: run.ID, CIJobID: job.ID,
+			CIJobRunTimestamp: runTime, CIJobRunRelease: release,
 			TestID: blockerTest.ID, Status: 12,
 		}).Error)
 
 		// intermittentTest fails only in the oldest payload (i=3)
 		if i == 3 {
-			require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-				ProwJobRunID: run.ID, ProwJobID: job.ID,
-				ProwJobRunTimestamp: runTime, ProwJobRunRelease: release,
+			require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+				CIJobRunID: run.ID, CIJobID: job.ID,
+				CIJobRunTimestamp: runTime, CIJobRunRelease: release,
 				TestID: intermittentTest.ID, Status: 12,
 			}).Error)
 		}
@@ -521,12 +521,12 @@ func TestGetPayloadStreamTestFailures_FiltersByArchitecture(t *testing.T) {
 	}
 	require.NoError(t, dbc.DB.Create(&arm64Tag).Error)
 
-	arm64Job := models.ProwJob{Name: "periodic-ci-e2e-aws-arm64-4.16", Release: f.release}
+	arm64Job := models.CIJob{Name: "periodic-ci-e2e-aws-arm64-4.16", Release: f.release}
 	require.NoError(t, dbc.DB.Create(&arm64Job).Error)
 
 	arm64RunTime := time.Date(2024, 6, 14, 4, 0, 0, 0, time.UTC)
-	arm64Run := models.ProwJobRun{
-		ProwJobID: arm64Job.ID, ProwJobRelease: f.release,
+	arm64Run := models.CIJobRun{
+		CIJobID: arm64Job.ID, CIJobRelease: f.release,
 		Timestamp: arm64RunTime, URL: "https://prow/run/arm64",
 	}
 	require.NoError(t, dbc.DB.Create(&arm64Run).Error)
@@ -540,9 +540,9 @@ func TestGetPayloadStreamTestFailures_FiltersByArchitecture(t *testing.T) {
 	arm64Test := models.Test{Name: "test-arm64-only"}
 	require.NoError(t, dbc.DB.Create(&arm64Test).Error)
 
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: arm64Run.ID, ProwJobID: arm64Job.ID,
-		ProwJobRunTimestamp: arm64RunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: arm64Run.ID, CIJobID: arm64Job.ID,
+		CIJobRunTimestamp: arm64RunTime, CIJobRunRelease: f.release,
 		TestID: arm64Test.ID, Status: 12,
 	}).Error)
 
@@ -586,7 +586,7 @@ func TestGetPayloadStreamTestFailures_BlockerScoreStreakPercentageOverride(t *te
 	stream := "nightly"
 	reportEnd := time.Date(2024, 8, 10, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{Name: "periodic-ci-e2e-aws-4.19", Release: release}
+	job := models.CIJob{Name: "periodic-ci-e2e-aws-4.19", Release: release}
 	require.NoError(t, dbc.DB.Create(&job).Error)
 
 	overrideTest := models.Test{Name: "test-streak-override"}
@@ -612,8 +612,8 @@ func TestGetPayloadStreamTestFailures_BlockerScoreStreakPercentageOverride(t *te
 		require.NoError(t, dbc.DB.Create(&tag).Error)
 
 		runTime := tagTime.Add(time.Hour)
-		run := models.ProwJobRun{
-			ProwJobID: job.ID, ProwJobRelease: release,
+		run := models.CIJobRun{
+			CIJobID: job.ID, CIJobRelease: release,
 			Timestamp: runTime, URL: fmt.Sprintf("https://prow/run/override-%d", i),
 		}
 		require.NoError(t, dbc.DB.Create(&run).Error)
@@ -625,9 +625,9 @@ func TestGetPayloadStreamTestFailures_BlockerScoreStreakPercentageOverride(t *te
 		}).Error)
 
 		if failsInPayload[i] {
-			require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-				ProwJobRunID: run.ID, ProwJobID: job.ID,
-				ProwJobRunTimestamp: runTime, ProwJobRunRelease: release,
+			require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+				CIJobRunID: run.ID, CIJobID: job.ID,
+				CIJobRunTimestamp: runTime, CIJobRunRelease: release,
 				TestID: overrideTest.ID, Status: 12,
 			}).Error)
 		}
@@ -652,7 +652,7 @@ func TestGetPayloadStreamTestFailures_MostRecentPayloadAccepted(t *testing.T) {
 	stream := "nightly"
 	reportEnd := time.Date(2024, 9, 10, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{Name: "periodic-ci-e2e-aws-4.20", Release: release}
+	job := models.CIJob{Name: "periodic-ci-e2e-aws-4.20", Release: release}
 	require.NoError(t, dbc.DB.Create(&job).Error)
 
 	testX := models.Test{Name: "test-x-but-accepted"}
@@ -681,8 +681,8 @@ func TestGetPayloadStreamTestFailures_MostRecentPayloadAccepted(t *testing.T) {
 	require.NoError(t, dbc.DB.Create(&rejectedTag).Error)
 
 	rejRunTime := time.Date(2024, 9, 8, 2, 0, 0, 0, time.UTC)
-	rejRun := models.ProwJobRun{
-		ProwJobID: job.ID, ProwJobRelease: release,
+	rejRun := models.CIJobRun{
+		CIJobID: job.ID, CIJobRelease: release,
 		Timestamp: rejRunTime, URL: "https://prow/run/accepted-latest",
 	}
 	require.NoError(t, dbc.DB.Create(&rejRun).Error)
@@ -693,9 +693,9 @@ func TestGetPayloadStreamTestFailures_MostRecentPayloadAccepted(t *testing.T) {
 		URL: rejRun.URL,
 	}).Error)
 
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: rejRun.ID, ProwJobID: job.ID,
-		ProwJobRunTimestamp: rejRunTime, ProwJobRunRelease: release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: rejRun.ID, CIJobID: job.ID,
+		CIJobRunTimestamp: rejRunTime, CIJobRunRelease: release,
 		TestID: testX.ID, Status: 12,
 	}).Error)
 
@@ -719,8 +719,8 @@ func TestGetPayloadStreamTestFailures_SortTiebreakers(t *testing.T) {
 	stream := "nightly"
 	reportEnd := time.Date(2024, 10, 10, 12, 0, 0, 0, time.UTC)
 
-	job1 := models.ProwJob{Name: "periodic-ci-e2e-aws-4.21", Release: release}
-	job2 := models.ProwJob{Name: "periodic-ci-e2e-gcp-4.21", Release: release}
+	job1 := models.CIJob{Name: "periodic-ci-e2e-aws-4.21", Release: release}
+	job2 := models.CIJob{Name: "periodic-ci-e2e-gcp-4.21", Release: release}
 	require.NoError(t, dbc.DB.Create(&job1).Error)
 	require.NoError(t, dbc.DB.Create(&job2).Error)
 
@@ -747,15 +747,15 @@ func TestGetPayloadStreamTestFailures_SortTiebreakers(t *testing.T) {
 	require.NoError(t, dbc.DB.Create(&tag).Error)
 
 	run1Time := time.Date(2024, 10, 9, 2, 0, 0, 0, time.UTC)
-	run1 := models.ProwJobRun{
-		ProwJobID: job1.ID, ProwJobRelease: release,
+	run1 := models.CIJobRun{
+		CIJobID: job1.ID, CIJobRelease: release,
 		Timestamp: run1Time, URL: "https://prow/run/tiebreak-1",
 	}
 	require.NoError(t, dbc.DB.Create(&run1).Error)
 
 	run2Time := time.Date(2024, 10, 9, 3, 0, 0, 0, time.UTC)
-	run2 := models.ProwJobRun{
-		ProwJobID: job2.ID, ProwJobRelease: release,
+	run2 := models.CIJobRun{
+		CIJobID: job2.ID, CIJobRelease: release,
 		Timestamp: run2Time, URL: "https://prow/run/tiebreak-2",
 	}
 	require.NoError(t, dbc.DB.Create(&run2).Error)
@@ -770,28 +770,28 @@ func TestGetPayloadStreamTestFailures_SortTiebreakers(t *testing.T) {
 	}).Error)
 
 	// testAlpha fails in job1 only (FailureCount=1)
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: run1.ID, ProwJobID: job1.ID,
-		ProwJobRunTimestamp: run1Time, ProwJobRunRelease: release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: run1.ID, CIJobID: job1.ID,
+		CIJobRunTimestamp: run1Time, CIJobRunRelease: release,
 		TestID: testAlpha.ID, Status: 12,
 	}).Error)
 
 	// testBravo fails in both job1 and job2 (FailureCount=2)
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: run1.ID, ProwJobID: job1.ID,
-		ProwJobRunTimestamp: run1Time, ProwJobRunRelease: release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: run1.ID, CIJobID: job1.ID,
+		CIJobRunTimestamp: run1Time, CIJobRunRelease: release,
 		TestID: testBravo.ID, Status: 12,
 	}).Error)
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: run2.ID, ProwJobID: job2.ID,
-		ProwJobRunTimestamp: run2Time, ProwJobRunRelease: release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: run2.ID, CIJobID: job2.ID,
+		CIJobRunTimestamp: run2Time, CIJobRunRelease: release,
 		TestID: testBravo.ID, Status: 12,
 	}).Error)
 
 	// testCharlie fails in job1 only (FailureCount=1, same as alpha)
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: run1.ID, ProwJobID: job1.ID,
-		ProwJobRunTimestamp: run1Time, ProwJobRunRelease: release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: run1.ID, CIJobID: job1.ID,
+		CIJobRunTimestamp: run1Time, CIJobRunRelease: release,
 		TestID: testCharlie.ID, Status: 12,
 	}).Error)
 
@@ -825,12 +825,12 @@ func TestGetPayloadStreamTestFailures_FailureCountReflectsPerJobFailures(t *test
 
 	// Add a second blocking job that also fails for the recent payload,
 	// with test-a failing in it. FailureCount should be 2 (one per job run).
-	secondJob := models.ProwJob{Name: "periodic-ci-e2e-metal-ovn-4.16", Release: f.release}
+	secondJob := models.CIJob{Name: "periodic-ci-e2e-metal-ovn-4.16", Release: f.release}
 	require.NoError(t, dbc.DB.Create(&secondJob).Error)
 
 	secondRunTime := time.Date(2024, 6, 14, 3, 30, 0, 0, time.UTC)
-	secondRun := models.ProwJobRun{
-		ProwJobID: secondJob.ID, ProwJobRelease: f.release,
+	secondRun := models.CIJobRun{
+		CIJobID: secondJob.ID, CIJobRelease: f.release,
 		Timestamp: secondRunTime, URL: "https://prow/run/fc-second",
 	}
 	require.NoError(t, dbc.DB.Create(&secondRun).Error)
@@ -841,9 +841,9 @@ func TestGetPayloadStreamTestFailures_FailureCountReflectsPerJobFailures(t *test
 		URL: secondRun.URL,
 	}).Error)
 
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: secondRun.ID, ProwJobID: secondJob.ID,
-		ProwJobRunTimestamp: secondRunTime, ProwJobRunRelease: f.release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: secondRun.ID, CIJobID: secondJob.ID,
+		CIJobRunTimestamp: secondRunTime, CIJobRunRelease: f.release,
 		TestID: f.testA.ID, Status: 12,
 	}).Error)
 
@@ -872,7 +872,7 @@ func TestGetPayloadStreamTestFailures_BlockerScoreReasons(t *testing.T) {
 	stream := "nightly"
 	reportEnd := time.Date(2024, 11, 10, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{Name: "periodic-ci-e2e-aws-4.22", Release: release}
+	job := models.CIJob{Name: "periodic-ci-e2e-aws-4.22", Release: release}
 	require.NoError(t, dbc.DB.Create(&job).Error)
 
 	reasonTest := models.Test{Name: "test-reasons"}
@@ -894,8 +894,8 @@ func TestGetPayloadStreamTestFailures_BlockerScoreReasons(t *testing.T) {
 		require.NoError(t, dbc.DB.Create(&tag).Error)
 
 		runTime := tagTime.Add(time.Hour)
-		run := models.ProwJobRun{
-			ProwJobID: job.ID, ProwJobRelease: release,
+		run := models.CIJobRun{
+			CIJobID: job.ID, CIJobRelease: release,
 			Timestamp: runTime, URL: fmt.Sprintf("https://prow/run/reason-%d", i),
 		}
 		require.NoError(t, dbc.DB.Create(&run).Error)
@@ -906,9 +906,9 @@ func TestGetPayloadStreamTestFailures_BlockerScoreReasons(t *testing.T) {
 			URL: run.URL,
 		}).Error)
 
-		require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-			ProwJobRunID: run.ID, ProwJobID: job.ID,
-			ProwJobRunTimestamp: runTime, ProwJobRunRelease: release,
+		require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+			CIJobRunID: run.ID, CIJobID: job.ID,
+			CIJobRunTimestamp: runTime, CIJobRunRelease: release,
 			TestID: reasonTest.ID, Status: 12,
 		}).Error)
 	}
@@ -934,7 +934,7 @@ func TestGetPayloadStreamTestFailures_AcceptedPayloadWithFailedBlockingJob(t *te
 	stream := "nightly"
 	reportEnd := time.Date(2024, 12, 10, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{Name: "periodic-ci-e2e-aws-4.23", Release: release}
+	job := models.CIJob{Name: "periodic-ci-e2e-aws-4.23", Release: release}
 	require.NoError(t, dbc.DB.Create(&job).Error)
 
 	forceTest := models.Test{Name: "test-force-accepted"}
@@ -954,8 +954,8 @@ func TestGetPayloadStreamTestFailures_AcceptedPayloadWithFailedBlockingJob(t *te
 	require.NoError(t, dbc.DB.Create(&forceAcceptedTag).Error)
 
 	runTime := time.Date(2024, 12, 9, 2, 0, 0, 0, time.UTC)
-	run := models.ProwJobRun{
-		ProwJobID: job.ID, ProwJobRelease: release,
+	run := models.CIJobRun{
+		CIJobID: job.ID, CIJobRelease: release,
 		Timestamp: runTime, URL: "https://prow/run/force-accepted",
 	}
 	require.NoError(t, dbc.DB.Create(&run).Error)
@@ -966,9 +966,9 @@ func TestGetPayloadStreamTestFailures_AcceptedPayloadWithFailedBlockingJob(t *te
 		URL: run.URL,
 	}).Error)
 
-	require.NoError(t, dbc.DB.Create(&models.ProwJobRunTest{
-		ProwJobRunID: run.ID, ProwJobID: job.ID,
-		ProwJobRunTimestamp: runTime, ProwJobRunRelease: release,
+	require.NoError(t, dbc.DB.Create(&models.CIJobRunTest{
+		CIJobRunID: run.ID, CIJobID: job.ID,
+		CIJobRunTimestamp: runTime, CIJobRunRelease: release,
 		TestID: forceTest.ID, Status: 12,
 	}).Error)
 

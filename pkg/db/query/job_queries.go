@@ -13,51 +13,51 @@ import (
 	"github.com/openshift/sippy/pkg/filter"
 )
 
-// ProwJobRunPartitionKeys holds the partition key columns for prow_job_runs.
+// CIJobRunPartitionKeys holds the partition key columns for ci_job_runs.
 // Used for two-step lookups: fetch these lightweight keys first, then load the
 // full row with partition pruning. This will be replaced by a mapping table in
 // a future iteration.
-type ProwJobRunPartitionKeys struct {
-	ProwJobRelease string    `gorm:"column:prow_job_release"`
+type CIJobRunPartitionKeys struct {
+	CIJobRelease string    `gorm:"column:ci_job_release"`
 	Timestamp      time.Time `gorm:"column:timestamp"`
 }
 
-// LookupProwJobRunPartitionKeys fetches the partition keys for a prow_job_run
+// LookupCIJobRunPartitionKeys fetches the partition keys for a ci_job_run
 // by ID. This is intended as the first step of a two-step lookup pattern where
 // the caller then uses these keys to load the full row with partition pruning.
-func LookupProwJobRunPartitionKeys(gormDB *gorm.DB, jobRunID int64) (ProwJobRunPartitionKeys, error) {
-	var keys ProwJobRunPartitionKeys
-	err := gormDB.Table("prow_job_runs").
-		Select("prow_job_release, timestamp").
+func LookupCIJobRunPartitionKeys(gormDB *gorm.DB, jobRunID int64) (CIJobRunPartitionKeys, error) {
+	var keys CIJobRunPartitionKeys
+	err := gormDB.Table("ci_job_runs").
+		Select("ci_job_release, timestamp").
 		Where("id = ?", jobRunID).
 		Take(&keys).Error
 	return keys, err
 }
 
 func JobRunTestCount(dbc *db.DB, jobRunID int64, release string, timestamp time.Time) (int, error) {
-	var prowJobRunTestCount int64
+	var ciJobRunTestCount int64
 
-	res := dbc.DB.Model(&models.ProwJobRunTest{}).
-		Where("prow_job_run_id = ?", jobRunID).
-		Where("prow_job_run_release = ?", release).
-		Where("prow_job_run_timestamp = ?", timestamp).
-		Count(&prowJobRunTestCount)
+	res := dbc.DB.Model(&models.CIJobRunTest{}).
+		Where("ci_job_run_id = ?", jobRunID).
+		Where("ci_job_run_release = ?", release).
+		Where("ci_job_run_timestamp = ?", timestamp).
+		Count(&ciJobRunTestCount)
 	if res.Error != nil {
 		return -1, res.Error
 	}
 
-	return int(prowJobRunTestCount), nil
+	return int(ciJobRunTestCount), nil
 }
 
-func ProwJobSimilarName(dbc *db.DB, rootName, release string) ([]models.ProwJob, error) {
+func CIJobSimilarName(dbc *db.DB, rootName, release string) ([]models.CIJob, error) {
 
 	// pull-ci-openshift-origin-master-e2e-vsphere-ovn-etcd-scaling
 	// periodic-ci-openshift-release-master-nightly-4.14-e2e-vsphere-ovn-etcd-scaling
 	// can we split on - and strip out pieces until we get a 'like' / 'contains' match
 	// the compare versions / variants to match up, all in search of is this a 'never-stable' job
 	// and other edge cases
-	jobs := make([]models.ProwJob, 0)
-	q := dbc.DB.Raw(`SELECT * FROM prow_jobs WHERE name LIKE ? AND release = ?`, "%"+rootName, release)
+	jobs := make([]models.CIJob, 0)
+	q := dbc.DB.Raw(`SELECT * FROM ci_jobs WHERE name LIKE ? AND release = ?`, "%"+rootName, release)
 	if q.Error != nil {
 		return nil, q.Error
 	}
@@ -68,11 +68,11 @@ func ProwJobSimilarName(dbc *db.DB, rootName, release string) ([]models.ProwJob,
 	return jobs, nil
 }
 
-func ProwJobRunCount(dbc *db.DB, prowJobID uint, release string, since time.Time) (int, error) {
+func CIJobRunCount(dbc *db.DB, ciJobID uint, release string, since time.Time) (int, error) {
 	var count int64
-	q := dbc.DB.Table("prow_job_runs").
-		Where("prow_job_id = ?", prowJobID).
-		Where("prow_job_release = ?", release).
+	q := dbc.DB.Table("ci_job_runs").
+		Where("ci_job_id = ?", ciJobID).
+		Where("ci_job_release = ?", release).
 		Where("timestamp > ?", since)
 	if err := q.Count(&count).Error; err != nil {
 		return 0, err
@@ -80,26 +80,26 @@ func ProwJobRunCount(dbc *db.DB, prowJobID uint, release string, since time.Time
 	return int(count), nil
 }
 
-func ProwJobHistoricalTestCounts(dbc *db.DB, prowJobID uint, release string) (int, error) {
+func CIJobHistoricalTestCounts(dbc *db.DB, ciJobID uint, release string) (int, error) {
 
-	var historicalProwJobRunTestCount float64
+	var historicalCIJobRunTestCount float64
 	q := dbc.DB.Raw(`SELECT COALESCE(avg(count), 0)
 	FROM (SELECT count(*)
-	FROM prow_job_run_tests
-	WHERE prow_job_run_tests.prow_job_id = ?
-	AND prow_job_run_tests.prow_job_run_release = ?
-	AND prow_job_run_tests.prow_job_run_timestamp >= CURRENT_DATE - interval '14' day
-	GROUP BY prow_job_run_id) t`, prowJobID, release)
+	FROM ci_job_run_tests
+	WHERE ci_job_run_tests.ci_job_id = ?
+	AND ci_job_run_tests.ci_job_run_release = ?
+	AND ci_job_run_tests.ci_job_run_timestamp >= CURRENT_DATE - interval '14' day
+	GROUP BY ci_job_run_id) t`, ciJobID, release)
 
 	if q.Error != nil {
 		return 0, q.Error
 	}
 
-	if err := q.First(&historicalProwJobRunTestCount).Error; err != nil {
+	if err := q.First(&historicalCIJobRunTestCount).Error; err != nil {
 		return 0, err
 	}
 
-	return int(historicalProwJobRunTestCount), nil
+	return int(historicalCIJobRunTestCount), nil
 }
 
 func JobReports(dbc *db.DB, filterOpts *filter.FilterOptions, release string, start, boundary, end time.Time) ([]apitype.Job, error) {
@@ -129,19 +129,19 @@ func VariantReports(dbc *db.DB, release string, start, boundary, end time.Time) 
 	variantResults := make([]apitype.Variant, 0)
 	q := dbc.DB.Raw(`
 WITH results AS (
-        select unnest(prow_jobs.variants) as variant,
+        select unnest(ci_jobs.variants) as variant,
                 coalesce(count(case when succeeded = true AND timestamp >= @start AND timestamp < @boundary then 1 end), 0) as previous_passes,
                 coalesce(count(case when succeeded = false AND timestamp >= @start AND timestamp < @boundary then 1 end), 0) as previous_fails,
                 coalesce(count(case when timestamp >= @start AND timestamp < @boundary then 1 end), 0) as previous_runs,
                 coalesce(count(case when succeeded = true AND timestamp BETWEEN @boundary AND @end then 1 end), 0) as current_passes,
                 coalesce(count(case when succeeded = false AND timestamp BETWEEN @boundary AND @end then 1 end), 0) as current_fails,        
                 coalesce(count(case when timestamp BETWEEN @boundary AND @end then 1 end), 0) as current_runs
-        FROM prow_job_runs
-        JOIN prow_jobs
-                ON prow_jobs.id = prow_job_runs.prow_job_id
-                                AND prow_jobs.release = @release
+        FROM ci_job_runs
+        JOIN ci_jobs
+                ON ci_jobs.id = ci_job_runs.ci_job_id
+                                AND ci_jobs.release = @release
                 AND timestamp BETWEEN @start AND @end
-        WHERE prow_job_runs.prow_job_release = @release
+        WHERE ci_job_runs.ci_job_release = @release
         group by variant
 )
 SELECT variant as name,
@@ -190,7 +190,7 @@ func LoadBugsForJobs(dbc *db.DB,
 	jobIDs []int, filterClosed bool) ([]models.Bug, error) {
 	results := []models.Bug{}
 
-	job := models.ProwJob{}
+	job := models.CIJob{}
 	q := dbc.DB.Where("id IN ?", jobIDs)
 	// filter bugs since we no longer delete them, if the bug is not yet Closed (or Verified) we want updates within the last 90 days, otherwise 14
 	timeLimit := "(UPPER(status) IN ('CLOSED', 'VERIFIED') AND NOW() - last_change_time < interval '14 days') OR " +

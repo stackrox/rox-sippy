@@ -445,8 +445,8 @@ func Test_TriageAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "sym-run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"e2e-sym-a", "e2e-sym-b"}},
-			{ProwJobRunID: "sym-run-2", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"e2e-sym-a"}},
+			{CIJobRunID: "sym-run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"e2e-sym-a", "e2e-sym-b"}},
+			{CIJobRunID: "sym-run-2", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"e2e-sym-a"}},
 		})
 		require.NoError(t, err)
 
@@ -496,7 +496,7 @@ func Test_TriageAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "sym-only-run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"e2e-sym-only"}},
+			{CIJobRunID: "sym-only-run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"e2e-sym-only"}},
 		})
 		require.NoError(t, err)
 
@@ -533,7 +533,7 @@ func Test_TriageAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "cascade-run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"e2e-sym-cascade"}},
+			{CIJobRunID: "cascade-run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"e2e-sym-cascade"}},
 		})
 		require.NoError(t, err)
 
@@ -573,7 +573,7 @@ func Test_TriageAPI(t *testing.T) {
 
 		// Merge job runs without any symptoms
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "no-sym-run-1", ProwJobName: "job-1", TestFailed: true},
+			{CIJobRunID: "no-sym-run-1", CIJobName: "job-1", TestFailed: true},
 		})
 		require.NoError(t, err)
 
@@ -1126,12 +1126,12 @@ func Test_GetTriageSymptomSummaries(t *testing.T) {
 		// SymA on all 3 regressions, SymB on 1
 		for _, reg := range regs {
 			err := tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-				{ProwJobRunID: fmt.Sprintf("pct-run-%d", reg.ID), ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"pct-sym-a"}},
+				{CIJobRunID: fmt.Sprintf("pct-run-%d", reg.ID), CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"pct-sym-a"}},
 			})
 			require.NoError(t, err)
 		}
 		err := tracker.MergeJobRuns(regs[0].ID, []models.RegressionJobRun{
-			{ProwJobRunID: "pct-run-b", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"pct-sym-b"}},
+			{CIJobRunID: "pct-run-b", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"pct-sym-b"}},
 		})
 		require.NoError(t, err)
 
@@ -1183,11 +1183,11 @@ func Test_GetTriageSymptomSummaries(t *testing.T) {
 
 		// SymB on both regressions, SymA on only one
 		err := tracker.MergeJobRuns(reg1.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "sort-run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"sort-sym-a", "sort-sym-b"}},
+			{CIJobRunID: "sort-run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"sort-sym-a", "sort-sym-b"}},
 		})
 		require.NoError(t, err)
 		err = tracker.MergeJobRuns(reg2.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "sort-run-2", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"sort-sym-b"}},
+			{CIJobRunID: "sort-run-2", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"sort-sym-b"}},
 		})
 		require.NoError(t, err)
 
@@ -1224,12 +1224,12 @@ func Test_GetTriageSymptomSummaries(t *testing.T) {
 
 		// Same symptom on both regressions, multiple job runs each
 		err := tracker.MergeJobRuns(reg1.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "shared-run-1a", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"shared-sym"}},
-			{ProwJobRunID: "shared-run-1b", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"shared-sym"}},
+			{CIJobRunID: "shared-run-1a", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"shared-sym"}},
+			{CIJobRunID: "shared-run-1b", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"shared-sym"}},
 		})
 		require.NoError(t, err)
 		err = tracker.MergeJobRuns(reg2.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "shared-run-2a", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"shared-sym"}},
+			{CIJobRunID: "shared-run-2a", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"shared-sym"}},
 		})
 		require.NoError(t, err)
 
@@ -1268,15 +1268,15 @@ func Test_GetTriageSymptomSummaries(t *testing.T) {
 
 		// SymA on reg1 and reg2, SymB on reg2 and reg3
 		err := tracker.MergeJobRuns(reg1.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "regid-run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"regid-sym-a"}},
+			{CIJobRunID: "regid-run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"regid-sym-a"}},
 		})
 		require.NoError(t, err)
 		err = tracker.MergeJobRuns(reg2.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "regid-run-2", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"regid-sym-a", "regid-sym-b"}},
+			{CIJobRunID: "regid-run-2", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"regid-sym-a", "regid-sym-b"}},
 		})
 		require.NoError(t, err)
 		err = tracker.MergeJobRuns(reg3.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "regid-run-3", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"regid-sym-b"}},
+			{CIJobRunID: "regid-run-3", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"regid-sym-b"}},
 		})
 		require.NoError(t, err)
 
@@ -1816,8 +1816,8 @@ func mergeJobRunsForRegression(t *testing.T, tracker componentreadiness.Regressi
 	var jobRuns []models.RegressionJobRun
 	for _, id := range runIDs {
 		jobRuns = append(jobRuns, models.RegressionJobRun{
-			ProwJobRunID: id,
-			ProwJobName:  "periodic-ci-test-job",
+			CIJobRunID: id,
+			CIJobName:  "periodic-ci-test-job",
 			TestFailed:   true,
 			TestFailures: 1,
 		})

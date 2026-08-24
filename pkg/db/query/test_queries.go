@@ -76,11 +76,11 @@ const (
             -- e = latest cumulative snapshot for the release
             FROM test_cumulative_summaries e
             JOIN tests t ON t.id = e.test_id
-            JOIN prow_jobs pj ON pj.id = e.prow_job_id
+            JOIN ci_jobs pj ON pj.id = e.ci_job_id
             -- s = prior-day baseline; the difference e - s gives the windowed totals
             LEFT JOIN test_cumulative_summaries s
                 ON s.test_id = e.test_id
-                AND s.prow_job_id = e.prow_job_id
+                AND s.ci_job_id = e.ci_job_id
                 AND s.suite_id = e.suite_id
                 AND s.lifecycle = e.lifecycle
                 AND s.release = e.release
@@ -302,9 +302,9 @@ func UncollapsedTestReportWithStats(dbc *db.DB, release string, sample, base Dat
       SUM(COALESCE(e.prefix_sum_runs      - COALESCE(m.prefix_sum_runs,      0), 0))::bigint AS current_runs,
       array_agg(DISTINCT e.lifecycle) AS lifecycles
     FROM test_cumulative_summaries e
-    JOIN prow_jobs pj ON e.prow_job_id = pj.id AND pj.variant_combination_id IS NOT NULL
-    LEFT JOIN test_cumulative_summaries m ON m.test_id = e.test_id AND m.prow_job_id = e.prow_job_id AND m.suite_id = e.suite_id AND m.lifecycle = e.lifecycle AND m.release = e.release AND m.date = ?
-    LEFT JOIN test_cumulative_summaries s ON s.test_id = e.test_id AND s.prow_job_id = e.prow_job_id AND s.suite_id = e.suite_id AND s.lifecycle = e.lifecycle AND s.release = e.release AND s.date = ?
+    JOIN ci_jobs pj ON e.ci_job_id = pj.id AND pj.variant_combination_id IS NOT NULL
+    LEFT JOIN test_cumulative_summaries m ON m.test_id = e.test_id AND m.ci_job_id = e.ci_job_id AND m.suite_id = e.suite_id AND m.lifecycle = e.lifecycle AND m.release = e.release AND m.date = ?
+    LEFT JOIN test_cumulative_summaries s ON s.test_id = e.test_id AND s.ci_job_id = e.ci_job_id AND s.suite_id = e.suite_id AND s.lifecycle = e.lifecycle AND s.release = e.release AND s.date = ?
 `)
 	args = append(args, boundary, start)
 
@@ -394,8 +394,8 @@ stats AS (
       SUM(e.prefix_sum_flakes    - COALESCE(m.prefix_sum_flakes, 0))::bigint    AS current_flakes,
       SUM(e.prefix_sum_runs      - COALESCE(m.prefix_sum_runs, 0))::bigint      AS current_runs
     FROM test_cumulative_summaries e
-    JOIN prow_jobs pj ON e.prow_job_id = pj.id AND pj.variant_combination_id IS NOT NULL
-    LEFT JOIN test_cumulative_summaries m ON m.test_id = e.test_id AND m.prow_job_id = e.prow_job_id AND m.suite_id = e.suite_id AND m.lifecycle = e.lifecycle AND m.release = e.release AND m.date = ?
+    JOIN ci_jobs pj ON e.ci_job_id = pj.id AND pj.variant_combination_id IS NOT NULL
+    LEFT JOIN test_cumulative_summaries m ON m.test_id = e.test_id AND m.ci_job_id = e.ci_job_id AND m.suite_id = e.suite_id AND m.lifecycle = e.lifecycle AND m.release = e.release AND m.date = ?
     WHERE e.date = ? AND e.release = ?
       AND e.test_id IN (SELECT DISTINCT test_id FROM %s)
       AND NOT EXISTS (SELECT 1 FROM variant_combinations WHERE 'never-stable' = any(variants) AND id = pj.variant_combination_id)
@@ -429,31 +429,31 @@ func TestOutputs(dbc *db.DB, release, test string, includedVariants, excludedVar
 	results := make([]api.TestOutput, 0)
 
 	testQuery := dbc.DB.Table("tests").Where("name = ?", test).Select("id")
-	q := dbc.DB.Table("prow_job_run_tests").
-		Joins("JOIN prow_job_run_test_outputs ON prow_job_run_test_outputs.prow_job_run_test_id = prow_job_run_tests.id AND prow_job_run_test_outputs.prow_job_run_test_timestamp = prow_job_run_tests.prow_job_run_timestamp").
-		Joins("JOIN prow_job_runs ON prow_job_run_tests.prow_job_run_id = prow_job_runs.id AND prow_job_runs.prow_job_release = prow_job_run_tests.prow_job_run_release AND prow_job_runs.timestamp = prow_job_run_tests.prow_job_run_timestamp").
-		Joins("JOIN prow_jobs ON prow_job_runs.prow_job_id = prow_jobs.id").
-		Where("prow_job_run_tests.test_id = (?)", testQuery).
-		Where("prow_job_run_tests.status IN ?", []int{int(v1.TestStatusFailure), int(v1.TestStatusFlake)}).
-		Where("prow_job_run_tests.prow_job_run_timestamp > current_date - interval '14' day").
-		Where("prow_job_run_tests.prow_job_run_release = ?", release).
-		Where("prow_job_run_test_outputs.prow_job_run_test_timestamp > current_date - interval '14' day").
-		Where("prow_job_run_test_outputs.prow_job_run_test_release = ?", release).
-		Where("prow_job_runs.prow_job_release = ?", release).
-		Where("prow_job_runs.timestamp > current_date - interval '14' day").
-		Where("prow_job_runs.labels IS NULL OR NOT (prow_job_runs.labels @> ARRAY['InfraFailure'])")
+	q := dbc.DB.Table("ci_job_run_tests").
+		Joins("JOIN ci_job_run_test_outputs ON ci_job_run_test_outputs.ci_job_run_test_id = ci_job_run_tests.id AND ci_job_run_test_outputs.ci_job_run_test_timestamp = ci_job_run_tests.ci_job_run_timestamp").
+		Joins("JOIN ci_job_runs ON ci_job_run_tests.ci_job_run_id = ci_job_runs.id AND ci_job_runs.ci_job_release = ci_job_run_tests.ci_job_run_release AND ci_job_runs.timestamp = ci_job_run_tests.ci_job_run_timestamp").
+		Joins("JOIN ci_jobs ON ci_job_runs.ci_job_id = ci_jobs.id").
+		Where("ci_job_run_tests.test_id = (?)", testQuery).
+		Where("ci_job_run_tests.status IN ?", []int{int(v1.TestStatusFailure), int(v1.TestStatusFlake)}).
+		Where("ci_job_run_tests.ci_job_run_timestamp > current_date - interval '14' day").
+		Where("ci_job_run_tests.ci_job_run_release = ?", release).
+		Where("ci_job_run_test_outputs.ci_job_run_test_timestamp > current_date - interval '14' day").
+		Where("ci_job_run_test_outputs.ci_job_run_test_release = ?", release).
+		Where("ci_job_runs.ci_job_release = ?", release).
+		Where("ci_job_runs.timestamp > current_date - interval '14' day").
+		Where("ci_job_runs.labels IS NULL OR NOT (ci_job_runs.labels @> ARRAY['InfraFailure'])")
 
 	for _, variant := range includedVariants {
-		q = q.Where("prow_jobs.variant_combination_id IN (SELECT id FROM variant_combinations WHERE ? = any(variants))", variant)
+		q = q.Where("ci_jobs.variant_combination_id IN (SELECT id FROM variant_combinations WHERE ? = any(variants))", variant)
 	}
 
 	for _, variant := range excludedVariants {
-		q = q.Where("NOT EXISTS (SELECT 1 FROM variant_combinations WHERE ? = any(variants) AND id = prow_jobs.variant_combination_id)", variant)
+		q = q.Where("NOT EXISTS (SELECT 1 FROM variant_combinations WHERE ? = any(variants) AND id = ci_jobs.variant_combination_id)", variant)
 	}
 
 	res := q.
-		Select("prow_job_runs.url as prow_job_url, prow_job_run_test_outputs.output").
-		Order("prow_job_run_tests.prow_job_run_timestamp DESC, prow_job_run_test_outputs.id DESC").
+		Select("ci_job_runs.url as ci_job_url, ci_job_run_test_outputs.output").
+		Order("ci_job_run_tests.ci_job_run_timestamp DESC, ci_job_run_test_outputs.id DESC").
 		Limit(quantity).
 		Scan(&results)
 
@@ -469,29 +469,29 @@ func TestDurations(dbc *db.DB, release, test string, includedVariants, excludedV
 	results := make(map[civil.Date]float64)
 
 	testQuery := dbc.DB.Table("tests").Where("name = ?", test).Select("id")
-	q := dbc.DB.Table("prow_job_run_tests").
-		Joins("JOIN tests ON prow_job_run_tests.test_id = tests.id").
-		Joins("JOIN prow_jobs ON prow_jobs.id = prow_job_run_tests.prow_job_id").
-		Joins("JOIN prow_job_runs ON prow_job_run_tests.prow_job_run_id = prow_job_runs.id AND prow_job_runs.prow_job_release = prow_job_run_tests.prow_job_run_release AND prow_job_runs.timestamp = prow_job_run_tests.prow_job_run_timestamp").
-		Where("prow_job_run_tests.prow_job_run_timestamp > current_date - interval '14' day").
-		Where("prow_job_run_tests.test_id = (?)", testQuery).
-		Where("prow_job_run_tests.prow_job_run_release = ?", release).
-		Where("prow_job_runs.labels IS NULL OR NOT (prow_job_runs.labels @> ARRAY['InfraFailure'])")
+	q := dbc.DB.Table("ci_job_run_tests").
+		Joins("JOIN tests ON ci_job_run_tests.test_id = tests.id").
+		Joins("JOIN ci_jobs ON ci_jobs.id = ci_job_run_tests.ci_job_id").
+		Joins("JOIN ci_job_runs ON ci_job_run_tests.ci_job_run_id = ci_job_runs.id AND ci_job_runs.ci_job_release = ci_job_run_tests.ci_job_run_release AND ci_job_runs.timestamp = ci_job_run_tests.ci_job_run_timestamp").
+		Where("ci_job_run_tests.ci_job_run_timestamp > current_date - interval '14' day").
+		Where("ci_job_run_tests.test_id = (?)", testQuery).
+		Where("ci_job_run_tests.ci_job_run_release = ?", release).
+		Where("ci_job_runs.labels IS NULL OR NOT (ci_job_runs.labels @> ARRAY['InfraFailure'])")
 
 	for _, variant := range includedVariants {
-		q = q.Where("prow_jobs.variant_combination_id IN (SELECT id FROM variant_combinations WHERE ? = any(variants))", variant)
+		q = q.Where("ci_jobs.variant_combination_id IN (SELECT id FROM variant_combinations WHERE ? = any(variants))", variant)
 	}
 
 	for _, variant := range excludedVariants {
-		q = q.Where("NOT EXISTS (SELECT 1 FROM variant_combinations WHERE ? = any(variants) AND id = prow_jobs.variant_combination_id)", variant)
+		q = q.Where("NOT EXISTS (SELECT 1 FROM variant_combinations WHERE ? = any(variants) AND id = ci_jobs.variant_combination_id)", variant)
 	}
 
 	res := q.
 		Select(`
-			date(prow_job_run_tests.prow_job_run_timestamp AT TIME ZONE 'UTC'::text) as period,
-			AVG(prow_job_run_tests.duration) as average_duration`).
-		Group(`date(prow_job_run_tests.prow_job_run_timestamp AT TIME ZONE 'UTC'::text)`).
-		Order(`date(prow_job_run_tests.prow_job_run_timestamp AT TIME ZONE 'UTC'::text)`).
+			date(ci_job_run_tests.ci_job_run_timestamp AT TIME ZONE 'UTC'::text) as period,
+			AVG(ci_job_run_tests.duration) as average_duration`).
+		Group(`date(ci_job_run_tests.ci_job_run_timestamp AT TIME ZONE 'UTC'::text)`).
+		Order(`date(ci_job_run_tests.ci_job_run_timestamp AT TIME ZONE 'UTC'::text)`).
 		Scan(&rows)
 
 	for _, row := range rows {

@@ -24,13 +24,13 @@ func TestValidateReEvalRequest(t *testing.T) {
 			name:    "empty IDs",
 			ids:     []string{},
 			wantErr: true,
-			errMsg:  "prow_job_build_ids is required",
+			errMsg:  "ci_job_build_ids is required",
 		},
 		{
 			name:    "nil IDs",
 			ids:     nil,
 			wantErr: true,
-			errMsg:  "prow_job_build_ids is required",
+			errMsg:  "ci_job_build_ids is required",
 		},
 		{
 			name:    "valid single ID",
@@ -46,7 +46,7 @@ func TestValidateReEvalRequest(t *testing.T) {
 			name:    "non-numeric ID",
 			ids:     []string{"abc"},
 			wantErr: true,
-			errMsg:  "invalid prow_job_build_id",
+			errMsg:  "invalid ci_job_build_id",
 		},
 		{
 			name:    "exceeds max batch size",
@@ -314,7 +314,7 @@ func TestBuildOutputs(t *testing.T) {
 		},
 	}
 
-	jobRun := &models.ProwJobRun{
+	jobRun := &models.CIJobRun{
 		URL: "https://prow.ci.openshift.org/view/gs/test-platform-results/logs/test-job/12345",
 	}
 
@@ -377,7 +377,7 @@ func TestBuildOutputsMultipleLabels(t *testing.T) {
 			fileMatch: "test-file.txt",
 		},
 	}
-	jobRun := &models.ProwJobRun{
+	jobRun := &models.CIJobRun{
 		URL: "https://example.com/gs/test-platform-results/logs/job/1/",
 	}
 

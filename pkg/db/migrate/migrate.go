@@ -91,9 +91,9 @@ func RunMigrations(gormDB *gorm.DB) error {
 	}
 
 	if !hasSchemaMigrations {
-		hasExistingTable, err := tableExists(sqlDB, "prow_job_run_tests")
+		hasExistingTable, err := tableExists(sqlDB, "ci_job_run_tests")
 		if err != nil {
-			return fmt.Errorf("failed to check for prow_job_run_tests table: %w", err)
+			return fmt.Errorf("failed to check for ci_job_run_tests table: %w", err)
 		}
 
 		if hasExistingTable {

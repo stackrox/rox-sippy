@@ -140,10 +140,10 @@ func NewServeCommand() *cobra.Command {
 			// gcsClient remains nil
 
 			// Make sure the db is initialized, otherwise let the user know:
-			prowJobs := []models.ProwJob{}
-			res := dbc.DB.Find(&prowJobs).Limit(1)
+			ciJobs := []models.CIJob{}
+			res := dbc.DB.Find(&ciJobs).Limit(1)
 			if res.Error != nil {
-				return errors.WithMessage(err, "error querying for a ProwJob, database may need to be initialized with --init-database")
+				return errors.WithMessage(err, "error querying for a CIJob, database may need to be initialized with --init-database")
 			}
 
 			webRoot, err := fs.Sub(resources.SippyNG, "sippy-ng/build")

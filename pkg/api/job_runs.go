@@ -41,8 +41,8 @@ const (
 var nonDeterministicRiskLevels = []int{apitype.FailureRiskLevelUnknown.Level, apitype.FailureRiskLevelIncompleteTests.Level, apitype.FailureRiskLevelMissingData.Level}
 
 // JobsRunsReportFromDB renders a filtered summary of matching jobs using a
-// two-phase approach: Phase 1 paginates from base tables (prow_job_runs +
-// prow_jobs), Phase 2 enriches the page with test counts, test name arrays,
+// two-phase approach: Phase 1 paginates from base tables (ci_job_runs +
+// ci_jobs), Phase 2 enriches the page with test counts, test name arrays,
 // pull request data, and annotations.
 func JobsRunsReportFromDB(dbc *db.DB, filterOpts *filter.FilterOptions, release string, pagination *apitype.Pagination, reportEnd time.Time) (*apitype.PaginationResult, error) {
 	if filterOpts.SortField != "" && isTestNameField(filterOpts.SortField) {
@@ -65,14 +65,14 @@ func JobsRunsReportFromDB(dbc *db.DB, filterOpts *filter.FilterOptions, release 
 		selectSQL += `, pp.link AS pull_request_link, pp.sha AS pull_request_sha, pp.org AS pull_request_org, pp.repo AS pull_request_repo, pp.author AS pull_request_author`
 	}
 
-	dbQuery := dbc.DB.Table("prow_job_runs").
+	dbQuery := dbc.DB.Table("ci_job_runs").
 		Select(selectSQL).
-		Joins("JOIN prow_jobs ON prow_job_runs.prow_job_id = prow_jobs.id")
+		Joins("JOIN ci_jobs ON ci_job_runs.ci_job_id = ci_jobs.id")
 
 	addPRJoin := func(q *gorm.DB) *gorm.DB {
 		return q.
-			Joins(`LEFT JOIN (SELECT DISTINCT ON(prow_job_run_id) prow_job_run_id, prow_pull_request_id FROM prow_job_run_prow_pull_requests WHERE prow_job_run_release = ? ORDER BY prow_job_run_id, prow_pull_request_id DESC) jrpp ON jrpp.prow_job_run_id = prow_job_runs.id`, release).
-			Joins("LEFT JOIN prow_pull_requests pp ON pp.id = jrpp.prow_pull_request_id")
+			Joins(`LEFT JOIN (SELECT DISTINCT ON(ci_job_run_id) ci_job_run_id, prow_pull_request_id FROM ci_job_run_pull_requests WHERE ci_job_run_release = ? ORDER BY ci_job_run_id, prow_pull_request_id DESC) jrpp ON jrpp.ci_job_run_id = ci_job_runs.id`, release).
+			Joins("LEFT JOIN pull_requests pp ON pp.id = jrpp.prow_pull_request_id")
 	}
 
 	if needs.prJoinForFilter {
@@ -84,10 +84,10 @@ func JobsRunsReportFromDB(dbc *db.DB, filterOpts *filter.FilterOptions, release 
 		return nil, err
 	}
 
-	q = q.Where("prow_jobs.release = ?", release)
-	q = q.Where("prow_job_runs.prow_job_release = ?", release)
-	q = q.Where(`prow_job_runs."timestamp" < ?`, reportEnd)
-	q = q.Where(`prow_job_runs."timestamp" >= ?`, lookback)
+	q = q.Where("ci_jobs.release = ?", release)
+	q = q.Where("ci_job_runs.ci_job_release = ?", release)
+	q = q.Where(`ci_job_runs."timestamp" < ?`, reportEnd)
+	q = q.Where(`ci_job_runs."timestamp" >= ?`, lookback)
 
 	var rowCount int64
 	if err := q.Count(&rowCount).Error; err != nil {
@@ -98,7 +98,7 @@ func JobsRunsReportFromDB(dbc *db.DB, filterOpts *filter.FilterOptions, release 
 		q = addPRJoin(q)
 	}
 
-	q = q.Order("prow_job_runs.id DESC")
+	q = q.Order("ci_job_runs.id DESC")
 
 	if pagination == nil {
 		pagination = &apitype.Pagination{
@@ -151,24 +151,24 @@ func JobsRunsReportFromDB(dbc *db.DB, filterOpts *filter.FilterOptions, release 
 	}, nil
 }
 
-const jobRunsBaseSelect = `prow_job_runs.id,
-	prow_jobs.release,
-	prow_jobs.name,
-	prow_jobs.name AS job,
-	prow_jobs.variants,
-	regexp_replace(prow_jobs.name, 'periodic-ci-openshift-(multiarch|release)-(master|main)-(ci|nightly)-[0-9]+.[0-9]+-', '') AS brief_name,
-	prow_job_runs.overall_result,
-	prow_job_runs.url AS test_grid_url,
-	prow_job_runs.url,
-	prow_job_runs.succeeded,
-	prow_job_runs.infrastructure_failure,
-	prow_job_runs.known_failure,
-	prow_job_runs."timestamp",
-	prow_job_runs.id AS prow_id,
-	prow_job_runs.cluster,
-	prow_job_runs.labels,
-	prow_job_runs.test_failures,
-	prow_job_runs.test_flakes`
+const jobRunsBaseSelect = `ci_job_runs.id,
+	ci_jobs.release,
+	ci_jobs.name,
+	ci_jobs.name AS job,
+	ci_jobs.variants,
+	regexp_replace(ci_jobs.name, 'periodic-ci-openshift-(multiarch|release)-(master|main)-(ci|nightly)-[0-9]+.[0-9]+-', '') AS brief_name,
+	ci_job_runs.overall_result,
+	ci_job_runs.url AS test_grid_url,
+	ci_job_runs.url,
+	ci_job_runs.succeeded,
+	ci_job_runs.infrastructure_failure,
+	ci_job_runs.known_failure,
+	ci_job_runs."timestamp",
+	ci_job_runs.id AS prow_id,
+	ci_job_runs.cluster,
+	ci_job_runs.labels,
+	ci_job_runs.test_failures,
+	ci_job_runs.test_flakes`
 
 type jobRunFilterNeeds struct {
 	prJoinForSort   bool
@@ -197,12 +197,12 @@ func analyzeJobRunFilters(filterOpts *filter.FilterOptions, prColumns sets.Set[s
 // WHERE clauses cannot reference SELECT aliases, so these fields must be
 // rewritten before they reach the generic filter system.
 var columnAliases = map[string]string{
-	"id":                  "prow_job_runs.id",
-	"job":                 "prow_jobs.name",
-	"brief_name":          "regexp_replace(prow_jobs.name, 'periodic-ci-openshift-(multiarch|release)-(master|main)-(ci|nightly)-[0-9]+.[0-9]+-', '')",
-	"prow_id":             "prow_job_runs.id",
-	"test_grid_url":       "prow_job_runs.url",
-	"timestamp":           `prow_job_runs."timestamp"`,
+	"id":                  "ci_job_runs.id",
+	"job":                 "ci_jobs.name",
+	"brief_name":          "regexp_replace(ci_jobs.name, 'periodic-ci-openshift-(multiarch|release)-(master|main)-(ci|nightly)-[0-9]+.[0-9]+-', '')",
+	"prow_id":             "ci_job_runs.id",
+	"test_grid_url":       "ci_job_runs.url",
+	"timestamp":           `ci_job_runs."timestamp"`,
 	"pull_request_link":   "pp.link",
 	"pull_request_sha":    "pp.sha",
 	"pull_request_org":    "pp.org",
@@ -210,10 +210,10 @@ var columnAliases = map[string]string{
 	"pull_request_author": "pp.author",
 }
 
-// testNameStatuses maps test name filter fields to the prow_job_run_tests
+// testNameStatuses maps test name filter fields to the ci_job_run_tests
 // status code used in EXISTS subqueries. ran_test_names uses 0 to mean
 // "no status constraint" (matches any test outcome). This is safe because
-// TestStatusAbsent (0) is never stored in prow_job_run_tests rows.
+// TestStatusAbsent (0) is never stored in ci_job_run_tests rows.
 var testNameStatuses = map[string]int{
 	"ran_test_names":    0,
 	"failed_test_names": int(sippyprocessingv1.TestStatusFailure),
@@ -283,11 +283,11 @@ func applyJobRunFilters(q *gorm.DB, filterOpts *filter.FilterOptions, lookback t
 func testNameFilterSQL(item filter.FilterItem, lookback time.Time) (string, []any, error) {
 	statusClause := ""
 	if status := testNameStatuses[item.Field]; status != 0 {
-		statusClause = fmt.Sprintf(" AND prow_job_run_tests.status = %d", status)
+		statusClause = fmt.Sprintf(" AND ci_job_run_tests.status = %d", status)
 	}
 
 	existsBase := fmt.Sprintf(
-		"EXISTS (SELECT 1 FROM prow_job_run_tests JOIN tests ON tests.id = prow_job_run_tests.test_id WHERE prow_job_run_tests.prow_job_run_id = prow_job_runs.id AND prow_job_run_tests.prow_job_run_release = prow_jobs.release AND prow_job_run_tests.prow_job_run_timestamp >= ?%s",
+		"EXISTS (SELECT 1 FROM ci_job_run_tests JOIN tests ON tests.id = ci_job_run_tests.test_id WHERE ci_job_run_tests.ci_job_run_id = ci_job_runs.id AND ci_job_run_tests.ci_job_run_release = ci_jobs.release AND ci_job_run_tests.ci_job_run_timestamp >= ?%s",
 		statusClause,
 	)
 
@@ -320,32 +320,32 @@ func testNameFilterSQL(item filter.FilterItem, lookback time.Time) (string, []an
 
 func enrichJobRunsWithTestNames(dbc *db.DB, results []apitype.JobRun, ids []int, release string, lookback time.Time) error {
 	type testNameResult struct {
-		ProwJobRunID    int            `gorm:"column:prow_job_run_id"`
+		CIJobRunID    int            `gorm:"column:ci_job_run_id"`
 		FailedTestNames pq.StringArray `gorm:"column:failed_test_names;type:text[]"`
 		FlakedTestNames pq.StringArray `gorm:"column:flaked_test_names;type:text[]"`
 	}
 	var nameResults []testNameResult
-	nameSQL := fmt.Sprintf(`SELECT pjrt.prow_job_run_id,
+	nameSQL := fmt.Sprintf(`SELECT pjrt.ci_job_run_id,
 			array_agg(t.name) FILTER (WHERE pjrt.status = %d) AS failed_test_names,
 			array_agg(t.name) FILTER (WHERE pjrt.status = %d) AS flaked_test_names
-		FROM prow_job_run_tests pjrt
+		FROM ci_job_run_tests pjrt
 			JOIN tests t ON t.id = pjrt.test_id
-		WHERE pjrt.prow_job_run_id IN ?
+		WHERE pjrt.ci_job_run_id IN ?
 			AND pjrt.status IN (%d, %d)
-			AND pjrt.prow_job_run_timestamp >= ?`,
+			AND pjrt.ci_job_run_timestamp >= ?`,
 		sippyprocessingv1.TestStatusFailure, sippyprocessingv1.TestStatusFlake, sippyprocessingv1.TestStatusFailure, sippyprocessingv1.TestStatusFlake)
 	nameArgs := []any{ids, lookback}
 	if len(release) > 0 {
-		nameSQL += ` AND pjrt.prow_job_run_release = ?`
+		nameSQL += ` AND pjrt.ci_job_run_release = ?`
 		nameArgs = append(nameArgs, release)
 	}
-	nameSQL += ` GROUP BY pjrt.prow_job_run_id`
+	nameSQL += ` GROUP BY pjrt.ci_job_run_id`
 	if err := dbc.DB.Raw(nameSQL, nameArgs...).Scan(&nameResults).Error; err != nil {
 		return err
 	}
 	nameMap := make(map[int]*testNameResult, len(nameResults))
 	for i := range nameResults {
-		nameMap[nameResults[i].ProwJobRunID] = &nameResults[i]
+		nameMap[nameResults[i].CIJobRunID] = &nameResults[i]
 	}
 	for i := range results {
 		if names, ok := nameMap[results[i].ID]; ok {
@@ -366,19 +366,19 @@ func enrichJobRunsWithPRData(dbc *db.DB, results []apitype.JobRun, ids []int, re
 		PullRequestAuthor string `gorm:"column:pull_request_author"`
 	}
 	var prResults []prResult
-	q := dbc.DB.Table("prow_job_run_prow_pull_requests jrpp").
-		Select(`DISTINCT ON(jrpp.prow_job_run_id)
-			jrpp.prow_job_run_id AS id,
+	q := dbc.DB.Table("ci_job_run_pull_requests jrpp").
+		Select(`DISTINCT ON(jrpp.ci_job_run_id)
+			jrpp.ci_job_run_id AS id,
 			pp.link AS pull_request_link,
 			pp.sha AS pull_request_sha,
 			pp.org AS pull_request_org,
 			pp.author AS pull_request_author,
 			pp.repo AS pull_request_repo`).
-		Joins("INNER JOIN prow_pull_requests pp ON pp.id = jrpp.prow_pull_request_id").
-		Where("jrpp.prow_job_run_id IN ?", ids).
-		Order("jrpp.prow_job_run_id, jrpp.prow_pull_request_id DESC")
+		Joins("INNER JOIN pull_requests pp ON pp.id = jrpp.prow_pull_request_id").
+		Where("jrpp.ci_job_run_id IN ?", ids).
+		Order("jrpp.ci_job_run_id, jrpp.prow_pull_request_id DESC")
 	if len(release) > 0 {
-		q = q.Where("jrpp.prow_job_run_release = ?", release)
+		q = q.Where("jrpp.ci_job_run_release = ?", release)
 	}
 	if err := q.Scan(&prResults).Error; err != nil {
 		return err
@@ -402,17 +402,17 @@ func enrichJobRunsWithPRData(dbc *db.DB, results []apitype.JobRun, ids []int, re
 }
 
 func enrichJobRunsWithAnnotations(dbc *db.DB, results []apitype.JobRun, ids []int, release string) error {
-	var annotations []models.ProwJobRunAnnotation
-	annotationQuery := dbc.DB.Where("prow_job_run_id IN ?", ids)
+	var annotations []models.CIJobRunAnnotation
+	annotationQuery := dbc.DB.Where("ci_job_run_id IN ?", ids)
 	if len(release) > 0 {
-		annotationQuery = annotationQuery.Where("prow_job_run_release = ?", release)
+		annotationQuery = annotationQuery.Where("ci_job_run_release = ?", release)
 	}
 	if err := annotationQuery.Find(&annotations).Error; err != nil {
 		return err
 	}
 	annotationsByRun := make(map[int]apitype.AnnotationMap)
 	for _, a := range annotations {
-		runID := int(a.ProwJobRunID) //nolint:gosec // DB IDs are well within int range
+		runID := int(a.CIJobRunID) //nolint:gosec // DB IDs are well within int range
 		if annotationsByRun[runID] == nil {
 			annotationsByRun[runID] = make(apitype.AnnotationMap)
 		}
@@ -426,15 +426,15 @@ func enrichJobRunsWithAnnotations(dbc *db.DB, results []apitype.JobRun, ids []in
 	return nil
 }
 
-// FetchJobRun returns a single job run loaded from postgres and populated with the ProwJob and test results.
+// FetchJobRun returns a single job run loaded from postgres and populated with the CIJob and test results.
 // If onlyNewTests is true, only new tests are loaded: those not registered in test_ownerships and not
 // previously seen in a merged pull request. Otherwise any failed tests are loaded.
-func FetchJobRun(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *log.Entry) (*models.ProwJobRun, error) {
-	jobRun := &models.ProwJobRun{}
+func FetchJobRun(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *log.Entry) (*models.CIJobRun, error) {
+	jobRun := &models.CIJobRun{}
 
-	// Load the ProwJobRun, ProwJob, and (failed|unknown) tests:
+	// Load the CIJobRun, CIJob, and (failed|unknown) tests:
 	// TODO: we may want to expand to analyzing flakes here in the future
-	q := dbc.DB.Joins("ProwJob").
+	q := dbc.DB.Joins("CIJob").
 		Preload("PullRequests")
 
 	// Tests are loaded separately with partition pruning keys, so
@@ -444,33 +444,33 @@ func FetchJobRun(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []strin
 		q = q.Preload(preload)
 	}
 
-	partKeys, err := query.LookupProwJobRunPartitionKeys(dbc.DB, jobRunID)
+	partKeys, err := query.LookupCIJobRunPartitionKeys(dbc.DB, jobRunID)
 	if err != nil {
 		return nil, fmt.Errorf("looking up partition keys for job run %d: %w", jobRunID, err)
 	}
 
-	res := q.Where("prow_job_release = ? AND timestamp = ?", partKeys.ProwJobRelease, partKeys.Timestamp).
+	res := q.Where("ci_job_release = ? AND timestamp = ?", partKeys.CIJobRelease, partKeys.Timestamp).
 		Take(jobRun, jobRunID)
 	if res.Error != nil {
 		return nil, res.Error
 	}
 
-	var tests []models.ProwJobRunTest
+	var tests []models.CIJobRunTest
 	testQuery := dbc.DB.
-		Where("prow_job_run_id = ? AND prow_job_run_release = ? AND prow_job_run_timestamp = ?",
-			jobRun.ID, jobRun.ProwJobRelease, jobRun.Timestamp)
+		Where("ci_job_run_id = ? AND ci_job_run_release = ? AND ci_job_run_timestamp = ?",
+			jobRun.ID, jobRun.CIJobRelease, jobRun.Timestamp)
 
 	if onlyNewTests {
 		// A test is "new" if it is not registered in test_ownerships and has
 		// not appeared in any job run associated with a merged pull request.
 		testQuery = testQuery.
-			Where("NOT EXISTS (SELECT 1 FROM test_ownerships tow WHERE tow.test_id = prow_job_run_tests.test_id)").
+			Where("NOT EXISTS (SELECT 1 FROM test_ownerships tow WHERE tow.test_id = ci_job_run_tests.test_id)").
 			Where(`NOT EXISTS (
-				SELECT 1 FROM prow_job_run_tests t2
-				INNER JOIN prow_job_run_prow_pull_requests prmap ON prmap.prow_job_run_id = t2.prow_job_run_id AND prmap.prow_job_run_release = t2.prow_job_run_release
-				INNER JOIN prow_pull_requests prs ON prs.id = prmap.prow_pull_request_id
-				WHERE t2.test_id = prow_job_run_tests.test_id
-				  AND t2.prow_job_run_release = prow_job_run_tests.prow_job_run_release
+				SELECT 1 FROM ci_job_run_tests t2
+				INNER JOIN ci_job_run_pull_requests prmap ON prmap.ci_job_run_id = t2.ci_job_run_id AND prmap.ci_job_run_release = t2.ci_job_run_release
+				INNER JOIN pull_requests prs ON prs.id = prmap.prow_pull_request_id
+				WHERE t2.test_id = ci_job_run_tests.test_id
+				  AND t2.ci_job_run_release = ci_job_run_tests.ci_job_run_release
 				  AND prs.merged_at IS NOT NULL)`)
 	} else {
 		testQuery = testQuery.Where("status = ?", sippyprocessingv1.TestStatusFailure)
@@ -485,7 +485,7 @@ func FetchJobRun(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []strin
 	}
 	jobRun.Tests = tests
 
-	jobRunTestCount, err := query.JobRunTestCount(dbc, jobRunID, jobRun.ProwJobRelease, jobRun.Timestamp)
+	jobRunTestCount, err := query.JobRunTestCount(dbc, jobRunID, jobRun.CIJobRelease, jobRun.Timestamp)
 	if err != nil { // should be unusual
 		logger.WithError(err).Errorf("Error getting test count for job run %d", jobRunID)
 		jobRunTestCount = -1
@@ -495,7 +495,7 @@ func FetchJobRun(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []strin
 	return jobRun, nil
 }
 
-// splitTestPreloads separates Tests-related preloads (e.g. "Tests.ProwJobRunTestOutput")
+// splitTestPreloads separates Tests-related preloads (e.g. "Tests.CIJobRunTestOutput")
 // from other preloads. Tests-related preloads are returned with the "Tests." prefix stripped
 // so they can be applied to the manual test query.
 func splitTestPreloads(preloads []string) (other, testRelated []string) {
@@ -510,7 +510,7 @@ func splitTestPreloads(preloads []string) (other, testRelated []string) {
 }
 
 // findReleaseMatchJobNames looks for the first matches with a common root job name specific to the
-// compareRelease and the prowJob variants, starting with the full name.  When no match is found it will iterate while
+// compareRelease and the ciJob variants, starting with the full name.  When no match is found it will iterate while
 // removing the leading 'string-'
 // and try to find a match until successful or no matches are found.
 //
@@ -521,9 +521,9 @@ func splitTestPreloads(preloads []string) (other, testRelated []string) {
 // periodic-ci-openshift-release-master-nightly-4.14- e2e-vsphere-ovn-etcd-scaling
 // our common root is e2e-vsphere-ovn-etcd-scaling and our compareRelease is 4.14
 // if we don't have enough data from the current compareRelease we fall back to include the previous release as well
-func findReleaseMatchJobNames(dbc *db.DB, jobRun *models.ProwJobRun, compareRelease string, logger *log.Entry) ([]string, int, error) {
-	segments := strings.Split(jobRun.ProwJob.Name, "-")
-	logger = logger.WithField("func", "findReleaseMatchJobNames").WithField("job", jobRun.ProwJob.Name)
+func findReleaseMatchJobNames(dbc *db.DB, jobRun *models.CIJobRun, compareRelease string, logger *log.Entry) ([]string, int, error) {
+	segments := strings.Split(jobRun.CIJob.Name, "-")
+	logger = logger.WithField("func", "findReleaseMatchJobNames").WithField("job", jobRun.CIJob.Name)
 
 	// if we don't find enough jobs to match against we can try the prior release
 	// and see if it has enough, think about cutover to a new release, etc.
@@ -541,7 +541,7 @@ func findReleaseMatchJobNames(dbc *db.DB, jobRun *models.ProwJobRun, compareRele
 		name := joinSegments(segments, i, "-")
 
 		if len(name) > 0 {
-			jobs, err := query.ProwJobSimilarName(dbc, name, compareRelease)
+			jobs, err := query.CIJobSimilarName(dbc, name, compareRelease)
 
 			if err != nil {
 				logger.WithError(err).Errorf("Failed to find similar name for release: %s, root: %s", compareRelease, name)
@@ -559,7 +559,7 @@ func findReleaseMatchJobNames(dbc *db.DB, jobRun *models.ProwJobRun, compareRele
 				allJobNames := make([]string, 0)
 				totalJobRunsCount := 0
 				hasNeverStableJob := false
-				variants := jobRun.ProwJob.Variants
+				variants := jobRun.CIJob.Variants
 				gosort.Strings(variants)
 				for _, job := range jobs {
 					// this is a weird way to get the variant we want, but it allows re-use
@@ -572,7 +572,7 @@ func findReleaseMatchJobNames(dbc *db.DB, jobRun *models.ProwJobRun, compareRele
 					gosort.Strings(job.Variants)
 					if stringSlicesEqual(variants, job.Variants) {
 
-						runCount, err := query.ProwJobRunCount(dbc, job.ID, compareRelease, time.Now().Add(-14*24*time.Hour))
+						runCount, err := query.CIJobRunCount(dbc, job.ID, compareRelease, time.Now().Add(-14*24*time.Hour))
 						if err != nil {
 							logger.WithError(err).Errorf("Failed to query job run count for %d", job.ID)
 							continue
@@ -584,7 +584,7 @@ func findReleaseMatchJobNames(dbc *db.DB, jobRun *models.ProwJobRun, compareRele
 
 				// logging at info for now so we can monitor, can dial down to debug if / when preferred
 				if len(allJobNames) > 0 {
-					logger.Infof("Matched job name: %s to %v", jobRun.ProwJob.Name, allJobNames)
+					logger.Infof("Matched job name: %s to %v", jobRun.CIJob.Name, allJobNames)
 				}
 
 				var err error
@@ -612,28 +612,28 @@ func joinSegments(segments []string, start int, separator string) string {
 func JobRunRiskAnalysis(
 	ctx context.Context, logger *log.Entry,
 	dbc *db.DB, bqc *bigquery.Client, cacheClient cache.Cache,
-	jobRun *models.ProwJobRun,
+	jobRun *models.CIJobRun,
 	compareOtherPRs bool,
-) (apitype.ProwJobRunRiskAnalysis, error) {
+) (apitype.CIJobRunRiskAnalysis, error) {
 	logger = logger.WithField("func", "JobRunRiskAnalysis")
 	// If this job is a Presubmit, compare to test results from master, not presubmits, which may perform
 	// worse due to dev code that hasn't merged. We do not presently track presubmits on branches other than
 	// master, so it should be safe to assume the latest compareRelease in the db.
-	compareRelease := jobRun.ProwJob.Release
+	compareRelease := jobRun.CIJob.Release
 	neverStableJob := false
 	if compareRelease == models.ReleasePresubmits {
 		ar, err := GetReleasesFromDB(ctx, dbc)
 		if err != nil {
-			return apitype.ProwJobRunRiskAnalysis{}, err
+			return apitype.CIJobRunRiskAnalysis{}, err
 		}
 		if len(ar) == 0 {
-			return apitype.ProwJobRunRiskAnalysis{}, fmt.Errorf("no releases found in db")
+			return apitype.CIJobRunRiskAnalysis{}, fmt.Errorf("no releases found in db")
 		}
 
 		compareRelease = ar[0].Release
 	}
 
-	historicalCount, err := query.ProwJobHistoricalTestCounts(dbc, jobRun.ProwJob.ID, compareRelease)
+	historicalCount, err := query.CIJobHistoricalTestCounts(dbc, jobRun.CIJob.ID, compareRelease)
 
 	// if we had an error we will continue the risk analysis and not elevate based on test counts
 	if err != nil {
@@ -651,7 +651,7 @@ func JobRunRiskAnalysis(
 		preSupportVersion, _ := version.NewVersion("4.12")
 		currentVersion, err := version.NewVersion(compareRelease)
 		if err != nil {
-			logger.WithError(err).Errorf("Failed to parse release '%s' for prow job %d", compareRelease, jobRun.ProwJob.ID)
+			logger.WithError(err).Errorf("Failed to parse release '%s' for prow job %d", compareRelease, jobRun.CIJob.ID)
 		} else if preSupportVersion.GreaterThanOrEqual(currentVersion) {
 			jobRun.TestCount = historicalCount
 		}
@@ -666,7 +666,7 @@ func JobRunRiskAnalysis(
 		if err.Error() == "never-stable" {
 			neverStableJob = true
 		} else {
-			logger.WithError(err).Errorf("Failed to find matching jobIds for: %s", jobRun.ProwJob.Name)
+			logger.WithError(err).Errorf("Failed to find matching jobIds for: %s", jobRun.CIJob.Name)
 		}
 	}
 
@@ -687,7 +687,7 @@ func JobRunRiskAnalysis(
 				if err != nil {
 					// since this is for the prior release we won't return the never-stable error in this case
 					if err.Error() != "never-stable" {
-						logger.WithError(err).Errorf("Failed to find matching jobIds for: %s", jobRun.ProwJob.Name)
+						logger.WithError(err).Errorf("Failed to find matching jobIds for: %s", jobRun.CIJob.Name)
 					}
 				}
 				jobNames = append(jobNames, priorJobNames...)
@@ -695,15 +695,15 @@ func JobRunRiskAnalysis(
 		}
 	}
 
-	logger.Infof("Found %d matching job(s) for: %s", len(jobNames), jobRun.ProwJob.Name)
+	logger.Infof("Found %d matching job(s) for: %s", len(jobNames), jobRun.CIJob.Name)
 
 	// NOTE: we are including bugs for all releases, may want to filter here in future to just those
 	// with an AffectsVersions that seems to match our compareRelease?
-	jobBugs, err := query.LoadBugsForJobs(dbc, []int{int(jobRun.ProwJob.ID)}, true) // nolint:gosec
+	jobBugs, err := query.LoadBugsForJobs(dbc, []int{int(jobRun.CIJob.ID)}, true) // nolint:gosec
 	if err != nil {
-		logger.WithError(err).Errorf("Error evaluating bugs for prow job: %d", jobRun.ProwJob.ID)
+		logger.WithError(err).Errorf("Error evaluating bugs for prow job: %d", jobRun.CIJob.ID)
 	} else {
-		jobRun.ProwJob.Bugs = jobBugs
+		jobRun.CIJob.Bugs = jobBugs
 	}
 
 	// Pre-load test bugs as well:
@@ -711,7 +711,7 @@ func JobRunRiskAnalysis(
 		for i, tr := range jobRun.Tests {
 			bugs, err := query.LoadBugsForTest(dbc, tr.Test.Name, true)
 			if err != nil {
-				logger.WithError(err).Errorf("Error evaluating bugs for prow job: %d, test name: %s", jobRun.ProwJob.ID, tr.Test.Name)
+				logger.WithError(err).Errorf("Error evaluating bugs for prow job: %d, test name: %s", jobRun.CIJob.ID, tr.Test.Name)
 			} else {
 				logger.Debugf("Found %d bugs for test '%s'", len(bugs), tr.Test.Name)
 				tr.Test.Bugs = bugs
@@ -819,15 +819,15 @@ func variantsTestResultFunc(ctx context.Context, dbc *db.DB, cacheClient cache.C
 	}
 }
 
-func runJobRunAnalysis(ctx context.Context, bqc *bigquery.Client, jobRun *models.ProwJobRun, compareRelease string, historicalRunTestCount int, neverStableJob bool, jobNames []string, logger *log.Entry, testResultsJobNameFunc testResultsByJobNameFunc, testResultsVariantsFunc testResultsByVariantsFunc, compareOtherPRs bool) (apitype.ProwJobRunRiskAnalysis, error) {
+func runJobRunAnalysis(ctx context.Context, bqc *bigquery.Client, jobRun *models.CIJobRun, compareRelease string, historicalRunTestCount int, neverStableJob bool, jobNames []string, logger *log.Entry, testResultsJobNameFunc testResultsByJobNameFunc, testResultsVariantsFunc testResultsByVariantsFunc, compareOtherPRs bool) (apitype.CIJobRunRiskAnalysis, error) {
 
-	logger = logger.WithField("func", "runJobRunAnalysis").WithField("job", jobRun.ProwJob.Name)
+	logger = logger.WithField("func", "runJobRunAnalysis").WithField("job", jobRun.CIJob.Name)
 	logger.Infof("analyzing prow job run with %d failed test(s)", len(jobRun.Tests))
 
-	response := apitype.ProwJobRunRiskAnalysis{
-		ProwJobRunID:   jobRun.ID,
-		ProwJobName:    jobRun.ProwJob.Name,
-		Release:        jobRun.ProwJob.Release,
+	response := apitype.CIJobRunRiskAnalysis{
+		CIJobRunID:   jobRun.ID,
+		CIJobName:    jobRun.CIJob.Name,
+		Release:        jobRun.CIJob.Release,
 		CompareRelease: compareRelease,
 		Tests:          []apitype.TestRiskAnalysis{},
 		OverallRisk: apitype.JobFailureRisk{
@@ -838,7 +838,7 @@ func runJobRunAnalysis(ctx context.Context, bqc *bigquery.Client, jobRun *models
 			NeverStableJob:         neverStableJob,
 			HistoricalRunTestCount: historicalRunTestCount,
 		},
-		OpenBugs: jobRun.ProwJob.Bugs,
+		OpenBugs: jobRun.CIJob.Bugs,
 	}
 
 	switch {
@@ -895,7 +895,7 @@ func runJobRunAnalysis(ctx context.Context, bqc *bigquery.Client, jobRun *models
 
 // For a failed test, query its pass rates by NURPs, find a matching variant combo, and
 // see how often we've passed in the last week.
-func runTestRunAnalysis(ctx context.Context, bqc *bigquery.Client, failedTest models.ProwJobRunTest, jobRun *models.ProwJobRun, compareRelease string, logger *log.Entry, testResultsJobNameFunc testResultsByJobNameFunc, jobNames []string, testResultsVariantsFunc testResultsByVariantsFunc, neverStableJob, compareOtherPRs bool) (apitype.TestRiskAnalysis, error) {
+func runTestRunAnalysis(ctx context.Context, bqc *bigquery.Client, failedTest models.CIJobRunTest, jobRun *models.CIJobRun, compareRelease string, logger *log.Entry, testResultsJobNameFunc testResultsByJobNameFunc, jobNames []string, testResultsVariantsFunc testResultsByVariantsFunc, neverStableJob, compareOtherPRs bool) (apitype.TestRiskAnalysis, error) {
 	logger.Debug("failed test")
 
 	var testResultsJobNames, testResultsVariants *apitype.Test
@@ -922,12 +922,12 @@ func runTestRunAnalysis(ctx context.Context, bqc *bigquery.Client, failedTest mo
 	// results from stable jobs and potentially skew results.
 	// we will rely on the jobname match, if any, for analysis
 	if testResultsVariantsFunc != nil && !neverStableJob {
-		testResultsVariants, errVariants = testResultsVariantsFunc(failedTest.Test.Name, compareRelease, failedTest.Suite.Name, jobRun.ProwJob.Variants, jobNames)
+		testResultsVariants, errVariants = testResultsVariantsFunc(failedTest.Test.Name, compareRelease, failedTest.Suite.Name, jobRun.CIJob.Variants, jobNames)
 
 		if errVariants == nil && (testResultsVariants == nil || testResultsVariants.CurrentRuns == 0) {
 			// do we need to prepend the suite name to the test?
 			// drop passing the suite name to the func as we are prepending it to the test name
-			testResultsVariants, errVariants = testResultsVariantsFunc(fmt.Sprintf("%s.%s", failedTest.Suite.Name, failedTest.Test.Name), compareRelease, "", jobRun.ProwJob.Variants, jobNames)
+			testResultsVariants, errVariants = testResultsVariantsFunc(fmt.Sprintf("%s.%s", failedTest.Suite.Name, failedTest.Test.Name), compareRelease, "", jobRun.CIJob.Variants, jobNames)
 		}
 	}
 
@@ -962,14 +962,14 @@ func runTestRunAnalysis(ctx context.Context, bqc *bigquery.Client, failedTest mo
 			Level: apitype.FailureRiskLevelUnknown,
 			Reasons: []string{
 				fmt.Sprintf("Unable to find matching test results for variants: %v",
-					jobRun.ProwJob.Variants),
+					jobRun.CIJob.Variants),
 			},
 		}
 	}
 	return analysis, nil
 }
 
-func isHighRiskInOtherPRs(ctx context.Context, bqc *bigquery.Client, failedTest models.ProwJobRunTest, jobRun *models.ProwJobRun) bool {
+func isHighRiskInOtherPRs(ctx context.Context, bqc *bigquery.Client, failedTest models.CIJobRunTest, jobRun *models.CIJobRun) bool {
 	if len(jobRun.PullRequests) == 0 {
 		return false
 	}
@@ -978,8 +978,8 @@ func isHighRiskInOtherPRs(ctx context.Context, bqc *bigquery.Client, failedTest 
 	if jobRun.Timestamp.IsZero() {
 		endTime = time.Now()
 	}
-	log.Infof("Evaluating if test '%s' is high risk in other PRs for job %s", failedTest.Test.Name, jobRun.ProwJob.Name)
-	_, jobSuffix, found := strings.Cut(jobRun.ProwJob.Name, "pull-ci-"+pr.Org+"-"+pr.Repo)
+	log.Infof("Evaluating if test '%s' is high risk in other PRs for job %s", failedTest.Test.Name, jobRun.CIJob.Name)
+	_, jobSuffix, found := strings.Cut(jobRun.CIJob.Name, "pull-ci-"+pr.Org+"-"+pr.Repo)
 	if !found {
 		return false
 	}
@@ -1046,7 +1046,7 @@ func isHighRiskInOtherPRs(ctx context.Context, bqc *bigquery.Client, failedTest 
 		}
 		rowCount = values[0].(int64)
 		if rowCount > 0 {
-			log.Infof("%d High risk item(s) found in other PRs for job %s test '%s'", rowCount, jobRun.ProwJob.Name, failedTest.Test.Name)
+			log.Infof("%d High risk item(s) found in other PRs for job %s test '%s'", rowCount, jobRun.CIJob.Name, failedTest.Test.Name)
 			return true
 		}
 	}
@@ -1220,7 +1220,7 @@ func GetJobRunSummary(ctx context.Context, dbc *db.DB, gcsClient *storage.Client
 	jLog := log.WithField("JobRunID", jobRunID)
 	dbStart := time.Now()
 	jLog.Info("Querying DB for job run data")
-	jr, err := FetchJobRun(dbc, jobRunID, false, []string{"Tests.ProwJobRunTestOutput"}, jLog)
+	jr, err := FetchJobRun(dbc, jobRunID, false, []string{"Tests.CIJobRunTestOutput"}, jLog)
 	if err != nil {
 		return nil, err
 	}
@@ -1234,8 +1234,8 @@ func GetJobRunSummary(ctx context.Context, dbc *db.DB, gcsClient *storage.Client
 	jrData := &JobRunData{
 		// Basic job information
 		ID:        jr.ID,
-		Name:      jr.ProwJob.Name,
-		Release:   jr.ProwJob.Release,
+		Name:      jr.CIJob.Name,
+		Release:   jr.CIJob.Release,
 		Cluster:   jr.Cluster,
 		URL:       jr.URL,
 		GCSBucket: jr.GCSBucket,
@@ -1259,7 +1259,7 @@ func GetJobRunSummary(ctx context.Context, dbc *db.DB, gcsClient *storage.Client
 		TestFailures:     failures,
 
 		// Job metadata
-		Variants: jr.ProwJob.Variants,
+		Variants: jr.CIJob.Variants,
 
 		// Cluster and infrastructure information
 		ClusterOperators: clusterOperators,
@@ -1268,7 +1268,7 @@ func GetJobRunSummary(ctx context.Context, dbc *db.DB, gcsClient *storage.Client
 	return jrData, nil
 }
 
-func extractTestOutputs(jr *models.ProwJobRun) map[string]string {
+func extractTestOutputs(jr *models.CIJobRun) map[string]string {
 	failures := make(map[string]string)
 	for _, test := range jr.Tests {
 		// skip synthetic tests
@@ -1277,7 +1277,7 @@ func extractTestOutputs(jr *models.ProwJobRun) map[string]string {
 		}
 
 		if sippyprocessingv1.TestStatus(test.Status) == sippyprocessingv1.TestStatusFailure {
-			output := test.ProwJobRunTestOutput.Output
+			output := test.CIJobRunTestOutput.Output
 			// some tests are very chatty, get the last 256 characters where
 			// the meat of the failure probably is.
 			if len(output) > 256 {

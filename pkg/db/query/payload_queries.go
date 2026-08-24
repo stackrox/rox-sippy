@@ -51,8 +51,8 @@ func GetLastAcceptedByArchitectureAndStream(db *gorm.DB, release string, reportE
 // test, carrying parallel arrays of release tags, job names, and job run URLs.
 // The caller iterates these arrays to build the per-payload failure map in Go.
 //
-// The prow_job_run_tests table is partitioned by (prow_job_run_release,
-// prow_job_run_timestamp). Both partition keys receive literal parameter values
+// The ci_job_run_tests table is partitioned by (ci_job_run_release,
+// ci_job_run_timestamp). Both partition keys receive literal parameter values
 // to ensure partition pruning.
 func GetTestFailuresForPayloadStream(db *gorm.DB, release, stream, arch string, reportEnd time.Time, excludeTestName string) *gorm.DB {
 	fourteenDaysAgo := reportEnd.Add(-14 * 24 * time.Hour)
@@ -66,17 +66,17 @@ FROM release_tags rt
 JOIN release_job_runs rjr ON rjr.release_tag_id = rt.id
                          AND rjr.kind = 'Blocking'
                          AND rjr.state = 'Failed'
-JOIN prow_job_runs pjr ON pjr.id = rjr.prow_job_run_id
-                       AND pjr.prow_job_release = ?
+JOIN ci_job_runs pjr ON pjr.id = rjr.ci_job_run_id
+                       AND pjr.ci_job_release = ?
                        AND pjr.timestamp >= ?
-JOIN prow_job_run_tests pjrt ON pjrt.prow_job_run_id = pjr.id
-                            AND pjrt.prow_job_run_timestamp = pjr.timestamp
-                            AND pjrt.prow_job_run_release = ?
-                            AND pjrt.prow_job_run_timestamp >= ?
+JOIN ci_job_run_tests pjrt ON pjrt.ci_job_run_id = pjr.id
+                            AND pjrt.ci_job_run_timestamp = pjr.timestamp
+                            AND pjrt.ci_job_run_release = ?
+                            AND pjrt.ci_job_run_timestamp >= ?
                             AND pjrt.status = 12
 JOIN tests t ON t.id = pjrt.test_id
             AND t.name != ?
-JOIN prow_jobs pj ON pj.id = pjr.prow_job_id
+JOIN ci_jobs pj ON pj.id = pjr.ci_job_id
 WHERE rt.release = ?
   AND rt.architecture = ?
   AND rt.stream = ?
@@ -100,22 +100,22 @@ func GetTestFailuresForPayload(db *gorm.DB, payloadTag, release string, releaseT
 		pjrt.suite_id,
 		pjrt.status,
 		t.name,
-		pjrt.prow_job_run_id as prow_job_run_id,
-		pjr.url as prow_job_run_url,
-		pj.name as prow_job_name
+		pjrt.ci_job_run_id as ci_job_run_id,
+		pjr.url as ci_job_run_url,
+		pj.name as ci_job_name
 	FROM release_tags rt
 	JOIN release_job_runs rjr ON rjr.release_tag_id = rt.id
 	                         AND rjr.state = 'Failed'
-	JOIN prow_job_runs pjr ON pjr.id = rjr.prow_job_run_id
-	                      AND pjr.prow_job_release = ?
+	JOIN ci_job_runs pjr ON pjr.id = rjr.ci_job_run_id
+	                      AND pjr.ci_job_release = ?
 	                      AND pjr.timestamp >= ?
-	JOIN prow_job_run_tests pjrt ON pjrt.prow_job_run_id = pjr.id
-	                            AND pjrt.prow_job_run_timestamp = pjr.timestamp
-	                            AND pjrt.prow_job_run_release = ?
-	                            AND pjrt.prow_job_run_timestamp >= ?
+	JOIN ci_job_run_tests pjrt ON pjrt.ci_job_run_id = pjr.id
+	                            AND pjrt.ci_job_run_timestamp = pjr.timestamp
+	                            AND pjrt.ci_job_run_release = ?
+	                            AND pjrt.ci_job_run_timestamp >= ?
 	                            AND pjrt.status = 12
 	JOIN tests t ON t.id = pjrt.test_id
-	JOIN prow_jobs pj ON pj.id = pjr.prow_job_id
+	JOIN ci_jobs pj ON pj.id = pjr.ci_job_id
 	WHERE rt.release_tag = ?
 	ORDER BY pjrt.id DESC`, release, releaseTime, release, releaseTime, payloadTag).Scan(&results)
 

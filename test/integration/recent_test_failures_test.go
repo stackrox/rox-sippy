@@ -27,14 +27,14 @@ func TestRecentTestFailures_ReturnsFailedTestsWithCounts(t *testing.T) {
 	release := "4.19"
 
 	testObj := intutil.CreateTest(t, dbc, "test-basic-failure")
-	job := intutil.CreateProwJob(t, dbc, "job-1", release, nil)
+	job := intutil.CreateCIJob(t, dbc, "job-1", release, nil)
 
 	ts1 := time.Date(2024, 6, 8, 10, 0, 0, 0, time.UTC)
 	ts2 := time.Date(2024, 6, 9, 14, 0, 0, 0, time.UTC)
-	run1 := intutil.CreateProwJobRun(t, dbc, job.ID, release, ts1, false, v1.JobTestFailure)
-	run2 := intutil.CreateProwJobRun(t, dbc, job.ID, release, ts2, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job.ID, testObj.ID, release, ts1, statusFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, testObj.ID, release, ts2, statusFailure)
+	run1 := intutil.CreateCIJobRun(t, dbc, job.ID, release, ts1, false, v1.JobTestFailure)
+	run2 := intutil.CreateCIJobRun(t, dbc, job.ID, release, ts2, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job.ID, testObj.ID, release, ts1, statusFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, testObj.ID, release, ts2, statusFailure)
 
 	reportEnd := time.Date(2024, 6, 11, 0, 0, 0, 0, time.UTC)
 	period := 7 * 24 * time.Hour
@@ -57,17 +57,17 @@ func TestRecentTestFailures_ExcludesTestsAlsoFailingInPreviousPeriod(t *testing.
 	release := "4.19"
 
 	testObj := intutil.CreateTest(t, dbc, "test-also-failed-before")
-	job := intutil.CreateProwJob(t, dbc, "job-1", release, nil)
+	job := intutil.CreateCIJob(t, dbc, "job-1", release, nil)
 
 	// Failure in previous period.
 	prevTs := time.Date(2024, 6, 2, 10, 0, 0, 0, time.UTC)
-	prevRun := intutil.CreateProwJobRun(t, dbc, job.ID, release, prevTs, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, prevRun.ID, job.ID, testObj.ID, release, prevTs, statusFailure)
+	prevRun := intutil.CreateCIJobRun(t, dbc, job.ID, release, prevTs, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, prevRun.ID, job.ID, testObj.ID, release, prevTs, statusFailure)
 
 	// Failure in current period.
 	curTs := time.Date(2024, 6, 8, 10, 0, 0, 0, time.UTC)
-	curRun := intutil.CreateProwJobRun(t, dbc, job.ID, release, curTs, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, curRun.ID, job.ID, testObj.ID, release, curTs, statusFailure)
+	curRun := intutil.CreateCIJobRun(t, dbc, job.ID, release, curTs, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, curRun.ID, job.ID, testObj.ID, release, curTs, statusFailure)
 
 	reportEnd := time.Date(2024, 6, 11, 0, 0, 0, 0, time.UTC)
 	period := 7 * 24 * time.Hour
@@ -87,17 +87,17 @@ func TestRecentTestFailures_IncludesNewRegressionsWhenPreviousPeriodSet(t *testi
 	release := "4.19"
 
 	testObj := intutil.CreateTest(t, dbc, "test-only-current-period")
-	job := intutil.CreateProwJob(t, dbc, "job-1", release, nil)
+	job := intutil.CreateCIJob(t, dbc, "job-1", release, nil)
 
 	// Success in previous period (no failure).
 	prevTs := time.Date(2024, 6, 2, 10, 0, 0, 0, time.UTC)
-	prevRun := intutil.CreateProwJobRun(t, dbc, job.ID, release, prevTs, true, v1.JobSucceeded)
-	intutil.CreateProwJobRunTest(t, dbc, prevRun.ID, job.ID, testObj.ID, release, prevTs, statusSuccess)
+	prevRun := intutil.CreateCIJobRun(t, dbc, job.ID, release, prevTs, true, v1.JobSucceeded)
+	intutil.CreateCIJobRunTest(t, dbc, prevRun.ID, job.ID, testObj.ID, release, prevTs, statusSuccess)
 
 	// Failure in current period.
 	curTs := time.Date(2024, 6, 8, 10, 0, 0, 0, time.UTC)
-	curRun := intutil.CreateProwJobRun(t, dbc, job.ID, release, curTs, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, curRun.ID, job.ID, testObj.ID, release, curTs, statusFailure)
+	curRun := intutil.CreateCIJobRun(t, dbc, job.ID, release, curTs, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, curRun.ID, job.ID, testObj.ID, release, curTs, statusFailure)
 
 	reportEnd := time.Date(2024, 6, 11, 0, 0, 0, 0, time.UTC)
 	period := 7 * 24 * time.Hour
@@ -119,12 +119,12 @@ func TestRecentTestFailures_PopulatesLastPassFromCumulativeSummary(t *testing.T)
 	release := "4.19"
 
 	testObj := intutil.CreateTest(t, dbc, "test-with-last-pass")
-	job := intutil.CreateProwJob(t, dbc, "job-1", release, nil)
+	job := intutil.CreateCIJob(t, dbc, "job-1", release, nil)
 
 	// Failure run for the main query.
 	failTs := time.Date(2024, 6, 9, 14, 0, 0, 0, time.UTC)
-	failRun := intutil.CreateProwJobRun(t, dbc, job.ID, release, failTs, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, failRun.ID, job.ID, testObj.ID, release, failTs, statusFailure)
+	failRun := intutil.CreateCIJobRun(t, dbc, job.ID, release, failTs, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, failRun.ID, job.ID, testObj.ID, release, failTs, statusFailure)
 
 	// Cumulative summary with prefix_max_last_success for findLastPass.
 	// reportEnd date = 2024-06-11, so cumulative summary at that date.
@@ -153,21 +153,21 @@ func TestRecentTestFailures_SumsFailuresAcrossMultipleJobs(t *testing.T) {
 	release := "4.19"
 
 	testObj := intutil.CreateTest(t, dbc, "test-multi-job")
-	job1 := intutil.CreateProwJob(t, dbc, "job-a", release, nil)
-	job2 := intutil.CreateProwJob(t, dbc, "job-b", release, nil)
+	job1 := intutil.CreateCIJob(t, dbc, "job-a", release, nil)
+	job2 := intutil.CreateCIJob(t, dbc, "job-b", release, nil)
 
 	// Two failures from job1.
 	ts1 := time.Date(2024, 6, 8, 10, 0, 0, 0, time.UTC)
 	ts2 := time.Date(2024, 6, 9, 10, 0, 0, 0, time.UTC)
-	run1 := intutil.CreateProwJobRun(t, dbc, job1.ID, release, ts1, false, v1.JobTestFailure)
-	run2 := intutil.CreateProwJobRun(t, dbc, job1.ID, release, ts2, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job1.ID, testObj.ID, release, ts1, statusFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job1.ID, testObj.ID, release, ts2, statusFailure)
+	run1 := intutil.CreateCIJobRun(t, dbc, job1.ID, release, ts1, false, v1.JobTestFailure)
+	run2 := intutil.CreateCIJobRun(t, dbc, job1.ID, release, ts2, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job1.ID, testObj.ID, release, ts1, statusFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job1.ID, testObj.ID, release, ts2, statusFailure)
 
 	// One failure from job2.
 	ts3 := time.Date(2024, 6, 10, 16, 0, 0, 0, time.UTC)
-	run3 := intutil.CreateProwJobRun(t, dbc, job2.ID, release, ts3, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run3.ID, job2.ID, testObj.ID, release, ts3, statusFailure)
+	run3 := intutil.CreateCIJobRun(t, dbc, job2.ID, release, ts3, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run3.ID, job2.ID, testObj.ID, release, ts3, statusFailure)
 
 	reportEnd := time.Date(2024, 6, 11, 0, 0, 0, 0, time.UTC)
 	period := 7 * 24 * time.Hour
@@ -190,12 +190,12 @@ func TestRecentTestFailures_ReportsSuitesSeparately(t *testing.T) {
 	testObj := intutil.CreateTest(t, dbc, "test-with-suites")
 	suiteA := intutil.CreateSuite(t, dbc, "suite-a")
 	suiteB := intutil.CreateSuite(t, dbc, "suite-b")
-	job := intutil.CreateProwJob(t, dbc, "job-1", release, nil)
+	job := intutil.CreateCIJob(t, dbc, "job-1", release, nil)
 
 	ts := time.Date(2024, 6, 9, 10, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, release, ts, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, testObj.ID, release, ts, statusFailure, intutil.WithSuiteID(suiteA.ID))
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, testObj.ID, release, ts, statusFailure, intutil.WithSuiteID(suiteB.ID))
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, release, ts, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, testObj.ID, release, ts, statusFailure, intutil.WithSuiteID(suiteA.ID))
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, testObj.ID, release, ts, statusFailure, intutil.WithSuiteID(suiteB.ID))
 
 	reportEnd := time.Date(2024, 6, 11, 0, 0, 0, 0, time.UTC)
 	period := 7 * 24 * time.Hour

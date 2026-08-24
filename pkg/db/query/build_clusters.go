@@ -11,9 +11,9 @@ import (
 
 func HasBuildClusterData(dbc *db.DB, release string, since time.Time) (bool, error) {
 	count := int64(0)
-	res := dbc.DB.Table("prow_job_runs").
+	res := dbc.DB.Table("ci_job_runs").
 		Where(`cluster != '' AND cluster IS NOT NULL`).
-		Where("prow_job_release = ?", release).
+		Where("ci_job_release = ?", release).
 		Where("timestamp > ?", since).
 		Count(&count)
 	return count > 0, res.Error
@@ -32,12 +32,12 @@ func BuildClusterHealth(dbc *db.DB, release string, start, boundary, end time.Ti
 		coalesce(count(case when succeeded = false AND timestamp BETWEEN @boundary AND @end then 1 end), 0) as current_fails,
 		coalesce(count(case when timestamp BETWEEN @boundary AND @end then 1 end), 0) as current_runs
 `, sql.Named("start", start), sql.Named("boundary", boundary), sql.Named("end", end)).
-		Table("prow_job_runs").
-		Joins("JOIN prow_jobs ON prow_job_runs.prow_job_id = prow_jobs.id").
+		Table("ci_job_runs").
+		Joins("JOIN ci_jobs ON ci_job_runs.ci_job_id = ci_jobs.id").
 		Where(`cluster != '' AND cluster IS NOT NULL`).
-		Where("prow_jobs.kind = 'periodic'").
-		Where("prow_job_runs.prow_job_release = ?", release).
-		Where("prow_job_runs.timestamp BETWEEN @start AND @end", sql.Named("start", start), sql.Named("end", end)).
+		Where("ci_jobs.kind = 'periodic'").
+		Where("ci_job_runs.ci_job_release = ?", release).
+		Where("ci_job_runs.timestamp BETWEEN @start AND @end", sql.Named("start", start), sql.Named("end", end)).
 		Group("cluster")
 
 	q := dbc.DB.Table("(?) as results", rawResults).
@@ -62,15 +62,15 @@ SELECT
     sum(case when overall_result != 'S' then 1 else 0 end) AS failures,
     sum(case when overall_result = 'S' then 1 else 0 end) * 100.0 / count(*) AS pass_percentage
 FROM
-    prow_job_runs
+    ci_job_runs
 JOIN
-	prow_jobs ON prow_job_runs.prow_job_id = prow_jobs.id
+	ci_jobs ON ci_job_runs.ci_job_id = ci_jobs.id
 WHERE
     cluster is not null
 AND
-	prow_jobs.kind = 'periodic'
+	ci_jobs.kind = 'periodic'
 AND
-    prow_job_runs.prow_job_release = @release
+    ci_job_runs.ci_job_release = @release
 AND
     cluster != ''
 AND

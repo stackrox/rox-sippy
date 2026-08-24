@@ -175,8 +175,8 @@ type failureFixture struct {
 	stream    string
 	arch      string
 	tag       models.ReleaseTag
-	job       models.ProwJob
-	run       models.ProwJobRun
+	job       models.CIJob
+	run       models.CIJobRun
 	testA     models.Test
 	testB     models.Test
 	runTime   time.Time
@@ -201,16 +201,16 @@ func setupFailureFixture(t *testing.T, dbc *db.DB) failureFixture {
 		f.tagTime, intutil.WithPhase(apitype.PayloadRejected))
 
 	const runURL = "https://prow/run/1"
-	f.job = intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-ovn-4.16", f.release, nil)
-	f.run = intutil.CreateProwJobRun(t, dbc, f.job.ID, f.release, f.runTime, false, "F", intutil.WithURL(runURL))
+	f.job = intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-ovn-4.16", f.release, nil)
+	f.run = intutil.CreateCIJobRun(t, dbc, f.job.ID, f.release, f.runTime, false, "F", intutil.WithURL(runURL))
 
 	intutil.CreateReleaseJobRun(t, dbc, f.tag.ID, f.run.ID, f.job.Name, "Blocking", "Failed", runURL)
 
 	f.testA = intutil.CreateTest(t, dbc, "test-a-network-check")
 	f.testB = intutil.CreateTest(t, dbc, "test-b-install-check")
 
-	intutil.CreateProwJobRunTest(t, dbc, f.run.ID, f.job.ID, f.testA.ID, f.release, f.runTime, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, f.run.ID, f.job.ID, f.testB.ID, f.release, f.runTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, f.run.ID, f.job.ID, f.testA.ID, f.release, f.runTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, f.run.ID, f.job.ID, f.testB.ID, f.release, f.runTime, int(v1.TestStatusFailure))
 
 	return f
 }
@@ -233,8 +233,8 @@ func TestGetTestFailuresForPayload_ReturnsFailedTests(t *testing.T) {
 	assert.Equal(t, "amd64", testA.Architecture)
 	assert.Equal(t, "nightly", testA.Stream)
 	assert.Equal(t, f.tag.ReleaseTag, testA.ReleaseTag)
-	assert.Equal(t, f.job.Name, testA.ProwJobName)
-	assert.NotEmpty(t, testA.ProwJobRunURL)
+	assert.Equal(t, f.job.Name, testA.CIJobName)
+	assert.NotEmpty(t, testA.CIJobRunURL)
 }
 
 func TestGetTestFailuresForPayload_IncludesAllJobKinds(t *testing.T) {
@@ -247,20 +247,20 @@ func TestGetTestFailuresForPayload_IncludesAllJobKinds(t *testing.T) {
 	tag := intutil.CreateReleaseTag(t, dbc, "4.16.0-0.nightly-2024-06-14-010000", release, "nightly", "amd64",
 		tagTime, intutil.WithPhase(apitype.PayloadRejected))
 
-	blockingJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-blocking-4.16", release, nil)
-	informingJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-gcp-informing-4.16", release, nil)
+	blockingJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-blocking-4.16", release, nil)
+	informingJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-gcp-informing-4.16", release, nil)
 
 	const blockingURL = "https://prow/blocking/1"
 	const informingURL = "https://prow/informing/1"
-	blockingRun := intutil.CreateProwJobRun(t, dbc, blockingJob.ID, release, runTime, false, "F", intutil.WithURL(blockingURL))
-	informingRun := intutil.CreateProwJobRun(t, dbc, informingJob.ID, release, runTime.Add(time.Hour), false, "F", intutil.WithURL(informingURL))
+	blockingRun := intutil.CreateCIJobRun(t, dbc, blockingJob.ID, release, runTime, false, "F", intutil.WithURL(blockingURL))
+	informingRun := intutil.CreateCIJobRun(t, dbc, informingJob.ID, release, runTime.Add(time.Hour), false, "F", intutil.WithURL(informingURL))
 
 	intutil.CreateReleaseJobRun(t, dbc, tag.ID, blockingRun.ID, blockingJob.Name, "Blocking", "Failed", blockingURL)
 	intutil.CreateReleaseJobRun(t, dbc, tag.ID, informingRun.ID, informingJob.Name, "Informing", "Failed", informingURL)
 
 	testX := intutil.CreateTest(t, dbc, "test-x")
-	intutil.CreateProwJobRunTest(t, dbc, blockingRun.ID, blockingJob.ID, testX.ID, release, runTime, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, informingRun.ID, informingJob.ID, testX.ID, release, informingRun.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, blockingRun.ID, blockingJob.ID, testX.ID, release, runTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, informingRun.ID, informingJob.ID, testX.ID, release, informingRun.Timestamp, int(v1.TestStatusFailure))
 
 	results, err := query.GetTestFailuresForPayload(dbc.DB, tag.ReleaseTag, release, tagTime)
 	require.NoError(t, err)
@@ -268,7 +268,7 @@ func TestGetTestFailuresForPayload_IncludesAllJobKinds(t *testing.T) {
 	assert.Len(t, results, 2, "should include failures from both blocking and informing jobs")
 	jobNames := sets.New[string]()
 	for _, r := range results {
-		jobNames.Insert(r.ProwJobName)
+		jobNames.Insert(r.CIJobName)
 	}
 	assert.True(t, jobNames.Has(blockingJob.Name), "should include blocking job failures")
 	assert.True(t, jobNames.Has(informingJob.Name), "should include informing job failures")
@@ -285,12 +285,12 @@ func TestGetTestFailuresForPayload_ExcludesSucceededJobRuns(t *testing.T) {
 		tagTime, intutil.WithPhase(apitype.PayloadAccepted))
 
 	const runURL = "https://prow/run/succeeded"
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, release, runTime, true, "S", intutil.WithURL(runURL))
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, release, runTime, true, "S", intutil.WithURL(runURL))
 	intutil.CreateReleaseJobRun(t, dbc, tag.ID, run.ID, job.Name, "Blocking", "Succeeded", runURL)
 
 	testX := intutil.CreateTest(t, dbc, "test-x")
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, testX.ID, release, runTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, testX.ID, release, runTime, int(v1.TestStatusFailure))
 
 	results, err := query.GetTestFailuresForPayload(dbc.DB, tag.ReleaseTag, release, tagTime)
 	require.NoError(t, err)
@@ -303,7 +303,7 @@ func TestGetTestFailuresForPayload_ExcludesPassingTestResults(t *testing.T) {
 
 	// Add a passing test result (status=1) for a new test
 	passingTest := intutil.CreateTest(t, dbc, "test-passes")
-	intutil.CreateProwJobRunTest(t, dbc, f.run.ID, f.job.ID, passingTest.ID, f.release, f.runTime, int(v1.TestStatusSuccess))
+	intutil.CreateCIJobRunTest(t, dbc, f.run.ID, f.job.ID, passingTest.ID, f.release, f.runTime, int(v1.TestStatusSuccess))
 
 	results, err := query.GetTestFailuresForPayload(dbc.DB, f.tag.ReleaseTag, f.release, f.tagTime)
 	require.NoError(t, err)
@@ -900,13 +900,13 @@ func TestGetTestFailuresForPayloadStream_OnlyBlockingJobs(t *testing.T) {
 	f := setupFailureFixture(t, dbc)
 
 	const informingURL = "https://prow/run/informing"
-	informingJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-gcp-informing-4.16", f.release, nil)
+	informingJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-gcp-informing-4.16", f.release, nil)
 	informingRunTime := f.runTime.Add(time.Hour)
-	informingRun := intutil.CreateProwJobRun(t, dbc, informingJob.ID, f.release, informingRunTime, false, "F", intutil.WithURL(informingURL))
+	informingRun := intutil.CreateCIJobRun(t, dbc, informingJob.ID, f.release, informingRunTime, false, "F", intutil.WithURL(informingURL))
 	intutil.CreateReleaseJobRun(t, dbc, f.tag.ID, informingRun.ID, informingJob.Name, "Informing", "Failed", informingURL)
 
 	informingOnlyTest := intutil.CreateTest(t, dbc, "test-informing-only")
-	intutil.CreateProwJobRunTest(t, dbc, informingRun.ID, informingJob.ID, informingOnlyTest.ID, f.release, informingRunTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, informingRun.ID, informingJob.ID, informingOnlyTest.ID, f.release, informingRunTime, int(v1.TestStatusFailure))
 
 	subquery := query.GetTestFailuresForPayloadStream(dbc.DB, f.release, f.stream, f.arch, f.reportEnd, "")
 	rows := scanStreamFailures(t, dbc, subquery)
@@ -938,7 +938,7 @@ func TestGetTestFailuresForPayloadStream_FourteenDayWindow(t *testing.T) {
 	arch := "amd64"
 	reportEnd := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
 	test := intutil.CreateTest(t, dbc, "test-window-check")
 
 	// In-window tag (1 day before reportEnd)
@@ -946,18 +946,18 @@ func TestGetTestFailuresForPayloadStream_FourteenDayWindow(t *testing.T) {
 	inWindowTag := intutil.CreateReleaseTag(t, dbc, "4.16.0-0.nightly-2024-06-14-010000", release, stream, arch,
 		time.Date(2024, 6, 14, 1, 0, 0, 0, time.UTC), intutil.WithPhase(apitype.PayloadRejected))
 	inWindowRunTime := time.Date(2024, 6, 14, 2, 0, 0, 0, time.UTC)
-	inWindowRun := intutil.CreateProwJobRun(t, dbc, job.ID, release, inWindowRunTime, false, "F", intutil.WithURL(inWindowURL))
+	inWindowRun := intutil.CreateCIJobRun(t, dbc, job.ID, release, inWindowRunTime, false, "F", intutil.WithURL(inWindowURL))
 	intutil.CreateReleaseJobRun(t, dbc, inWindowTag.ID, inWindowRun.ID, job.Name, "Blocking", "Failed", inWindowURL)
-	intutil.CreateProwJobRunTest(t, dbc, inWindowRun.ID, job.ID, test.ID, release, inWindowRunTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, inWindowRun.ID, job.ID, test.ID, release, inWindowRunTime, int(v1.TestStatusFailure))
 
 	// Out-of-window tag (20 days before reportEnd)
 	const outOfWindowURL = "https://prow/run/out-of-window"
 	outOfWindowTag := intutil.CreateReleaseTag(t, dbc, "4.16.0-0.nightly-2024-05-26-010000", release, stream, arch,
 		time.Date(2024, 5, 26, 1, 0, 0, 0, time.UTC), intutil.WithPhase(apitype.PayloadRejected))
 	outOfWindowRunTime := time.Date(2024, 5, 26, 2, 0, 0, 0, time.UTC)
-	outOfWindowRun := intutil.CreateProwJobRun(t, dbc, job.ID, release, outOfWindowRunTime, false, "F", intutil.WithURL(outOfWindowURL))
+	outOfWindowRun := intutil.CreateCIJobRun(t, dbc, job.ID, release, outOfWindowRunTime, false, "F", intutil.WithURL(outOfWindowURL))
 	intutil.CreateReleaseJobRun(t, dbc, outOfWindowTag.ID, outOfWindowRun.ID, job.Name, "Blocking", "Failed", outOfWindowURL)
-	intutil.CreateProwJobRunTest(t, dbc, outOfWindowRun.ID, job.ID, test.ID, release, outOfWindowRunTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, outOfWindowRun.ID, job.ID, test.ID, release, outOfWindowRunTime, int(v1.TestStatusFailure))
 
 	subquery := query.GetTestFailuresForPayloadStream(dbc.DB, release, stream, arch, reportEnd, "")
 	rows := scanStreamFailures(t, dbc, subquery)
@@ -976,8 +976,8 @@ func TestGetTestFailuresForPayloadStream_AggregatesAcrossPayloads(t *testing.T) 
 	arch := "amd64"
 	reportEnd := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job1 := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
-	job2 := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-gcp-4.16", release, nil)
+	job1 := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
+	job2 := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-gcp-4.16", release, nil)
 	test := intutil.CreateTest(t, dbc, "test-aggregated")
 
 	// First rejected payload with job1 failing
@@ -985,18 +985,18 @@ func TestGetTestFailuresForPayloadStream_AggregatesAcrossPayloads(t *testing.T) 
 	tag1 := intutil.CreateReleaseTag(t, dbc, "4.16.0-0.nightly-2024-06-14-010000", release, stream, arch,
 		time.Date(2024, 6, 14, 1, 0, 0, 0, time.UTC), intutil.WithPhase(apitype.PayloadRejected))
 	run1Time := time.Date(2024, 6, 14, 2, 0, 0, 0, time.UTC)
-	run1 := intutil.CreateProwJobRun(t, dbc, job1.ID, release, run1Time, false, "F", intutil.WithURL(agg1URL))
+	run1 := intutil.CreateCIJobRun(t, dbc, job1.ID, release, run1Time, false, "F", intutil.WithURL(agg1URL))
 	intutil.CreateReleaseJobRun(t, dbc, tag1.ID, run1.ID, job1.Name, "Blocking", "Failed", agg1URL)
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job1.ID, test.ID, release, run1Time, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job1.ID, test.ID, release, run1Time, int(v1.TestStatusFailure))
 
 	// Second rejected payload with job2 failing
 	const agg2URL = "https://prow/run/agg-2"
 	tag2 := intutil.CreateReleaseTag(t, dbc, "4.16.0-0.nightly-2024-06-13-010000", release, stream, arch,
 		time.Date(2024, 6, 13, 1, 0, 0, 0, time.UTC), intutil.WithPhase(apitype.PayloadRejected))
 	run2Time := time.Date(2024, 6, 13, 2, 0, 0, 0, time.UTC)
-	run2 := intutil.CreateProwJobRun(t, dbc, job2.ID, release, run2Time, false, "F", intutil.WithURL(agg2URL))
+	run2 := intutil.CreateCIJobRun(t, dbc, job2.ID, release, run2Time, false, "F", intutil.WithURL(agg2URL))
 	intutil.CreateReleaseJobRun(t, dbc, tag2.ID, run2.ID, job2.Name, "Blocking", "Failed", agg2URL)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job2.ID, test.ID, release, run2Time, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job2.ID, test.ID, release, run2Time, int(v1.TestStatusFailure))
 
 	subquery := query.GetTestFailuresForPayloadStream(dbc.DB, release, stream, arch, reportEnd, "")
 	rows := scanStreamFailures(t, dbc, subquery)
@@ -1017,7 +1017,7 @@ func TestGetTestFailuresForPayloadStream_ExcludesPassingTests(t *testing.T) {
 	f := setupFailureFixture(t, dbc)
 
 	passingTest := intutil.CreateTest(t, dbc, "test-passes")
-	intutil.CreateProwJobRunTest(t, dbc, f.run.ID, f.job.ID, passingTest.ID, f.release, f.runTime, int(v1.TestStatusSuccess))
+	intutil.CreateCIJobRunTest(t, dbc, f.run.ID, f.job.ID, passingTest.ID, f.release, f.runTime, int(v1.TestStatusSuccess))
 
 	subquery := query.GetTestFailuresForPayloadStream(dbc.DB, f.release, f.stream, f.arch, f.reportEnd, "")
 	rows := scanStreamFailures(t, dbc, subquery)
@@ -1039,11 +1039,11 @@ func TestGetTestFailuresForPayloadStream_IsolatedByStreamAndArch(t *testing.T) {
 	ciTag := intutil.CreateReleaseTag(t, dbc, "4.16.0-0.ci-2024-06-14-010000", f.release, "ci", f.arch,
 		f.tagTime, intutil.WithPhase(apitype.PayloadRejected))
 	ciRunTime := f.runTime.Add(2 * time.Hour)
-	ciJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-ci-stream-4.16", f.release, nil)
-	ciRun := intutil.CreateProwJobRun(t, dbc, ciJob.ID, f.release, ciRunTime, false, "F", intutil.WithURL(ciURL))
+	ciJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-ci-stream-4.16", f.release, nil)
+	ciRun := intutil.CreateCIJobRun(t, dbc, ciJob.ID, f.release, ciRunTime, false, "F", intutil.WithURL(ciURL))
 	intutil.CreateReleaseJobRun(t, dbc, ciTag.ID, ciRun.ID, ciJob.Name, "Blocking", "Failed", ciURL)
 	ciTest := intutil.CreateTest(t, dbc, "test-ci-only")
-	intutil.CreateProwJobRunTest(t, dbc, ciRun.ID, ciJob.ID, ciTest.ID, f.release, ciRunTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, ciRun.ID, ciJob.ID, ciTest.ID, f.release, ciRunTime, int(v1.TestStatusFailure))
 
 	subquery := query.GetTestFailuresForPayloadStream(dbc.DB, f.release, f.stream, f.arch, f.reportEnd, "")
 	rows := scanStreamFailures(t, dbc, subquery)
@@ -1069,12 +1069,12 @@ func TestGetTestFailuresForPayloadStream_ExcludesSucceededJobs(t *testing.T) {
 	const runURL = "https://prow/run/succeeded"
 	tag := intutil.CreateReleaseTag(t, dbc, "4.16.0-0.nightly-2024-06-14-010000", release, stream, arch,
 		tagTime, intutil.WithPhase(apitype.PayloadAccepted))
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, release, runTime, true, "S", intutil.WithURL(runURL))
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, release, runTime, true, "S", intutil.WithURL(runURL))
 	intutil.CreateReleaseJobRun(t, dbc, tag.ID, run.ID, job.Name, "Blocking", "Succeeded", runURL)
 
 	test := intutil.CreateTest(t, dbc, "test-in-succeeded-job")
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, release, runTime, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, release, runTime, int(v1.TestStatusFailure))
 
 	subquery := query.GetTestFailuresForPayloadStream(dbc.DB, release, stream, arch, reportEnd, "")
 	rows := scanStreamFailures(t, dbc, subquery)
@@ -1101,23 +1101,23 @@ func TestGetTestFailuresForPayload_ExcludesFailuresFromOtherPayloads(t *testing.
 	tag2 := intutil.CreateReleaseTag(t, dbc, "4.16.0-0.nightly-2024-06-13-010000", release, stream, arch,
 		tag2Time, intutil.WithPhase(apitype.PayloadRejected))
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", release, nil)
 
 	const run1URL = "https://prow/run/tag1"
 	run1Time := tag1Time.Add(time.Hour)
-	run1 := intutil.CreateProwJobRun(t, dbc, job.ID, release, run1Time, false, "F", intutil.WithURL(run1URL))
+	run1 := intutil.CreateCIJobRun(t, dbc, job.ID, release, run1Time, false, "F", intutil.WithURL(run1URL))
 	intutil.CreateReleaseJobRun(t, dbc, tag1.ID, run1.ID, job.Name, "Blocking", "Failed", run1URL)
 
 	const run2URL = "https://prow/run/tag2"
 	run2Time := tag2Time.Add(time.Hour)
-	run2 := intutil.CreateProwJobRun(t, dbc, job.ID, release, run2Time, false, "F", intutil.WithURL(run2URL))
+	run2 := intutil.CreateCIJobRun(t, dbc, job.ID, release, run2Time, false, "F", intutil.WithURL(run2URL))
 	intutil.CreateReleaseJobRun(t, dbc, tag2.ID, run2.ID, job.Name, "Blocking", "Failed", run2URL)
 
 	testTag1Only := intutil.CreateTest(t, dbc, "test-tag1-only")
 	testTag2Only := intutil.CreateTest(t, dbc, "test-tag2-only")
 
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job.ID, testTag1Only.ID, release, run1Time, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, testTag2Only.ID, release, run2Time, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job.ID, testTag1Only.ID, release, run1Time, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, testTag2Only.ID, release, run2Time, int(v1.TestStatusFailure))
 
 	results, err := query.GetTestFailuresForPayload(dbc.DB, tag1.ReleaseTag, release, tag1Time)
 	require.NoError(t, err)

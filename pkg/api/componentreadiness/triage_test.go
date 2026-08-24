@@ -135,7 +135,7 @@ func TestCalculateJobRunOverlap(t *testing.T) {
 		{
 			name:            "no candidate runs",
 			candidateRunIDs: sets.New[string](),
-			triageReg:       models.TestRegression{JobRuns: []models.RegressionJobRun{{ProwJobRunID: "run-1"}}},
+			triageReg:       models.TestRegression{JobRuns: []models.RegressionJobRun{{CIJobRunID: "run-1"}}},
 			expectNil:       true,
 		},
 		{
@@ -148,8 +148,8 @@ func TestCalculateJobRunOverlap(t *testing.T) {
 			name:            "no overlap",
 			candidateRunIDs: sets.New[string]("run-1", "run-2"),
 			triageReg: models.TestRegression{JobRuns: []models.RegressionJobRun{
-				{ProwJobRunID: "run-3"},
-				{ProwJobRunID: "run-4"},
+				{CIJobRunID: "run-3"},
+				{CIJobRunID: "run-4"},
 			}},
 			expectNil: true,
 		},
@@ -157,8 +157,8 @@ func TestCalculateJobRunOverlap(t *testing.T) {
 			name:            "full overlap same size",
 			candidateRunIDs: sets.New[string]("run-1", "run-2"),
 			triageReg: models.TestRegression{JobRuns: []models.RegressionJobRun{
-				{ProwJobRunID: "run-1"},
-				{ProwJobRunID: "run-2"},
+				{CIJobRunID: "run-1"},
+				{CIJobRunID: "run-2"},
 			}},
 			expectShared:  []string{"run-1", "run-2"},
 			expectPercent: 100,
@@ -167,10 +167,10 @@ func TestCalculateJobRunOverlap(t *testing.T) {
 			name:            "partial overlap",
 			candidateRunIDs: sets.New[string]("run-1", "run-2", "run-3", "run-4"),
 			triageReg: models.TestRegression{JobRuns: []models.RegressionJobRun{
-				{ProwJobRunID: "run-1"},
-				{ProwJobRunID: "run-2"},
-				{ProwJobRunID: "run-5"},
-				{ProwJobRunID: "run-6"},
+				{CIJobRunID: "run-1"},
+				{CIJobRunID: "run-2"},
+				{CIJobRunID: "run-5"},
+				{CIJobRunID: "run-6"},
 			}},
 			expectShared:  []string{"run-1", "run-2"},
 			expectPercent: 50, // 2 shared / 4 (min of both sets)
@@ -179,12 +179,12 @@ func TestCalculateJobRunOverlap(t *testing.T) {
 			name:            "overlap uses smaller set as denominator",
 			candidateRunIDs: sets.New[string]("run-1", "run-2"),
 			triageReg: models.TestRegression{JobRuns: []models.RegressionJobRun{
-				{ProwJobRunID: "run-1"},
-				{ProwJobRunID: "run-2"},
-				{ProwJobRunID: "run-3"},
-				{ProwJobRunID: "run-4"},
-				{ProwJobRunID: "run-5"},
-				{ProwJobRunID: "run-6"},
+				{CIJobRunID: "run-1"},
+				{CIJobRunID: "run-2"},
+				{CIJobRunID: "run-3"},
+				{CIJobRunID: "run-4"},
+				{CIJobRunID: "run-5"},
+				{CIJobRunID: "run-6"},
 			}},
 			expectShared:  []string{"run-1", "run-2"},
 			expectPercent: 100, // 2 shared / 2 (candidate is smaller)
@@ -330,13 +330,13 @@ func TestDeterminePotentialMatch(t *testing.T) {
 			regression: models.TestRegression{
 				ID:       1,
 				TestName: "CompletelyDifferent",
-				JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}},
+				JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}},
 			},
 			triage: &models.Triage{
 				Regressions: []models.TestRegression{{
 					ID:       2,
 					TestName: "AnotherTotallyUnrelatedTest",
-					JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-99"}},
+					JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-99"}},
 				}},
 			},
 			expectNil: true,
@@ -346,13 +346,13 @@ func TestDeterminePotentialMatch(t *testing.T) {
 			regression: models.TestRegression{
 				ID:       1,
 				TestName: "CompletelyDifferent",
-				JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}, {ProwJobRunID: "run-2"}},
+				JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}, {CIJobRunID: "run-2"}},
 			},
 			triage: &models.Triage{
 				Regressions: []models.TestRegression{{
 					ID:       2,
 					TestName: "AnotherUnrelated",
-					JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}, {ProwJobRunID: "run-3"}},
+					JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}, {CIJobRunID: "run-3"}},
 				}},
 			},
 			expectOverlaps: 1,
@@ -376,13 +376,13 @@ func TestDeterminePotentialMatch(t *testing.T) {
 			regression: models.TestRegression{
 				ID:       1,
 				TestName: "TestSomething",
-				JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}},
+				JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}},
 			},
 			triage: &models.Triage{
 				Regressions: []models.TestRegression{{
 					ID:       2,
 					TestName: "TestSomethng",
-					JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}},
+					JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}},
 				}},
 			},
 			expectOverlaps: 1,
@@ -408,7 +408,7 @@ func TestGetRegressionPotentialMatchingTriages_FiltersOldResolvedTriages(t *test
 	regression := models.TestRegression{
 		ID:       100,
 		TestName: "TestSomething",
-		JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}},
+		JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}},
 	}
 
 	// A triage resolved 7 weeks ago — should be filtered out
@@ -418,7 +418,7 @@ func TestGetRegressionPotentialMatchingTriages_FiltersOldResolvedTriages(t *test
 		Regressions: []models.TestRegression{{
 			ID:       200,
 			TestName: "TestSomethng", // similar name
-			JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}},
+			JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}},
 		}},
 	}
 
@@ -429,7 +429,7 @@ func TestGetRegressionPotentialMatchingTriages_FiltersOldResolvedTriages(t *test
 		Regressions: []models.TestRegression{{
 			ID:       201,
 			TestName: "TestSomethng",
-			JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}},
+			JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}},
 		}},
 	}
 
@@ -439,7 +439,7 @@ func TestGetRegressionPotentialMatchingTriages_FiltersOldResolvedTriages(t *test
 		Regressions: []models.TestRegression{{
 			ID:       202,
 			TestName: "TestSomethng",
-			JobRuns:  []models.RegressionJobRun{{ProwJobRunID: "run-1"}},
+			JobRuns:  []models.RegressionJobRun{{CIJobRunID: "run-1"}},
 		}},
 	}
 

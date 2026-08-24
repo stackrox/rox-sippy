@@ -47,8 +47,8 @@ func PrintJobAnalysisJSONFromDB(
 		NoResult       int `gorm:"column:n"`
 	}
 	sums := make([]resultSum, 0)
-	prowJobRunsFiltered := jobRunsFilter.ToSQL(dbc.DB.Table("prow_job_runs"), apitype.JobRun{})
-	sumResults := dbc.DB.Table("(?) as prow_job_runs", prowJobRunsFiltered).
+	ciJobRunsFiltered := jobRunsFilter.ToSQL(dbc.DB.Table("ci_job_runs"), apitype.JobRun{})
+	sumResults := dbc.DB.Table("(?) as ci_job_runs", ciJobRunsFiltered).
 		Select(`date_trunc(?, timestamp)        AS period,
 	           count(*)                                              AS total_runs,
 	           sum(case when overall_result = 'S' then 1 else 0 end) AS "S",
@@ -60,10 +60,10 @@ func PrintJobAnalysisJSONFromDB(
 	           sum(case when overall_result = 'n' then 1 else 0 end) AS "n",
 	           sum(case when overall_result = 'R' then 1 else 0 end) AS "R",
 	           sum(case when overall_result = 'A' then 1 else 0 end) AS "A"`, period).
-		Joins("INNER JOIN prow_jobs ON prow_job_runs.prow_job_id = prow_jobs.id").
-		Where("prow_jobs.id IN ?", jobs).
-		Where("prow_job_runs.prow_job_release = ?", release).
-		Where("prow_job_runs.timestamp BETWEEN ? AND ?", start, end).
+		Joins("INNER JOIN ci_jobs ON ci_job_runs.ci_job_id = ci_jobs.id").
+		Where("ci_jobs.id IN ?", jobs).
+		Where("ci_job_runs.ci_job_release = ?", release).
+		Where("ci_job_runs.timestamp BETWEEN ? AND ?", start, end).
 		Group("period")
 
 	if err := sumResults.Scan(&sums).Error; err != nil {
@@ -111,14 +111,14 @@ func PrintJobAnalysisJSONFromDB(
 	}
 	tr := make([]testResult, 0)
 
-	if err := dbc.DB.Table("prow_job_run_tests pjrt").
-		Select("date_trunc(?, pjrt.prow_job_run_timestamp) AS period, tests.name AS test_name, count(tests.name) AS count", period).
+	if err := dbc.DB.Table("ci_job_run_tests pjrt").
+		Select("date_trunc(?, pjrt.ci_job_run_timestamp) AS period, tests.name AS test_name, count(tests.name) AS count", period).
 		Joins("JOIN tests ON pjrt.test_id = tests.id").
 		Where("pjrt.status = ?", v1sippyprocessing.TestStatusFailure).
-		Where("pjrt.prow_job_id IN ?", jobs).
-		Where("pjrt.prow_job_run_release = ?", release).
-		Where("pjrt.prow_job_run_timestamp BETWEEN ? AND ?", start, end).
-		Group("tests.name, period, pjrt.prow_job_id").
+		Where("pjrt.ci_job_id IN ?", jobs).
+		Where("pjrt.ci_job_run_release = ?", release).
+		Where("pjrt.ci_job_run_timestamp BETWEEN ? AND ?", start, end).
+		Group("tests.name, period, pjrt.ci_job_id").
 		Scan(&tr).Error; err != nil {
 		return results, err
 	}

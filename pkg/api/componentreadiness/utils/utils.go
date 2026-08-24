@@ -47,7 +47,7 @@ func FindStartEndTimesForRelease(timeRanges []crtest.ReleaseTimeRange, release s
 	return nil, nil, fmt.Errorf("release %s not found", release)
 }
 
-func NormalizeProwJobName(prowName string) string {
+func NormalizeCIJobName(prowName string) string {
 	// Remove anything that looks like versioning from the job name
 	prowName = regexp.MustCompile(`\b\d+\.\d+\b`).ReplaceAllString(prowName, "X.X")
 

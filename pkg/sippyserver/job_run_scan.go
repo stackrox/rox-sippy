@@ -177,7 +177,7 @@ func (s *Server) jsonReEvaluateJobRunSymptoms(w http.ResponseWriter, req *http.R
 	log.WithField("user", getUserForRequest(req)).Info("symptom re-evaluation POST")
 
 	var body struct {
-		ProwJobBuildIDs []string `json:"prow_job_build_ids"`
+		CIJobBuildIDs []string `json:"ci_job_build_ids"`
 		DryRun          bool     `json:"dry_run"`
 	}
 	req.Body = http.MaxBytesReader(w, req.Body, 1<<20) // 1 MiB limit to prevent DoS
@@ -188,7 +188,7 @@ func (s *Server) jsonReEvaluateJobRunSymptoms(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	if err := apijobrunscan.ValidateReEvalRequest(body.ProwJobBuildIDs); err != nil {
+	if err := apijobrunscan.ValidateReEvalRequest(body.CIJobBuildIDs); err != nil {
 		failureResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -199,7 +199,7 @@ func (s *Server) jsonReEvaluateJobRunSymptoms(w http.ResponseWriter, req *http.R
 	}
 
 	re := apijobrunscan.NewReEvaluator(s.bigQueryClient, s.gcsClient, s.gcsBucket, s.db, s.cache, s.jobartifactsManager, body.DryRun)
-	results, err := re.ReEvaluateJobRuns(req.Context(), body.ProwJobBuildIDs)
+	results, err := re.ReEvaluateJobRuns(req.Context(), body.CIJobBuildIDs)
 	if err != nil {
 		failureResponse(w, http.StatusInternalServerError, err.Error())
 		return

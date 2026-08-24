@@ -109,7 +109,7 @@ func buildDrilldownFilters(reqOptions reqopts.RequestOptions) drilldownFilters {
 // flake_count, last_failure. The outer CTE wrapper (test_ownerships join,
 // column group mapping) is identical for all specs and handled by buildStatusCTE.
 type testStatusSpec struct {
-	fromTemplate string // FROM clause template with one %s for the formatted prowJobJoin
+	fromTemplate string // FROM clause template with one %s for the formatted ciJobJoin
 	fromArgs     []any  // args for FROM clause (before filterArgs)
 	selectCols   string // the 4 aggregation column expressions (total_count through last_failure)
 	selectArgs   []any  // args for placeholders within selectCols (e.g., lookupEnd/lookupStart for CASE WHEN)
@@ -123,8 +123,8 @@ type testStatusSpec struct {
 // testStatusSpec and a pre-formatted prow job join clause. The result produces
 // columns: test_id, suite_id, variant_group_id, total_count, success_count,
 // flake_count, last_failure.
-func buildInnerAggregation(spec testStatusSpec, prowJobJoin string, filterArgs []any, filters drilldownFilters) (string, []any) {
-	fromClause := fmt.Sprintf(spec.fromTemplate, prowJobJoin)
+func buildInnerAggregation(spec testStatusSpec, ciJobJoin string, filterArgs []any, filters drilldownFilters) (string, []any) {
+	fromClause := fmt.Sprintf(spec.fromTemplate, ciJobJoin)
 
 	lifecycleClause := ""
 	var lifecycleArgs []any
@@ -234,9 +234,9 @@ func (p *PostgresProvider) queryTestStatusCTE(
 		return map[string]crstatus.TestStatus{}, nil
 	}
 
-	prowJobJoin := prowJobVariantJoin(setup.variantSubquery)
+	ciJobJoin := ciJobVariantJoin(setup.variantSubquery)
 
-	innerSQL, innerArgs := buildInnerAggregation(spec, prowJobJoin, setup.filterArgs, filters)
+	innerSQL, innerArgs := buildInnerAggregation(spec, ciJobJoin, setup.filterArgs, filters)
 
 	colMapping := buildColumnGroupMapping(setup.groupMapping.groupToVariants, reqOptions.VariantOption.ColumnGroupBy)
 	cteSQL, cteArgs := buildStatusCTE("status_agg", innerSQL, innerArgs, "cm", filters)
@@ -418,14 +418,14 @@ func (p *PostgresProvider) queryCombinedTestStatus(
 	groupMapping := buildVariantGroupMapping(mergedLookup)
 	colMapping := buildColumnGroupMapping(groupMapping.groupToVariants, reqOptions.VariantOption.ColumnGroupBy)
 
-	sampleProwJobJoin := prowJobVariantJoin(sampleVF.variantSubquery)
-	baseProwJobJoin := prowJobVariantJoin(baseVF.variantSubquery)
+	sampleCIJobJoin := ciJobVariantJoin(sampleVF.variantSubquery)
+	baseCIJobJoin := ciJobVariantJoin(baseVF.variantSubquery)
 
 	sampleSpec := prefixSumSpec(sampleRelease, sampleLookupEnd, sampleLookupStart, reqOptions.Lifecycles)
-	sampleInnerSQL, sampleInnerArgs := buildInnerAggregation(sampleSpec, sampleProwJobJoin, sampleVF.filterArgs, filters)
+	sampleInnerSQL, sampleInnerArgs := buildInnerAggregation(sampleSpec, sampleCIJobJoin, sampleVF.filterArgs, filters)
 	sampleCTE, sampleCTEArgs := buildStatusCTE("sample_agg", sampleInnerSQL, sampleInnerArgs, "cm", filters)
 
-	baseInnerSQL, baseInnerArgs := buildInnerAggregation(baseSpec, baseProwJobJoin, baseVF.filterArgs, filters)
+	baseInnerSQL, baseInnerArgs := buildInnerAggregation(baseSpec, baseCIJobJoin, baseVF.filterArgs, filters)
 	baseCTE, baseCTEArgs := buildStatusCTE("base_agg", baseInnerSQL, baseInnerArgs, "cm", filters)
 
 	// The combined query bakes the source tag into each branch as a typed

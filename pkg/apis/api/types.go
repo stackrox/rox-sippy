@@ -936,17 +936,17 @@ type JobAnalysisResult struct {
 }
 
 type TestOutput struct {
-	ProwJobURL string `json:"url"`
+	CIJobURL string `json:"url"`
 	Output     string `json:"output"`
 	TestName   string `json:"test_name,omitempty"`
 }
 
 type TestOutputBigQuery struct {
-	ProwJobURL  string     `json:"url"`
+	CIJobURL  string     `json:"url"`
 	Output      string     `json:"output"`
 	TestName    string     `json:"test_name,omitempty"`
 	Success     bool       `json:"success"`
-	ProwJobName string     `json:"prowjob_name,omitempty"`
+	CIJobName string     `json:"prowjob_name,omitempty"`
 	StartTime   *time.Time `json:"start_time,omitempty"`
 	FailedTests int        `json:"failed_tests"`
 }
@@ -990,9 +990,9 @@ type Health struct {
 	Previous    v1.Statistics        `json:"previous_statistics"`
 }
 
-type ProwJobRunRiskAnalysis struct {
-	ProwJobName    string
-	ProwJobRunID   uint
+type CIJobRunRiskAnalysis struct {
+	CIJobName    string
+	CIJobRunID   uint
 	Release        string
 	CompareRelease string
 	Tests          []TestRiskAnalysis

@@ -397,7 +397,7 @@ func determinePotentialMatch(regression models.TestRegression, triage *models.Tr
 
 	candidateRunIDs := sets.New[string]()
 	for _, jr := range regression.JobRuns {
-		candidateRunIDs.Insert(jr.ProwJobRunID)
+		candidateRunIDs.Insert(jr.CIJobRunID)
 	}
 
 	for _, tr := range triage.Regressions {
@@ -432,8 +432,8 @@ func calculateJobRunOverlap(candidateRunIDs sets.Set[string], triageRegression m
 
 	var sharedIDs []string
 	for _, jr := range triageRegression.JobRuns {
-		if candidateRunIDs.Has(jr.ProwJobRunID) {
-			sharedIDs = append(sharedIDs, jr.ProwJobRunID)
+		if candidateRunIDs.Has(jr.CIJobRunID) {
+			sharedIDs = append(sharedIDs, jr.CIJobRunID)
 		}
 	}
 

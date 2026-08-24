@@ -51,7 +51,7 @@ type TestJobRunStatuses struct {
 type TestDetailsSummary struct {
 	TestKey         crtest.KeyWithVariants
 	TestKeyStr      string
-	ProwJob         string
+	CIJob         string
 	Stats           crtest.Stats
 	JobRuns         []JobRunDetail `json:",omitempty"`
 	JiraComponent   string
@@ -62,8 +62,8 @@ type TestDetailsSummary struct {
 
 // JobRunDetail holds the per-run information for an individual prow job run.
 type JobRunDetail struct {
-	ProwJobRunID string
-	ProwJobURL   string
+	CIJobRunID string
+	CIJobURL   string
 	StartTime    time.Time
 	crtest.Count
 	JobLabels    []string `json:",omitempty"`
@@ -77,9 +77,9 @@ type TestJobRunRows struct {
 	TestKey      crtest.KeyWithVariants `json:"test_key"`
 	TestKeyStr   string                 `json:"-"` // transient field so we dont have to keep recalculating
 	TestName     string                 `bigquery:"test_name"`
-	ProwJob      string                 `bigquery:"prowjob_name"`
-	ProwJobRunID string                 `bigquery:"prowjob_run_id"`
-	ProwJobURL   string                 `bigquery:"prowjob_url"`
+	CIJob      string                 `bigquery:"prowjob_name"`
+	CIJobRunID string                 `bigquery:"prowjob_run_id"`
+	CIJobURL   string                 `bigquery:"prowjob_url"`
 	StartTime    time.Time              `bigquery:"prowjob_start"`
 	crtest.Count
 	JiraComponent   string   `bigquery:"jira_component"`

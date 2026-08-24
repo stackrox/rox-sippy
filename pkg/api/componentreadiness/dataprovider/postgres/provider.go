@@ -136,7 +136,7 @@ func (p *PostgresProvider) QueryJobVariants(ctx context.Context, _ reqopts.Reque
 	variants := crtest.JobVariants{Variants: map[string][]string{}}
 
 	var pairs []string
-	err := p.dbc.DB.WithContext(ctx).Raw(`SELECT DISTINCT unnest(variants) AS pair FROM prow_jobs WHERE deleted_at IS NULL`).
+	err := p.dbc.DB.WithContext(ctx).Raw(`SELECT DISTINCT unnest(variants) AS pair FROM ci_jobs WHERE deleted_at IS NULL`).
 		Pluck("pair", &pairs).Error
 	if err != nil {
 		return variants, []error{fmt.Errorf("querying job variants: %w", err)}
@@ -182,7 +182,7 @@ func (p *PostgresProvider) QueryUniqueVariantValues(ctx context.Context, _ reqop
 		// Return all variant key names
 		var pairs []string
 		err := p.dbc.DB.WithContext(ctx).Raw(`
-			SELECT DISTINCT unnest(variants) AS pair FROM prow_jobs
+			SELECT DISTINCT unnest(variants) AS pair FROM ci_jobs
 			WHERE deleted_at IS NULL
 		`).Pluck("pair", &pairs).Error
 		if err != nil {
@@ -216,7 +216,7 @@ func (p *PostgresProvider) QueryUniqueVariantValues(ctx context.Context, _ reqop
 
 	var pairs []string
 	err := p.dbc.DB.WithContext(ctx).Raw(`
-		SELECT DISTINCT unnest(variants) AS pair FROM prow_jobs
+		SELECT DISTINCT unnest(variants) AS pair FROM ci_jobs
 		WHERE deleted_at IS NULL
 	`).Pluck("pair", &pairs).Error
 	if err != nil {
@@ -237,7 +237,7 @@ func (p *PostgresProvider) QueryUniqueVariantValues(ctx context.Context, _ reqop
 	return result, nil
 }
 
-// fetchJobVariantsByIDs loads ProwJob variant maps for the given job IDs.
+// fetchJobVariantsByIDs loads CIJob variant maps for the given job IDs.
 func (p *PostgresProvider) fetchJobVariantsByIDs(ids []uint) (map[uint]map[string]string, error) {
 	if len(ids) == 0 {
 		return map[uint]map[string]string{}, nil
@@ -249,7 +249,7 @@ func (p *PostgresProvider) fetchJobVariantsByIDs(ids []uint) (map[uint]map[strin
 	}
 
 	var jobRows []jobRow
-	if err := p.dbc.DB.Raw(`SELECT id, variants FROM prow_jobs WHERE id IN (?)`, ids).Scan(&jobRows).Error; err != nil {
+	if err := p.dbc.DB.Raw(`SELECT id, variants FROM ci_jobs WHERE id IN (?)`, ids).Scan(&jobRows).Error; err != nil {
 		return nil, fmt.Errorf("fetching job variants: %w", err)
 	}
 
@@ -261,7 +261,7 @@ func (p *PostgresProvider) fetchJobVariantsByIDs(ids []uint) (map[uint]map[strin
 }
 
 // baseMatchesGAWindow returns true when the base release dates align with a
-// pre-computed GA window in prow_ga_raw_test_data.
+// pre-computed GA window in ci_ga_raw_test_data.
 func (p *PostgresProvider) baseMatchesGAWindow(ctx context.Context, release string, baseRange query.DateRange) bool {
 	var rd models.ReleaseDefinition
 	err := p.dbc.DB.WithContext(ctx).
@@ -338,11 +338,11 @@ func (p *PostgresProvider) QueryTestStatus(
 type testDetailRow struct {
 	TestID          string    `gorm:"column:test_id"`
 	TestName        string    `gorm:"column:test_name"`
-	ProwJobName     string    `gorm:"column:prowjob_name"`
-	ProwJobRunID    string    `gorm:"column:prowjob_run_id"`
-	ProwJobURL      string    `gorm:"column:prowjob_url"`
-	ProwJobStart    time.Time `gorm:"column:prowjob_start"`
-	ProwJobID       uint      `gorm:"column:prow_job_id"`
+	CIJobName     string    `gorm:"column:prowjob_name"`
+	CIJobRunID    string    `gorm:"column:prowjob_run_id"`
+	CIJobURL      string    `gorm:"column:prowjob_url"`
+	CIJobStart    time.Time `gorm:"column:prowjob_start"`
+	CIJobID       uint      `gorm:"column:ci_job_id"`
 	Status          int       `gorm:"column:status"`
 	JiraComponent   string    `gorm:"column:jira_component"`
 	JiraComponentID *uint     `gorm:"column:jira_component_id"`
@@ -357,8 +357,8 @@ func (p *PostgresProvider) queryTestDetails(ctx context.Context, release string,
 	}
 
 	// MATERIALIZED CTE forces the planner to resolve test_ids first, then
-	// drive prow_job_run_tests via the test_id index. Without it, the global
-	// work_mem=128MB setting causes the planner to choose a prow_jobs-first
+	// drive ci_job_run_tests via the test_id index. Without it, the global
+	// work_mem=128MB setting causes the planner to choose a ci_jobs-first
 	// plan that scans ~20K runs × 30 partitions and never completes.
 	testIDs := make([]string, 0, len(reqOptions.TestIDOptions))
 	for _, tid := range reqOptions.TestIDOptions {
@@ -387,21 +387,21 @@ SELECT
     CAST(pjr.id AS TEXT) AS prowjob_run_id,
     COALESCE(pjr.url, '') AS prowjob_url,
     pjr.timestamp AS prowjob_start,
-    pj.id AS prow_job_id,
+    pj.id AS ci_job_id,
     pjrt.status,
     COALESCE(tt.jira_component, '') AS jira_component,
     tt.jira_component_id
 FROM target_tests tt
-JOIN prow_job_run_tests pjrt ON pjrt.test_id = tt.test_id
+JOIN ci_job_run_tests pjrt ON pjrt.test_id = tt.test_id
     AND (tt.suite_id = pjrt.suite_id OR (tt.suite_id IS NULL AND pjrt.suite_id IS NULL))
-JOIN prow_job_runs pjr ON pjr.id = pjrt.prow_job_run_id
-JOIN prow_jobs pj ON pj.id = pjr.prow_job_id
+JOIN ci_job_runs pjr ON pjr.id = pjrt.ci_job_run_id
+JOIN ci_jobs pj ON pj.id = pjr.ci_job_id
 JOIN tests t ON t.id = pjrt.test_id
 WHERE pj.release = ?
     AND pjr.timestamp >= ? AND pjr.timestamp < ?
-    AND pjr.prow_job_release = ?
-    AND pjrt.prow_job_run_release = ?
-    AND pjrt.prow_job_run_timestamp >= ? AND pjrt.prow_job_run_timestamp < ?
+    AND pjr.ci_job_release = ?
+    AND pjrt.ci_job_run_release = ?
+    AND pjrt.ci_job_run_timestamp >= ? AND pjrt.ci_job_run_timestamp < ?
     AND pjrt.deleted_at IS NULL AND pjr.deleted_at IS NULL AND pj.deleted_at IS NULL
     AND (pjr.labels IS NULL OR NOT pjr.labels @> ARRAY['InfraFailure'])`
 
@@ -427,7 +427,7 @@ WHERE pj.release = ?
 	// Batch-fetch job variants for per-test requested variant filtering
 	jobIDs := sets.New[uint]()
 	for _, r := range rows {
-		jobIDs.Insert(r.ProwJobID)
+		jobIDs.Insert(r.CIJobID)
 	}
 	ids := jobIDs.UnsortedList()
 	jobVariantMap, err := p.fetchJobVariantsByIDs(ids)
@@ -439,7 +439,7 @@ WHERE pj.release = ?
 
 	result := map[string][]crstatus.TestJobRunRows{}
 	for _, row := range rows {
-		variants, ok := jobVariantMap[row.ProwJobID]
+		variants, ok := jobVariantMap[row.CIJobID]
 		if !ok {
 			continue
 		}
@@ -463,15 +463,15 @@ WHERE pj.release = ?
 			jiraComponentID = new(big.Rat).SetUint64(uint64(*row.JiraComponentID))
 		}
 
-		normalizedName := utils.NormalizeProwJobName(row.ProwJobName)
+		normalizedName := utils.NormalizeCIJobName(row.CIJobName)
 		entry := crstatus.TestJobRunRows{
 			TestKey:         key,
 			TestKeyStr:      key.Encode(),
 			TestName:        row.TestName,
-			ProwJob:         row.ProwJobName,
-			ProwJobRunID:    row.ProwJobRunID,
-			ProwJobURL:      row.ProwJobURL,
-			StartTime:       row.ProwJobStart,
+			CIJob:         row.CIJobName,
+			CIJobRunID:    row.CIJobRunID,
+			CIJobURL:      row.CIJobURL,
+			StartTime:       row.CIJobStart,
 			Count:           crtest.Count{TotalCount: 1, SuccessCount: successCount, FlakeCount: flakeCount},
 			JiraComponent:   row.JiraComponent,
 			JiraComponentID: jiraComponentID,
@@ -504,8 +504,8 @@ func (p *PostgresProvider) QueryBaseJobRunTestStatus(ctx context.Context, reqOpt
 type aggregateTestDetailRow struct {
 	TestID          string `gorm:"column:test_id"`
 	TestName        string `gorm:"column:test_name"`
-	ProwJobName     string `gorm:"column:prowjob_name"`
-	ProwJobID       uint   `gorm:"column:prow_job_id"`
+	CIJobName     string `gorm:"column:prowjob_name"`
+	CIJobID       uint   `gorm:"column:ci_job_id"`
 	JiraComponent   string `gorm:"column:jira_component"`
 	JiraComponentID *uint  `gorm:"column:jira_component_id"`
 	TotalCount      int    `gorm:"column:total_count"`
@@ -514,7 +514,7 @@ type aggregateTestDetailRow struct {
 }
 
 // queryBaseAggregateTestDetails queries aggregate tables (test_cumulative_summaries
-// or prow_ga_raw_test_data) as a fallback when prow_job_run_tests has no data for
+// or ci_ga_raw_test_data) as a fallback when ci_job_run_tests has no data for
 // the base release. Returns per-job aggregate stats as TestDetailsSummary entries
 // with no individual JobRuns, because per-run identifiers do not exist in these tables.
 func (p *PostgresProvider) queryBaseAggregateTestDetails(ctx context.Context, reqOptions reqopts.RequestOptions) (map[string][]crstatus.TestDetailsSummary, []error) {
@@ -583,7 +583,7 @@ SELECT
     tt.unique_id AS test_id,
     t.name AS test_name,
     pj.name AS prowjob_name,
-    pj.id AS prow_job_id,
+    pj.id AS ci_job_id,
     COALESCE(tt.jira_component, '') AS jira_component,
     tt.jira_component_id,
     SUM(e.prefix_sum_runs - COALESCE(s.prefix_sum_runs, 0)) AS total_count,
@@ -594,9 +594,9 @@ JOIN test_cumulative_summaries e ON e.test_id = tt.test_id
     AND (e.suite_id = tt.suite_id OR (tt.suite_id IS NULL AND e.suite_id = 0))
 LEFT JOIN test_cumulative_summaries s
     ON s.release = e.release AND s.test_id = e.test_id
-    AND s.prow_job_id = e.prow_job_id AND s.suite_id = e.suite_id
+    AND s.ci_job_id = e.ci_job_id AND s.suite_id = e.suite_id
     AND s.date = ?
-JOIN prow_jobs pj ON pj.id = e.prow_job_id AND pj.deleted_at IS NULL
+JOIN ci_jobs pj ON pj.id = e.ci_job_id AND pj.deleted_at IS NULL
 JOIN tests t ON t.id = tt.test_id
 WHERE e.release = ? AND e.date = ?`
 
@@ -625,16 +625,16 @@ SELECT
     tt.unique_id AS test_id,
     t.name AS test_name,
     pj.name AS prowjob_name,
-    pj.id AS prow_job_id,
+    pj.id AS ci_job_id,
     COALESCE(tt.jira_component, '') AS jira_component,
     tt.jira_component_id,
     SUM(e.runs) AS total_count,
     SUM(e.passes) AS success_count,
     SUM(e.flakes) AS flake_count
 FROM target_tests tt
-JOIN prow_ga_raw_test_data e ON e.test_id = tt.test_id
+JOIN ci_ga_raw_test_data e ON e.test_id = tt.test_id
     AND (e.suite_id = tt.suite_id OR (tt.suite_id IS NULL AND e.suite_id = 0))
-JOIN prow_jobs pj ON pj.id = e.prow_job_id AND pj.deleted_at IS NULL
+JOIN ci_jobs pj ON pj.id = e.ci_job_id AND pj.deleted_at IS NULL
 JOIN tests t ON t.id = tt.test_id
 WHERE e.release = ? AND e.window_days = ?`
 
@@ -662,7 +662,7 @@ func (p *PostgresProvider) processAggregateRows(rows []aggregateTestDetailRow, r
 
 	jobIDs := sets.New[uint]()
 	for _, r := range rows {
-		jobIDs.Insert(r.ProwJobID)
+		jobIDs.Insert(r.CIJobID)
 	}
 	jobVariantMap, err := p.fetchJobVariantsByIDs(jobIDs.UnsortedList())
 	if err != nil {
@@ -673,7 +673,7 @@ func (p *PostgresProvider) processAggregateRows(rows []aggregateTestDetailRow, r
 
 	result := map[string][]crstatus.TestDetailsSummary{}
 	for _, row := range rows {
-		variants, ok := jobVariantMap[row.ProwJobID]
+		variants, ok := jobVariantMap[row.CIJobID]
 		if !ok {
 			continue
 		}
@@ -688,11 +688,11 @@ func (p *PostgresProvider) processAggregateRows(rows []aggregateTestDetailRow, r
 			jiraComponentID = new(big.Rat).SetUint64(uint64(*row.JiraComponentID))
 		}
 
-		normalizedName := utils.NormalizeProwJobName(row.ProwJobName)
+		normalizedName := utils.NormalizeCIJobName(row.CIJobName)
 		entry := crstatus.TestDetailsSummary{
 			TestKey:         key,
 			TestKeyStr:      key.Encode(),
-			ProwJob:         normalizedName,
+			CIJob:         normalizedName,
 			TestName:        row.TestName,
 			Stats:           crtest.Count{TotalCount: row.TotalCount, SuccessCount: row.SuccessCount, FlakeCount: row.FlakeCount}.ToTestStats(false),
 			JiraComponent:   row.JiraComponent,
@@ -733,11 +733,11 @@ func (p *PostgresProvider) QueryJobRuns(ctx context.Context, reqOptions reqopts.
 			pj.name AS job_name,
 			COUNT(DISTINCT pjr.id) AS total_runs,
 			COUNT(DISTINCT CASE WHEN pjr.succeeded THEN pjr.id END) AS successful_runs
-		FROM prow_jobs pj
-		JOIN prow_job_runs pjr ON pjr.prow_job_id = pj.id
+		FROM ci_jobs pj
+		JOIN ci_job_runs pjr ON pjr.ci_job_id = pj.id
 		WHERE pj.release = ?
 			AND pjr.timestamp >= ? AND pjr.timestamp < ?
-			AND pjr.prow_job_release = ?
+			AND pjr.ci_job_release = ?
 			AND pj.deleted_at IS NULL AND pjr.deleted_at IS NULL
 			AND (pj.name LIKE 'periodic-%%' OR pj.name LIKE 'release-%%' OR pj.name LIKE 'aggregator-%%')
 		GROUP BY pj.name
@@ -765,7 +765,7 @@ func (p *PostgresProvider) QueryJobRuns(ctx context.Context, reqOptions reqopts.
 			Variants pq.StringArray `gorm:"column:variants;type:text[]"`
 		}
 		var jvRows []jvRow
-		if err := p.dbc.DB.WithContext(ctx).Raw(`SELECT name, variants FROM prow_jobs WHERE name IN (?) AND deleted_at IS NULL`, jobNames).Scan(&jvRows).Error; err != nil {
+		if err := p.dbc.DB.WithContext(ctx).Raw(`SELECT name, variants FROM ci_jobs WHERE name IN (?) AND deleted_at IS NULL`, jobNames).Scan(&jvRows).Error; err != nil {
 			return nil, fmt.Errorf("fetching job variants: %w", err)
 		}
 		for _, jr := range jvRows {
@@ -808,7 +808,7 @@ func (p *PostgresProvider) QueryJobVariantValues(ctx context.Context, _ reqopts.
 	}
 
 	var rows []jvRow
-	if err := p.dbc.DB.WithContext(ctx).Raw(`SELECT name, variants FROM prow_jobs WHERE name IN (?) AND deleted_at IS NULL`, jobNames).Scan(&rows).Error; err != nil {
+	if err := p.dbc.DB.WithContext(ctx).Raw(`SELECT name, variants FROM ci_jobs WHERE name IN (?) AND deleted_at IS NULL`, jobNames).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("querying job variant values: %w", err)
 	}
 
@@ -841,7 +841,7 @@ func (p *PostgresProvider) LookupJobVariants(ctx context.Context, _ reqopts.Requ
 	}
 
 	var row jvRow
-	err := p.dbc.DB.WithContext(ctx).Raw(`SELECT variants FROM prow_jobs WHERE name = ? AND deleted_at IS NULL LIMIT 1`, jobName).Scan(&row).Error
+	err := p.dbc.DB.WithContext(ctx).Raw(`SELECT variants FROM ci_jobs WHERE name = ? AND deleted_at IS NULL LIMIT 1`, jobName).Scan(&row).Error
 	if err != nil {
 		return nil, fmt.Errorf("looking up job variants: %w", err)
 	}

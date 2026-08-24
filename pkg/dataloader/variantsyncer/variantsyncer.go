@@ -40,7 +40,7 @@ func (vl *VariantSyncer) Errors() []error {
 }
 
 func (vl *VariantSyncer) Load() {
-	allJobs := loadAllProwJobs(vl.dbc)
+	allJobs := loadAllCIJobs(vl.dbc)
 	for _, j := range allJobs {
 		log.Debugf("syncing variants for %s", j.Name)
 		newVariants := vl.mgr.IdentifyVariants(j.Name)
@@ -58,10 +58,10 @@ func (vl *VariantSyncer) Load() {
 	}
 }
 
-func loadAllProwJobs(dbc *db.DB) map[string]*models.ProwJob {
-	results := map[string]*models.ProwJob{}
-	var allJobs []*models.ProwJob
-	dbc.DB.Model(&models.ProwJob{}).Find(&allJobs)
+func loadAllCIJobs(dbc *db.DB) map[string]*models.CIJob {
+	results := map[string]*models.CIJob{}
+	var allJobs []*models.CIJob
+	dbc.DB.Model(&models.CIJob{}).Find(&allJobs)
 	for _, j := range allJobs {
 		if _, ok := results[j.Name]; !ok {
 			results[j.Name] = j

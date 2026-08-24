@@ -49,7 +49,7 @@ func TestPRTestResultsMultiplePRs(t *testing.T) {
 	require.Greater(t, len(results), 0, "expected results for PR 99002")
 
 	for _, r := range results {
-		assert.Contains(t, r.ProwJobName, "gcp", "PR 99002 should be linked to GCP job, got %s", r.ProwJobName)
+		assert.Contains(t, r.CIJobName, "gcp", "PR 99002 should be linked to GCP job, got %s", r.CIJobName)
 	}
 }
 

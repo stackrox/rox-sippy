@@ -403,10 +403,10 @@ func (bl *BugLoader) syncTestAssociations(conn db.PgxSession) error {
 }
 
 const desiredBugJobs = `
-	SELECT DISTINCT ja.id AS bug_id, j.id AS prow_job_id
+	SELECT DISTINCT ja.id AS bug_id, j.id AS ci_job_id
 	FROM tmp_job_assocs ja
 	INNER JOIN bugs b ON b.id = ja.id AND b.deleted_at IS NULL
-	INNER JOIN prow_jobs j ON j.name = ja.link_name AND j.deleted_at IS NULL
+	INNER JOIN ci_jobs j ON j.name = ja.link_name AND j.deleted_at IS NULL
 `
 
 func (bl *BugLoader) syncJobAssociations(conn db.PgxSession) error {
@@ -417,7 +417,7 @@ func (bl *BugLoader) syncJobAssociations(conn db.PgxSession) error {
 		WHERE bj.bug_id IN (SELECT id FROM tmp_bugs)
 		  AND NOT EXISTS (
 			SELECT 1 FROM (`+desiredBugJobs+`) d
-			WHERE d.bug_id = bj.bug_id AND d.prow_job_id = bj.prow_job_id
+			WHERE d.bug_id = bj.bug_id AND d.ci_job_id = bj.ci_job_id
 		  )
 	`)
 	if err != nil {
@@ -425,7 +425,7 @@ func (bl *BugLoader) syncJobAssociations(conn db.PgxSession) error {
 	}
 
 	insertTag, err := conn.Exec(bl.ctx, `
-		INSERT INTO bug_jobs (bug_id, prow_job_id)`+desiredBugJobs+`
+		INSERT INTO bug_jobs (bug_id, ci_job_id)`+desiredBugJobs+`
 		ON CONFLICT DO NOTHING
 	`)
 	if err != nil {

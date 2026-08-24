@@ -28,7 +28,7 @@ func GetFeatureGatesFromDB(dbc *db.DB, release string, filterOpts *filter.Filter
 	activeTestExists := `EXISTS (
 		SELECT 1 FROM test_cumulative_summaries e
 		LEFT JOIN test_cumulative_summaries s
-			ON s.test_id = e.test_id AND s.prow_job_id = e.prow_job_id
+			ON s.test_id = e.test_id AND s.ci_job_id = e.ci_job_id
 			AND s.suite_id = e.suite_id AND s.lifecycle = e.lifecycle
 			AND s.release = e.release AND s.date = ?
 		WHERE e.test_id = t.id AND e.date = ? AND e.release = ?
@@ -100,7 +100,7 @@ func GetFeatureGatesFromDB(dbc *db.DB, release string, filterOpts *filter.Filter
 func GetMatchingJobsForCapability(dbc *db.DB, release, capabilityName string) ([]string, error) {
 	capabilityVariant := fmt.Sprintf("Capability:%s", capabilityName)
 	names := make([]string, 0)
-	tx := dbc.DB.Table("prow_jobs").
+	tx := dbc.DB.Table("ci_jobs").
 		Select("DISTINCT name").
 		Where("release = ? AND ? = ANY(variants)", release, capabilityVariant).
 		Scan(&names)

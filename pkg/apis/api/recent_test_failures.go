@@ -21,9 +21,9 @@ type RecentTestFailure struct {
 
 // RecentTestFailureOutput is a single failure instance with its job run context.
 type RecentTestFailureOutput struct {
-	ProwJobRunID uint      `json:"prow_job_run_id"`
-	ProwJobName  string    `json:"prow_job_name"`
-	ProwJobURL   string    `json:"prow_job_url"`
+	CIJobRunID uint      `json:"ci_job_run_id"`
+	CIJobName  string    `json:"ci_job_name"`
+	CIJobURL   string    `json:"ci_job_url"`
 	FailedAt     time.Time `json:"failed_at"`
 	Output       string    `json:"output"`
 }

@@ -102,19 +102,19 @@ func (q *JobArtifactQuery) getJobRun(jobRunID int64) (JobRun, error) {
 		ID:      strconv.FormatInt(jobRunID, 10),
 		IsFinal: true, // even errors are final - only if we timed out getting answers might a retry get more
 	}
-	partKeys, err := query.LookupProwJobRunPartitionKeys(q.DbClient.DB, jobRunID)
+	partKeys, err := query.LookupCIJobRunPartitionKeys(q.DbClient.DB, jobRunID)
 	if err != nil {
 		return jobRunResponse, fmt.Errorf("looking up partition keys for job run %d: %w", jobRunID, err)
 	}
 
-	jobRunModel := new(models.ProwJobRun)
-	res := q.DbClient.DB.Preload("ProwJob").
-		Where("prow_job_release = ? AND timestamp = ?", partKeys.ProwJobRelease, partKeys.Timestamp).
+	jobRunModel := new(models.CIJobRun)
+	res := q.DbClient.DB.Preload("CIJob").
+		Where("ci_job_release = ? AND timestamp = ?", partKeys.CIJobRelease, partKeys.Timestamp).
 		Take(jobRunModel, jobRunID)
 	if res.Error != nil {
 		return jobRunResponse, res.Error
 	}
-	jobRunResponse.JobName = jobRunModel.ProwJob.Name
+	jobRunResponse.JobName = jobRunModel.CIJob.Name
 
 	url := jobRunModel.URL
 	if url == "" {

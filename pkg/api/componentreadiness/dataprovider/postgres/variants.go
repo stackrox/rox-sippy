@@ -86,7 +86,7 @@ func lookupVariantValues(
 	return result, nil
 }
 
-// variantFilterResult bundles the outputs needed to join prow_jobs against a
+// variantFilterResult bundles the outputs needed to join ci_jobs against a
 // filtered set of variant_combinations: the resolved variant values (for
 // building a group mapping), the bind args for that filter, and a subquery
 // selecting matching variant_combination_ids.
@@ -97,7 +97,7 @@ type variantFilterResult struct {
 }
 
 // resolveVariantFilter looks up variant_combinations matching includeVariants
-// and builds the subquery/args used to join prow_jobs against them. This is
+// and builds the subquery/args used to join ci_jobs against them. This is
 // the shared bundle behind both the standalone (prepareVariantQuery) and
 // combined (queryCombinedTestStatus) query paths; keep it as the single place
 // that turns includeVariants into a lookup + filter + subquery so the two
@@ -131,14 +131,14 @@ func resolveVariantFilter(
 	}, nil
 }
 
-// prowJobVariantJoin builds the prow_jobs join that restricts to jobs whose
+// ciJobVariantJoin builds the ci_jobs join that restricts to jobs whose
 // variant_combination_id matches the given subquery, plus the vg join that maps
 // each combination to its variant group. variantSubquery is the
 // "SELECT vc.id FROM variant_combinations vc [WHERE ...]" produced by
 // resolveVariantFilter. Both the standalone and combined query paths share this
 // join so their materialized CTEs line up identically.
-func prowJobVariantJoin(variantSubquery string) string {
-	return fmt.Sprintf(`JOIN prow_jobs pj ON pj.id = e.prow_job_id
+func ciJobVariantJoin(variantSubquery string) string {
+	return fmt.Sprintf(`JOIN ci_jobs pj ON pj.id = e.ci_job_id
                 AND pj.deleted_at IS NULL
                 AND pj.variant_combination_id IN (%s)
             JOIN vg ON vg.vcid = pj.variant_combination_id`, variantSubquery)

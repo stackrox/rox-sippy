@@ -23,7 +23,7 @@ import (
 // summaries while the other run remains counted.
 func TestRecordInfraFailureSubtractsFromSummaries(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
@@ -32,15 +32,15 @@ func TestRecordInfraFailureSubtractsFromSummaries(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: infraRunID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: infraRunID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: infraRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-sub-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: infraRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-sub-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: keepRunID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: keepRunID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: keepRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-sub-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: keepRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-sub-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -50,7 +50,7 @@ func TestRecordInfraFailureSubtractsFromSummaries(t *testing.T) {
 
 	// Precondition: both runs counted (1 success + 1 failure = 2 runs).
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
 	require.Equal(t, int32(1), dt.Successes)
 	require.Equal(t, int32(1), dt.Failures)
 	require.Equal(t, int32(2), dt.Runs)
@@ -61,12 +61,12 @@ func TestRecordInfraFailureSubtractsFromSummaries(t *testing.T) {
 
 	// The InfraFailure label is applied to the infra run (exercising the
 	// NULL-safe gate, since the run had no labels).
-	var infraRun models.ProwJobRun
+	var infraRun models.CIJobRun
 	require.NoError(t, dbc.DB.First(&infraRun, infraRunID).Error)
 	assert.Contains(t, []string(infraRun.Labels), infrafailure.LabelInfraFailure)
 
 	// Daily totals now reflect only the retained run's failure.
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
 	assert.Equal(t, int32(0), dt.Successes, "infra run's success should be subtracted")
 	assert.Equal(t, int32(1), dt.Failures, "retained run's failure should remain")
 	assert.Equal(t, int32(1), dt.Runs)
@@ -76,7 +76,7 @@ func TestRecordInfraFailureSubtractsFromSummaries(t *testing.T) {
 	tomorrow := today.AddDays(1)
 	for _, d := range []civil.Date{today, tomorrow} {
 		var cs models.TestCumulativeSummary
-		require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", d).First(&cs).Error, "date %s", d)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", d).First(&cs).Error, "date %s", d)
 		assert.Equal(t, int64(0), cs.PrefixSumSuccesses, "date %s", d)
 		assert.Equal(t, int64(1), cs.PrefixSumFailures, "date %s", d)
 		assert.Equal(t, int64(1), cs.PrefixSumRuns, "date %s", d)
@@ -88,16 +88,16 @@ func TestRecordInfraFailureSubtractsFromSummaries(t *testing.T) {
 // the label.
 func TestRecordInfraFailureIsIdempotent(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	const runID = 41001
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: runID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: runID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: runID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-idem-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: runID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-idem-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -111,14 +111,14 @@ func TestRecordInfraFailureIsIdempotent(t *testing.T) {
 	// First call subtracts the single run down to zero.
 	call()
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
 	assert.Equal(t, int32(0), dt.Successes)
 	assert.Equal(t, int32(0), dt.Runs)
 
 	// Subsequent calls must be no-ops.
 	call()
 	call()
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
 	assert.Equal(t, int32(0), dt.Successes, "idempotent: no double subtraction")
 	assert.Equal(t, int32(0), dt.Runs, "idempotent: totals not driven negative")
 
@@ -128,13 +128,13 @@ func TestRecordInfraFailureIsIdempotent(t *testing.T) {
 	tomorrow := today.AddDays(1)
 	for _, d := range []civil.Date{today, tomorrow} {
 		var cs models.TestCumulativeSummary
-		require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", d).First(&cs).Error, "date %s", d)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", d).First(&cs).Error, "date %s", d)
 		assert.Equal(t, int64(0), cs.PrefixSumSuccesses, "idempotent: cumulative successes at zero, date %s", d)
 		assert.Equal(t, int64(0), cs.PrefixSumRuns, "idempotent: cumulative runs not driven negative, date %s", d)
 	}
 
 	// Label present exactly once.
-	var run models.ProwJobRun
+	var run models.CIJobRun
 	require.NoError(t, dbc.DB.First(&run, runID).Error)
 	labelCount := 0
 	for _, l := range run.Labels {
@@ -150,21 +150,21 @@ func TestRecordInfraFailureIsIdempotent(t *testing.T) {
 // is written never contributes to the summary tables.
 func TestCreateBatchDeltasExcludesInfraFailureRuns(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 42001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts, Labels: []string{infrafailure.LabelInfraFailure}},
+			Run: pgwriter.RunRow{ID: 42001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts, Labels: []string{infrafailure.LabelInfraFailure}},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 42001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "write-exclude-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 42001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "write-exclude-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 42002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 42002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 42002, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "write-exclude-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 42002, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "write-exclude-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -173,7 +173,7 @@ func TestCreateBatchDeltasExcludesInfraFailureRuns(t *testing.T) {
 	require.NoError(t, dbc.DB.Where("name = ?", "write-exclude-test").First(&test).Error)
 
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
 	// Only the non-infra run (a failure) is counted; the infra-labeled run's
 	// success is excluded.
 	assert.Equal(t, int32(0), dt.Successes, "infra-labeled run's success should be excluded")
@@ -189,7 +189,7 @@ func TestCreateBatchDeltasExcludesInfraFailureRuns(t *testing.T) {
 // prefix_sum_flakes subtraction path specifically.
 func TestRecordInfraFailureSubtractsFlakes(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
@@ -198,15 +198,15 @@ func TestRecordInfraFailureSubtractsFlakes(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: infraRunID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: infraRunID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: infraRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-flake-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 1.0},
+				{CIJobRunID: infraRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-flake-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: keepRunID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: keepRunID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: keepRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-flake-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 1.0},
+				{CIJobRunID: keepRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-flake-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 1.0},
 			},
 		},
 	})
@@ -216,7 +216,7 @@ func TestRecordInfraFailureSubtractsFlakes(t *testing.T) {
 
 	// Precondition: both flakes counted (2 flakes = 2 runs, no successes/failures).
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
 	require.Equal(t, int32(2), dt.Flakes)
 	require.Equal(t, int32(2), dt.Runs)
 	require.Equal(t, int32(0), dt.Successes)
@@ -225,7 +225,7 @@ func TestRecordInfraFailureSubtractsFlakes(t *testing.T) {
 	require.NoError(t, infrafailure.RecordInfraFailure(context.Background(), dbc.DB, infraRunID))
 
 	// Daily totals now reflect only the retained run's flake.
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", today).First(&dt).Error)
 	assert.Equal(t, int32(1), dt.Flakes, "infra run's flake should be subtracted")
 	assert.Equal(t, int32(1), dt.Runs)
 
@@ -234,7 +234,7 @@ func TestRecordInfraFailureSubtractsFlakes(t *testing.T) {
 	tomorrow := today.AddDays(1)
 	for _, d := range []civil.Date{today, tomorrow} {
 		var cs models.TestCumulativeSummary
-		require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", d).First(&cs).Error, "date %s", d)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, "4.18", d).First(&cs).Error, "date %s", d)
 		assert.Equal(t, int64(1), cs.PrefixSumFlakes, "date %s", d)
 		assert.Equal(t, int64(1), cs.PrefixSumRuns, "date %s", d)
 	}
@@ -248,17 +248,17 @@ func TestRecordInfraFailureSubtractsFlakes(t *testing.T) {
 // cross-test aggregation would be visible.
 func TestRecordInfraFailureSubtractsEachTestIndependently(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	const infraRunID = 44001
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: infraRunID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: infraRunID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: infraRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-multi-test-a", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
-			{ProwJobRunID: infraRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-multi-test-b", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+			{CIJobRunID: infraRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-multi-test-a", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: infraRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-multi-test-b", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 		},
 	}})
 
@@ -268,14 +268,14 @@ func TestRecordInfraFailureSubtractsEachTestIndependently(t *testing.T) {
 
 	fetch := func(testID uint) models.TestDailyTotal {
 		var dt models.TestDailyTotal
-		require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", testID, jobID, "4.18", today).First(&dt).Error)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", testID, jobID, "4.18", today).First(&dt).Error)
 		return dt
 	}
 
 	// Precondition: two distinct tests produce two separate rows, not one
 	// aggregated row.
 	var rows []models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("prow_job_id = ? AND release = ? AND date = ?", jobID, "4.18", today).Find(&rows).Error)
+	require.NoError(t, dbc.DB.Where("ci_job_id = ? AND release = ? AND date = ?", jobID, "4.18", today).Find(&rows).Error)
 	require.Len(t, rows, 2, "each test must have its own daily total row")
 	require.Equal(t, int32(1), fetch(testA.ID).Successes)
 	require.Equal(t, int32(1), fetch(testB.ID).Failures)
@@ -300,7 +300,7 @@ func TestRecordInfraFailureSubtractsEachTestIndependently(t *testing.T) {
 	tomorrow := today.AddDays(1)
 	fetchCum := func(testID uint, d civil.Date) models.TestCumulativeSummary {
 		var cs models.TestCumulativeSummary
-		require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", testID, jobID, "4.18", d).First(&cs).Error, "test %d date %s", testID, d)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", testID, jobID, "4.18", d).First(&cs).Error, "test %d date %s", testID, d)
 		return cs
 	}
 	for _, d := range []civil.Date{today, tomorrow} {
@@ -321,7 +321,7 @@ func TestRecordInfraFailureSubtractsEachTestIndependently(t *testing.T) {
 // suite.
 func TestRecordInfraFailureScopedBySuite(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
@@ -330,15 +330,15 @@ func TestRecordInfraFailureScopedBySuite(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: e2eRunID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: e2eRunID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: e2eRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-suite-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: e2eRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-suite-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: serialRunID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: serialRunID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: serialRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-suite-test", SuiteName: "junit_serial", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: serialRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-suite-test", SuiteName: "junit_serial", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 	})
@@ -351,7 +351,7 @@ func TestRecordInfraFailureScopedBySuite(t *testing.T) {
 
 	fetch := func(suiteID uint) models.TestDailyTotal {
 		var dt models.TestDailyTotal
-		require.NoError(t, dbc.DB.Where("test_id = ? AND suite_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, suiteID, jobID, "4.18", today).First(&dt).Error)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND suite_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, suiteID, jobID, "4.18", today).First(&dt).Error)
 		return dt
 	}
 
@@ -377,7 +377,7 @@ func TestRecordInfraFailureScopedBySuite(t *testing.T) {
 	tomorrow := today.AddDays(1)
 	fetchCum := func(suiteID uint, d civil.Date) models.TestCumulativeSummary {
 		var cs models.TestCumulativeSummary
-		require.NoError(t, dbc.DB.Where("test_id = ? AND suite_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, suiteID, jobID, "4.18", d).First(&cs).Error, "suite %d date %s", suiteID, d)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND suite_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, suiteID, jobID, "4.18", d).First(&cs).Error, "suite %d date %s", suiteID, d)
 		return cs
 	}
 	for _, d := range []civil.Date{today, tomorrow} {
@@ -403,14 +403,14 @@ func TestRecordInfraFailureNonexistentRunIsNoOp(t *testing.T) {
 
 	// Sanity: the run genuinely does not exist.
 	var count int64
-	require.NoError(t, dbc.DB.Model(&models.ProwJobRun{}).Where("id = ?", missingRunID).Count(&count).Error)
+	require.NoError(t, dbc.DB.Model(&models.CIJobRun{}).Where("id = ?", missingRunID).Count(&count).Error)
 	require.Equal(t, int64(0), count)
 
 	// No error despite the run not existing (conflated with already-labeled).
 	assert.NoError(t, infrafailure.RecordInfraFailure(context.Background(), dbc.DB, missingRunID))
 
 	// The call did not create the run as a side effect.
-	require.NoError(t, dbc.DB.Model(&models.ProwJobRun{}).Where("id = ?", missingRunID).Count(&count).Error)
+	require.NoError(t, dbc.DB.Model(&models.CIJobRun{}).Where("id = ?", missingRunID).Count(&count).Error)
 	assert.Equal(t, int64(0), count, "nonexistent run must not be created")
 }
 
@@ -421,7 +421,7 @@ func TestRecordInfraFailureNonexistentRunIsNoOp(t *testing.T) {
 // release.
 func TestRecordInfraFailureScopedByRelease(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
@@ -430,15 +430,15 @@ func TestRecordInfraFailureScopedByRelease(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: infraRunID, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: infraRunID, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: infraRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "infra-release-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: infraRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "infra-release-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: otherRunID, ProwJobID: jobID, ProwJobRelease: "4.19", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: otherRunID, CIJobID: jobID, CIJobRelease: "4.19", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: otherRunID, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.19", TestName: "infra-release-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: otherRunID, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.19", TestName: "infra-release-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 	})
@@ -448,7 +448,7 @@ func TestRecordInfraFailureScopedByRelease(t *testing.T) {
 
 	fetch := func(release string) models.TestDailyTotal {
 		var dt models.TestDailyTotal
-		require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, release, today).First(&dt).Error)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, release, today).First(&dt).Error)
 		return dt
 	}
 
@@ -474,7 +474,7 @@ func TestRecordInfraFailureScopedByRelease(t *testing.T) {
 	tomorrow := today.AddDays(1)
 	fetchCum := func(release string, d civil.Date) models.TestCumulativeSummary {
 		var cs models.TestCumulativeSummary
-		require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ? AND date = ?", test.ID, jobID, release, d).First(&cs).Error, "release %s date %s", release, d)
+		require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ? AND date = ?", test.ID, jobID, release, d).First(&cs).Error, "release %s date %s", release, d)
 		return cs
 	}
 	for _, d := range []civil.Date{today, tomorrow} {
@@ -496,18 +496,18 @@ const readQueryRelease = "4.18"
 // seedReadQueryRun creates a prow job run (optionally InfraFailure-labeled) with a single
 // failing test result, its duration, prow job URL, and failure output. The three rows share
 // the run timestamp and readQueryRelease because the read-time TestOutputs and TestDurations
-// queries join prow_job_runs -> prow_job_run_tests -> prow_job_run_test_outputs on equal
+// queries join ci_job_runs -> ci_job_run_tests -> ci_job_run_test_outputs on equal
 // (timestamp, release), so they must line up for the run to be counted.
 func seedReadQueryRun(t *testing.T, dbc *db.DB, jobID, testID uint, ts time.Time, duration float64, url, output string, infra bool) {
 	t.Helper()
-	runOpts := []intutil.ProwJobRunOption{intutil.WithURL(url)}
+	runOpts := []intutil.CIJobRunOption{intutil.WithURL(url)}
 	if infra {
 		runOpts = append(runOpts, intutil.WithLabels(infrafailure.LabelInfraFailure))
 	}
 	// OverallResult "F" (JobTestFailure); the read-time queries don't filter on it.
-	run := intutil.CreateProwJobRun(t, dbc, jobID, readQueryRelease, ts, false, "F", runOpts...)
-	pjrt := intutil.CreateProwJobRunTest(t, dbc, run.ID, jobID, testID, readQueryRelease, ts, statusFailure, intutil.WithDuration(duration))
-	intutil.CreateProwJobRunTestOutput(t, dbc, pjrt, output)
+	run := intutil.CreateCIJobRun(t, dbc, jobID, readQueryRelease, ts, false, "F", runOpts...)
+	pjrt := intutil.CreateCIJobRunTest(t, dbc, run.ID, jobID, testID, readQueryRelease, ts, statusFailure, intutil.WithDuration(duration))
+	intutil.CreateCIJobRunTestOutput(t, dbc, pjrt, output)
 }
 
 // recentReadQueryDay returns a fixed time-of-day on a date two days in the past. The
@@ -524,7 +524,7 @@ func recentReadQueryDay() time.Time {
 // carrying the InfraFailure label, and only the clean run's output is returned.
 func TestTestOutputsExcludesInfraFailureRuns(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", readQueryRelease)
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", readQueryRelease)
 	testRec := intutil.CreateTest(t, dbc, "read-exclude-outputs-test")
 
 	day := recentReadQueryDay()
@@ -537,7 +537,7 @@ func TestTestOutputsExcludesInfraFailureRuns(t *testing.T) {
 	outputs, err := query.TestOutputs(dbc, readQueryRelease, "read-exclude-outputs-test", nil, nil, 10)
 	require.NoError(t, err)
 	require.Len(t, outputs, 1, "the InfraFailure-labeled run's output must be excluded")
-	assert.Equal(t, "https://prow/clean-run", outputs[0].ProwJobURL, "only the clean run's output should be returned")
+	assert.Equal(t, "https://prow/clean-run", outputs[0].CIJobURL, "only the clean run's output should be returned")
 	assert.Equal(t, "clean failure output", outputs[0].Output)
 }
 
@@ -547,7 +547,7 @@ func TestTestOutputsExcludesInfraFailureRuns(t *testing.T) {
 // duration rather than the blended average of both runs.
 func TestTestDurationsExcludesInfraFailureRuns(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", readQueryRelease)
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", readQueryRelease)
 	testRec := intutil.CreateTest(t, dbc, "read-exclude-durations-test")
 
 	day := recentReadQueryDay()

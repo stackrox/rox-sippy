@@ -53,7 +53,7 @@ func PrintAutocompleteFromDB(w http.ResponseWriter, req *http.Request, dbc *db.D
 
 	switch field {
 	case "variants": //nolint:goconst
-		q = q.Table("prow_jobs").
+		q = q.Table("ci_jobs").
 			Select("DISTINCT(unnest(variants)) as name").
 			Order("name")
 	case "tests":
@@ -61,19 +61,19 @@ func PrintAutocompleteFromDB(w http.ResponseWriter, req *http.Request, dbc *db.D
 			Select("name").
 			Order("name")
 	case "jobs":
-		q = q.Table("prow_jobs").
+		q = q.Table("ci_jobs").
 			Select("name").
 			Order("name")
 	case "orgs":
-		q = q.Table("prow_pull_requests").
+		q = q.Table("pull_requests").
 			Select("DISTINCT(org) as name").
 			Order("name")
 	case "repos":
-		q = q.Table("prow_pull_requests").
+		q = q.Table("pull_requests").
 			Select("DISTINCT(repo) as name").
 			Order("name")
 	case "authors":
-		q = q.Table("prow_pull_requests").
+		q = q.Table("pull_requests").
 			Select("DISTINCT(author) as name").
 			Order("name")
 	case "cluster":
@@ -88,10 +88,10 @@ func PrintAutocompleteFromDB(w http.ResponseWriter, req *http.Request, dbc *db.D
 				return
 			}
 		}
-		q = q.Table("prow_job_runs").
+		q = q.Table("ci_job_runs").
 			Select("DISTINCT(cluster) as name").
 			Where("cluster IS NOT NULL").
-			Where("prow_job_release = ?", clusterRelease).
+			Where("ci_job_release = ?", clusterRelease).
 			Where("timestamp > NOW() - INTERVAL '14 days'").
 			Order("name")
 	case "suites":

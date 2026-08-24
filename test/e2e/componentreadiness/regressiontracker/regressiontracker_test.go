@@ -316,18 +316,18 @@ func Test_RegressionJobRuns(t *testing.T) {
 
 		jobRuns := []models.RegressionJobRun{
 			{
-				ProwJobRunID: "run-1",
-				ProwJobName:  "periodic-ci-job-1",
-				ProwJobURL:   "https://prow.ci/run-1",
+				CIJobRunID: "run-1",
+				CIJobName:  "periodic-ci-job-1",
+				CIJobURL:   "https://prow.ci/run-1",
 				StartTime:    time.Now().Add(-24 * time.Hour),
 				TestFailed:   true,
 				TestFailures: 15,
 				JobLabels:    []string{"InfraFailure"},
 			},
 			{
-				ProwJobRunID: "run-2",
-				ProwJobName:  "periodic-ci-job-1",
-				ProwJobURL:   "https://prow.ci/run-2",
+				CIJobRunID: "run-2",
+				CIJobName:  "periodic-ci-job-1",
+				CIJobURL:   "https://prow.ci/run-2",
 				StartTime:    time.Now().Add(-12 * time.Hour),
 				TestFailed:   false,
 				TestFailures: 0,
@@ -339,18 +339,18 @@ func Test_RegressionJobRuns(t *testing.T) {
 
 		// Verify job runs were stored
 		var stored []models.RegressionJobRun
-		res := dbc.DB.Where("regression_id = ?", reg.ID).Order("prow_job_run_id").Find(&stored)
+		res := dbc.DB.Where("regression_id = ?", reg.ID).Order("ci_job_run_id").Find(&stored)
 		require.NoError(t, res.Error)
 		assert.Len(t, stored, 2)
 
-		assert.Equal(t, "run-1", stored[0].ProwJobRunID)
-		assert.Equal(t, "periodic-ci-job-1", stored[0].ProwJobName)
-		assert.Equal(t, "https://prow.ci/run-1", stored[0].ProwJobURL)
+		assert.Equal(t, "run-1", stored[0].CIJobRunID)
+		assert.Equal(t, "periodic-ci-job-1", stored[0].CIJobName)
+		assert.Equal(t, "https://prow.ci/run-1", stored[0].CIJobURL)
 		assert.True(t, stored[0].TestFailed)
 		assert.Equal(t, 15, stored[0].TestFailures)
 		assert.Equal(t, []string{"InfraFailure"}, []string(stored[0].JobLabels))
 
-		assert.Equal(t, "run-2", stored[1].ProwJobRunID)
+		assert.Equal(t, "run-2", stored[1].CIJobRunID)
 		assert.False(t, stored[1].TestFailed)
 	})
 
@@ -378,15 +378,15 @@ func Test_RegressionJobRuns(t *testing.T) {
 
 		// First merge
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-1", ProwJobName: "job-1", TestFailed: true, TestFailures: 10},
-			{ProwJobRunID: "run-2", ProwJobName: "job-1", TestFailed: false, TestFailures: 0},
+			{CIJobRunID: "run-1", CIJobName: "job-1", TestFailed: true, TestFailures: 10},
+			{CIJobRunID: "run-2", CIJobName: "job-1", TestFailed: false, TestFailures: 0},
 		})
 		require.NoError(t, err)
 
 		// Second merge with overlapping + new runs
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-2", ProwJobName: "job-1", TestFailed: false, TestFailures: 0},
-			{ProwJobRunID: "run-3", ProwJobName: "job-1", TestFailed: true, TestFailures: 5},
+			{CIJobRunID: "run-2", CIJobName: "job-1", TestFailed: false, TestFailures: 0},
+			{CIJobRunID: "run-3", CIJobName: "job-1", TestFailed: true, TestFailures: 5},
 		})
 		require.NoError(t, err)
 
@@ -421,8 +421,8 @@ func Test_RegressionJobRuns(t *testing.T) {
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
 			{
-				ProwJobRunID: "run-sym-1",
-				ProwJobName:  "job-1",
+				CIJobRunID: "run-sym-1",
+				CIJobName:  "job-1",
 				TestFailed:   true,
 				JobSymptoms:  pq.StringArray{"SymA"},
 			},
@@ -430,7 +430,7 @@ func Test_RegressionJobRuns(t *testing.T) {
 		require.NoError(t, err)
 
 		var stored []models.RegressionJobRun
-		res := dbc.DB.Where("regression_id = ? AND prow_job_run_id = ?", reg.ID, "run-sym-1").Find(&stored)
+		res := dbc.DB.Where("regression_id = ? AND ci_job_run_id = ?", reg.ID, "run-sym-1").Find(&stored)
 		require.NoError(t, res.Error)
 		require.Len(t, stored, 1)
 		assert.Equal(t, []string{"SymA"}, []string(stored[0].JobSymptoms))
@@ -460,21 +460,21 @@ func Test_RegressionJobRuns(t *testing.T) {
 
 		// First merge without symptoms
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-update-1", ProwJobName: "job-1", TestFailed: true},
+			{CIJobRunID: "run-update-1", CIJobName: "job-1", TestFailed: true},
 		})
 		require.NoError(t, err)
 
 		var stored models.RegressionJobRun
-		dbc.DB.Where("regression_id = ? AND prow_job_run_id = ?", reg.ID, "run-update-1").First(&stored)
+		dbc.DB.Where("regression_id = ? AND ci_job_run_id = ?", reg.ID, "run-update-1").First(&stored)
 		assert.Nil(t, stored.JobSymptoms)
 
 		// Second merge with symptoms
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-update-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
+			{CIJobRunID: "run-update-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
 		})
 		require.NoError(t, err)
 
-		dbc.DB.Where("regression_id = ? AND prow_job_run_id = ?", reg.ID, "run-update-1").First(&stored)
+		dbc.DB.Where("regression_id = ? AND ci_job_run_id = ?", reg.ID, "run-update-1").First(&stored)
 		assert.Equal(t, []string{"SymA"}, []string(stored.JobSymptoms))
 	})
 
@@ -501,7 +501,7 @@ func Test_RegressionJobRuns(t *testing.T) {
 		require.NoError(t, err)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-1", ProwJobName: "job-1"},
+			{CIJobRunID: "run-1", CIJobName: "job-1"},
 		})
 		require.NoError(t, err)
 
@@ -578,7 +578,7 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 		require.NoError(t, dbCtx.Create(&triage).Error)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA", "SymB"}},
+			{CIJobRunID: "run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA", "SymB"}},
 		})
 		require.NoError(t, err)
 
@@ -613,7 +613,7 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 		require.NoError(t, dbCtx.Create(&triage).Error)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
+			{CIJobRunID: "run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
 		})
 		require.NoError(t, err)
 
@@ -651,9 +651,9 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 		require.NoError(t, dbCtx.Create(&triage).Error)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
-			{ProwJobRunID: "run-2", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
-			{ProwJobRunID: "run-3", ProwJobName: "job-1", TestFailed: true},
+			{CIJobRunID: "run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
+			{CIJobRunID: "run-2", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
+			{CIJobRunID: "run-3", CIJobName: "job-1", TestFailed: true},
 		})
 		require.NoError(t, err)
 
@@ -681,7 +681,7 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 		require.NoError(t, dbCtx.Create(&triage).Error)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
+			{CIJobRunID: "run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
 		})
 		require.NoError(t, err)
 
@@ -694,7 +694,7 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 
 		// Add another job run with the same symptom
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-2", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
+			{CIJobRunID: "run-2", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
 		})
 		require.NoError(t, err)
 
@@ -712,7 +712,7 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 		require.NoError(t, err)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
+			{CIJobRunID: "run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
 		})
 		require.NoError(t, err)
 
@@ -739,7 +739,7 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 		require.NoError(t, dbCtx.Create(&triage).Error)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA", "SymB"}},
+			{CIJobRunID: "run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA", "SymB"}},
 		})
 		require.NoError(t, err)
 
@@ -769,7 +769,7 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 		require.NoError(t, dbCtx.Create(&triage).Error)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "dedup-run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA", "SymA", "SymA"}},
+			{CIJobRunID: "dedup-run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA", "SymA", "SymA"}},
 		})
 		require.NoError(t, err)
 
@@ -806,7 +806,7 @@ func Test_SyncTriageSymptoms(t *testing.T) {
 		require.NoError(t, dbCtx.Create(&triage2).Error)
 
 		err = tracker.MergeJobRuns(reg.ID, []models.RegressionJobRun{
-			{ProwJobRunID: "mt-run-1", ProwJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
+			{CIJobRunID: "mt-run-1", CIJobName: "job-1", TestFailed: true, JobSymptoms: pq.StringArray{"SymA"}},
 		})
 		require.NoError(t, err)
 

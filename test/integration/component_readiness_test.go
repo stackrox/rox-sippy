@@ -32,7 +32,7 @@ func crTestDB(t *testing.T) *db.DB {
 	return intutil.NewTestDB(t, pgContainer)
 }
 
-// createVariantCombination, createProwJobWithVC, createTestOwnership, and
+// createVariantCombination, createCIJobWithVC, createTestOwnership, and
 // createCumulativeSummary below are thin delegates to the shared intutil fixture helpers,
 // kept as file-local wrappers (same names/signatures as before) so the ~250 call sites in
 // this file didn't need to change. The actual row-creation logic lives once in
@@ -43,9 +43,9 @@ func createVariantCombination(t *testing.T, dbc *db.DB, variants []string) model
 	return intutil.CreateVariantCombination(t, dbc, variants)
 }
 
-func createProwJobWithVC(t *testing.T, dbc *db.DB, name, release string, vc models.VariantCombination) models.ProwJob {
+func createCIJobWithVC(t *testing.T, dbc *db.DB, name, release string, vc models.VariantCombination) models.CIJob {
 	t.Helper()
-	return intutil.CreateProwJobWithOptions(t, dbc, name, release, nil, intutil.WithVariantCombination(vc))
+	return intutil.CreateCIJobWithOptions(t, dbc, name, release, nil, intutil.WithVariantCombination(vc))
 }
 
 func createTestOwnership(t *testing.T, dbc *db.DB, testID uint, suiteID *uint, uniqueID, component string, caps []string) models.TestOwnership {
@@ -79,7 +79,7 @@ func withLifecycle(lifecycle string) cumulativeSummaryOption {
 	return func(o *cumulativeSummaryOpts) { o.lifecycle = lifecycle }
 }
 
-func createCumulativeSummary(t *testing.T, dbc *db.DB, date civil.Date, release string, testID, prowJobID, suiteID uint, runs, successes, flakes int64, options ...cumulativeSummaryOption) {
+func createCumulativeSummary(t *testing.T, dbc *db.DB, date civil.Date, release string, testID, ciJobID, suiteID uint, runs, successes, flakes int64, options ...cumulativeSummaryOption) {
 	t.Helper()
 	var o cumulativeSummaryOpts
 	for _, fn := range options {
@@ -95,16 +95,16 @@ func createCumulativeSummary(t *testing.T, dbc *db.DB, date civil.Date, release 
 	if o.prefixMaxLastSuccess != nil {
 		intutilOpts = append(intutilOpts, intutil.WithCumulativeSummaryLastSuccess(*o.prefixMaxLastSuccess))
 	}
-	intutil.CreateCumulativeSummary(t, dbc, date, release, testID, prowJobID, suiteID, runs, successes, flakes, intutilOpts...)
+	intutil.CreateCumulativeSummary(t, dbc, date, release, testID, ciJobID, suiteID, runs, successes, flakes, intutilOpts...)
 }
 
-func createGARawData(t *testing.T, dbc *db.DB, release string, windowDays int, testID, prowJobID, suiteID uint, runs, passes, flakes int64) { //nolint:unparam
+func createGARawData(t *testing.T, dbc *db.DB, release string, windowDays int, testID, ciJobID, suiteID uint, runs, passes, flakes int64) { //nolint:unparam
 	t.Helper()
 	ga := models.ProwGARawTestDatum{
 		Release:    release,
 		WindowDays: windowDays,
 		TestID:     testID,
-		ProwJobID:  prowJobID,
+		CIJobID:  ciJobID,
 		SuiteID:    suiteID,
 		Runs:       runs,
 		Passes:     passes,
@@ -122,11 +122,11 @@ func createReleaseDefinition(t *testing.T, dbc *db.DB, release string, gaDate *c
 	require.NoError(t, dbc.DB.Create(&rd).Error)
 }
 
-func createProwJobRunForCR(t *testing.T, dbc *db.DB, prowJobID uint, release string, timestamp time.Time) models.ProwJobRun {
+func createCIJobRunForCR(t *testing.T, dbc *db.DB, ciJobID uint, release string, timestamp time.Time) models.CIJobRun {
 	t.Helper()
-	run := models.ProwJobRun{
-		ProwJobID:      prowJobID,
-		ProwJobRelease: release,
+	run := models.CIJobRun{
+		CIJobID:      ciJobID,
+		CIJobRelease: release,
 		Timestamp:      timestamp,
 		Succeeded:      true,
 	}
@@ -134,13 +134,13 @@ func createProwJobRunForCR(t *testing.T, dbc *db.DB, prowJobID uint, release str
 	return run
 }
 
-func createProwJobRunTest(t *testing.T, dbc *db.DB, runID, prowJobID, testID uint, suiteID *uint, status int, release string, timestamp time.Time) {
+func createCIJobRunTest(t *testing.T, dbc *db.DB, runID, ciJobID, testID uint, suiteID *uint, status int, release string, timestamp time.Time) {
 	t.Helper()
-	pjrt := models.ProwJobRunTest{
-		ProwJobRunID:        runID,
-		ProwJobID:           prowJobID,
-		ProwJobRunTimestamp: timestamp,
-		ProwJobRunRelease:   release,
+	pjrt := models.CIJobRunTest{
+		CIJobRunID:        runID,
+		CIJobID:           ciJobID,
+		CIJobRunTimestamp: timestamp,
+		CIJobRunRelease:   release,
 		TestID:              testID,
 		SuiteID:             suiteID,
 		Status:              status,
@@ -150,7 +150,7 @@ func createProwJobRunTest(t *testing.T, dbc *db.DB, runID, prowJobID, testID uin
 
 func setJobRunLabels(t *testing.T, dbc *db.DB, runID uint, labels []string) {
 	t.Helper()
-	require.NoError(t, dbc.DB.Model(&models.ProwJobRun{}).Where("id = ?", runID).
+	require.NoError(t, dbc.DB.Model(&models.CIJobRun{}).Where("id = ?", runID).
 		Update("labels", pq.StringArray(labels)).Error)
 }
 
@@ -189,9 +189,9 @@ type crSeedData struct {
 	vcAWS   models.VariantCombination
 	vcGCP   models.VariantCombination
 	vcAWS2  models.VariantCombination // same DBGroupBy dims as vcAWS, different non-grouped dim
-	jobAWS  models.ProwJob
-	jobGCP  models.ProwJob
-	jobAWS2 models.ProwJob
+	jobAWS  models.CIJob
+	jobGCP  models.CIJob
+	jobAWS2 models.CIJob
 	test1   models.Test
 	test2   models.Test
 	test3   models.Test
@@ -214,9 +214,9 @@ func seedCRData(t *testing.T, dbc *db.DB) crSeedData {
 	vcGCP := createVariantCombination(t, dbc, []string{"Platform:gcp", "Network:sdn"})
 	vcAWS2 := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:sdn"})
 
-	jobAWS := createProwJobWithVC(t, dbc, "periodic-e2e-aws-ovn", release, vcAWS)
-	jobGCP := createProwJobWithVC(t, dbc, "periodic-e2e-gcp-sdn", release, vcGCP)
-	jobAWS2 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-sdn", release, vcAWS2)
+	jobAWS := createCIJobWithVC(t, dbc, "periodic-e2e-aws-ovn", release, vcAWS)
+	jobGCP := createCIJobWithVC(t, dbc, "periodic-e2e-gcp-sdn", release, vcGCP)
+	jobAWS2 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-sdn", release, vcAWS2)
 
 	test1 := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] PVC should work")
 	test2 := intutil.CreateTest(t, dbc, "openshift-tests:[sig-network] Services should serve")
@@ -350,8 +350,8 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		vc1 := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:ha"})
 		vc2 := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:single"})
 
-		job1 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-ha", release, vc1)
-		job2 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-single", release, vc2)
+		job1 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-ha", release, vc1)
+		job2 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-single", release, vc2)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] PVC test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests")
@@ -430,7 +430,7 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 
 		// Create at least one VC so the query doesn't short-circuit on empty variantLookup
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws"})
-		createProwJobWithVC(t, dbc, "periodic-e2e-aws-empty", release, vc)
+		createCIJobWithVC(t, dbc, "periodic-e2e-aws-empty", release, vc)
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -545,8 +545,8 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		distractorRelease := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		sampleJob := createProwJobWithVC(t, dbc, "periodic-e2e-aws-sample", sampleRelease, vc)
-		distractorJob := createProwJobWithVC(t, dbc, "periodic-e2e-aws-distractor", distractorRelease, vc)
+		sampleJob := createCIJobWithVC(t, dbc, "periodic-e2e-aws-sample", sampleRelease, vc)
+		distractorJob := createCIJobWithVC(t, dbc, "periodic-e2e-aws-distractor", distractorRelease, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] release isolation")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-ri")
@@ -584,7 +584,7 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-obs", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-obs", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] obsolete test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-obs")
@@ -623,7 +623,7 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-suite", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-suite", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] multi-suite test")
 		suiteA := intutil.CreateSuite(t, dbc, "suite-a")
@@ -677,8 +677,8 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		vcHA := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:ha"})
 		vcSingle := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:single"})
 
-		jobHA := createProwJobWithVC(t, dbc, "periodic-e2e-aws-ha", release, vcHA)
-		jobSingle := createProwJobWithVC(t, dbc, "periodic-e2e-aws-single", release, vcSingle)
+		jobHA := createCIJobWithVC(t, dbc, "periodic-e2e-aws-ha", release, vcHA)
+		jobSingle := createCIJobWithVC(t, dbc, "periodic-e2e-aws-single", release, vcSingle)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] cross-compare test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-cc")
@@ -727,7 +727,7 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-lf", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-lf", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] last failure test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-lf")
@@ -767,8 +767,8 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 
 		vc1 := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:ha"})
 		vc2 := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:single"})
-		job1 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-ha-lf", release, vc1)
-		job2 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-single-lf", release, vc2)
+		job1 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-ha-lf", release, vc1)
+		job2 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-single-lf", release, vc2)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] multi-job last failure")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-mj-lf")
@@ -813,8 +813,8 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 
 		vc1 := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:ha"})
 		vc2 := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:single"})
-		job1 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-ha-mixed", release, vc1)
-		job2 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-single-mixed", release, vc2)
+		job1 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-ha-mixed", release, vc1)
+		job2 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-single-mixed", release, vc2)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] mixed null last failure")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-mix-lf")
@@ -856,7 +856,7 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-clamp", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-clamp", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] clamping test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-clamp")
@@ -890,7 +890,7 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-nosuite", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-nosuite", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] no suite test")
 		tow := createTestOwnership(t, dbc, test.ID, nil, "openshift-tests:nosuite-test", "Storage", []string{"PVC"})
@@ -923,7 +923,7 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-coalesce", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-coalesce", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] coalesce test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-co")
@@ -955,7 +955,7 @@ func TestQueryTestStatus_SampleResults(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-merge", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-merge", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] merge test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-merge")
@@ -1064,8 +1064,8 @@ func TestQueryTestStatus_DifferentBaseAndSampleReleases(t *testing.T) {
 	sampleRelease := "4.17"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	baseJob := createProwJobWithVC(t, dbc, "periodic-e2e-aws-base", baseRelease, vc)
-	sampleJob := createProwJobWithVC(t, dbc, "periodic-e2e-aws-sample", sampleRelease, vc)
+	baseJob := createCIJobWithVC(t, dbc, "periodic-e2e-aws-base", baseRelease, vc)
+	sampleJob := createCIJobWithVC(t, dbc, "periodic-e2e-aws-sample", sampleRelease, vc)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] cross-release test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-xr")
@@ -1142,7 +1142,7 @@ func TestQueryBaseTestStatus_GA(t *testing.T) {
 	gaStart := gaDate.AddDays(-windowDays)
 
 	vcAWS := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	jobAWS := createProwJobWithVC(t, dbc, "periodic-ga-aws-ovn", release, vcAWS)
+	jobAWS := createCIJobWithVC(t, dbc, "periodic-ga-aws-ovn", release, vcAWS)
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] GA PVC test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-ga")
 	createTestOwnership(t, dbc, test.ID, &suite.ID, "openshift-tests:ga-pvc", "Storage", []string{"PVC"})
@@ -1210,7 +1210,7 @@ func TestQueryBaseTestStatus_GA(t *testing.T) {
 		createReleaseDefinition(t, dbc, release, nil)
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-ga-nil-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-ga-nil-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] GA nil date test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-ga-nil")
@@ -1249,7 +1249,7 @@ func TestQueryBaseTestStatus_GA(t *testing.T) {
 		createReleaseDefinition(t, dbc, release, &futureGA)
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-ga-future-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-ga-future-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] GA future date test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-ga-future")
@@ -1288,7 +1288,7 @@ func TestQueryBaseTestStatus_GA(t *testing.T) {
 		createReleaseDefinition(t, dbc, release, &gaDate)
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-ga-nonstandard-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-ga-nonstandard-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] GA nonstandard window test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-ga-ns")
@@ -1333,8 +1333,8 @@ func TestQuerySampleJobRunTestStatus(t *testing.T) {
 
 	vcAWS := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 	vcGCP := createVariantCombination(t, dbc, []string{"Platform:gcp", "Network:sdn"})
-	jobAWS := createProwJobWithVC(t, dbc, "periodic-jr-aws", release, vcAWS)
-	jobGCP := createProwJobWithVC(t, dbc, "periodic-jr-gcp", release, vcGCP)
+	jobAWS := createCIJobWithVC(t, dbc, "periodic-jr-aws", release, vcAWS)
+	jobGCP := createCIJobWithVC(t, dbc, "periodic-jr-gcp", release, vcGCP)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] JR PVC test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-jr")
@@ -1344,14 +1344,14 @@ func TestQuerySampleJobRunTestStatus(t *testing.T) {
 	ts2 := time.Date(2024, 6, 6, 12, 0, 0, 0, time.UTC)
 	ts3 := time.Date(2024, 6, 7, 12, 0, 0, 0, time.UTC)
 
-	run1 := createProwJobRunForCR(t, dbc, jobAWS.ID, release, ts1)
-	run2 := createProwJobRunForCR(t, dbc, jobAWS.ID, release, ts2)
-	run3 := createProwJobRunForCR(t, dbc, jobGCP.ID, release, ts3)
+	run1 := createCIJobRunForCR(t, dbc, jobAWS.ID, release, ts1)
+	run2 := createCIJobRunForCR(t, dbc, jobAWS.ID, release, ts2)
+	run3 := createCIJobRunForCR(t, dbc, jobGCP.ID, release, ts3)
 
 	// status 1 = pass, 12 = fail, 13 = flake
-	createProwJobRunTest(t, dbc, run1.ID, jobAWS.ID, test.ID, &suite.ID, 1, release, ts1)
-	createProwJobRunTest(t, dbc, run2.ID, jobAWS.ID, test.ID, &suite.ID, 12, release, ts2)
-	createProwJobRunTest(t, dbc, run3.ID, jobGCP.ID, test.ID, &suite.ID, 13, release, ts3)
+	createCIJobRunTest(t, dbc, run1.ID, jobAWS.ID, test.ID, &suite.ID, 1, release, ts1)
+	createCIJobRunTest(t, dbc, run2.ID, jobAWS.ID, test.ID, &suite.ID, 12, release, ts2)
+	createCIJobRunTest(t, dbc, run3.ID, jobGCP.ID, test.ID, &suite.ID, 13, release, ts3)
 
 	provider := postgres.NewPostgresProvider(dbc, nil)
 	opts := defaultReqOptions(release)
@@ -1425,7 +1425,7 @@ func TestQuerySampleJobRunTestStatus(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-jr-infra", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-jr-infra", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] infra exclusion test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-infra")
@@ -1434,12 +1434,12 @@ func TestQuerySampleJobRunTestStatus(t *testing.T) {
 		normalTS := time.Date(2024, 6, 5, 12, 0, 0, 0, time.UTC)
 		infraTS := time.Date(2024, 6, 6, 12, 0, 0, 0, time.UTC)
 
-		normalRun := createProwJobRunForCR(t, dbc, job.ID, release, normalTS)
-		infraRun := createProwJobRunForCR(t, dbc, job.ID, release, infraTS)
+		normalRun := createCIJobRunForCR(t, dbc, job.ID, release, normalTS)
+		infraRun := createCIJobRunForCR(t, dbc, job.ID, release, infraTS)
 		setJobRunLabels(t, dbc, infraRun.ID, []string{"InfraFailure"})
 
-		createProwJobRunTest(t, dbc, normalRun.ID, job.ID, test.ID, &suite.ID, 1, release, normalTS)
-		createProwJobRunTest(t, dbc, infraRun.ID, job.ID, test.ID, &suite.ID, 12, release, infraTS)
+		createCIJobRunTest(t, dbc, normalRun.ID, job.ID, test.ID, &suite.ID, 1, release, normalTS)
+		createCIJobRunTest(t, dbc, infraRun.ID, job.ID, test.ID, &suite.ID, 12, release, infraTS)
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -1462,15 +1462,15 @@ func TestQuerySampleJobRunTestStatus(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-jr-jira", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-jr-jira", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] jira component test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-jira")
 		tow := createTestOwnershipFull(t, dbc, test.ID, &suite.ID, "openshift-tests:jira-test", "Storage", []string{"PVC"}, uintPtr(42))
 
 		ts := time.Date(2024, 6, 5, 12, 0, 0, 0, time.UTC)
-		run := createProwJobRunForCR(t, dbc, job.ID, release, ts)
-		createProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 1, release, ts)
+		run := createCIJobRunForCR(t, dbc, job.ID, release, ts)
+		createCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 1, release, ts)
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -1497,8 +1497,8 @@ func TestQuerySampleJobRunTestStatus(t *testing.T) {
 		distractorRelease := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		sampleJob := createProwJobWithVC(t, dbc, "periodic-jr-sample", sampleRelease, vc)
-		distractorJob := createProwJobWithVC(t, dbc, "periodic-jr-distractor", distractorRelease, vc)
+		sampleJob := createCIJobWithVC(t, dbc, "periodic-jr-sample", sampleRelease, vc)
+		distractorJob := createCIJobWithVC(t, dbc, "periodic-jr-distractor", distractorRelease, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] JR release isolation")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-jr-ri")
@@ -1507,11 +1507,11 @@ func TestQuerySampleJobRunTestStatus(t *testing.T) {
 		ts1 := time.Date(2024, 6, 5, 12, 0, 0, 0, time.UTC)
 		ts2 := time.Date(2024, 6, 6, 12, 0, 0, 0, time.UTC)
 
-		sampleRun := createProwJobRunForCR(t, dbc, sampleJob.ID, sampleRelease, ts1)
-		distractorRun := createProwJobRunForCR(t, dbc, distractorJob.ID, distractorRelease, ts2)
+		sampleRun := createCIJobRunForCR(t, dbc, sampleJob.ID, sampleRelease, ts1)
+		distractorRun := createCIJobRunForCR(t, dbc, distractorJob.ID, distractorRelease, ts2)
 
-		createProwJobRunTest(t, dbc, sampleRun.ID, sampleJob.ID, test.ID, &suite.ID, 1, sampleRelease, ts1)
-		createProwJobRunTest(t, dbc, distractorRun.ID, distractorJob.ID, test.ID, &suite.ID, 12, distractorRelease, ts2)
+		createCIJobRunTest(t, dbc, sampleRun.ID, sampleJob.ID, test.ID, &suite.ID, 1, sampleRelease, ts1)
+		createCIJobRunTest(t, dbc, distractorRun.ID, distractorJob.ID, test.ID, &suite.ID, 12, distractorRelease, ts2)
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(sampleRelease)
@@ -1535,7 +1535,7 @@ func TestQueryBaseJobRunTestStatus(t *testing.T) {
 	release := "4.16"
 
 	vcAWS := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	jobAWS := createProwJobWithVC(t, dbc, "periodic-base-jr-aws", release, vcAWS)
+	jobAWS := createCIJobWithVC(t, dbc, "periodic-base-jr-aws", release, vcAWS)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-network] Base JR test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-base-jr")
@@ -1544,11 +1544,11 @@ func TestQueryBaseJobRunTestStatus(t *testing.T) {
 	ts1 := time.Date(2024, 5, 20, 12, 0, 0, 0, time.UTC)
 	ts2 := time.Date(2024, 5, 25, 12, 0, 0, 0, time.UTC)
 
-	run1 := createProwJobRunForCR(t, dbc, jobAWS.ID, release, ts1)
-	run2 := createProwJobRunForCR(t, dbc, jobAWS.ID, release, ts2)
+	run1 := createCIJobRunForCR(t, dbc, jobAWS.ID, release, ts1)
+	run2 := createCIJobRunForCR(t, dbc, jobAWS.ID, release, ts2)
 
-	createProwJobRunTest(t, dbc, run1.ID, jobAWS.ID, test.ID, &suite.ID, 1, release, ts1)
-	createProwJobRunTest(t, dbc, run2.ID, jobAWS.ID, test.ID, &suite.ID, 12, release, ts2)
+	createCIJobRunTest(t, dbc, run1.ID, jobAWS.ID, test.ID, &suite.ID, 1, release, ts1)
+	createCIJobRunTest(t, dbc, run2.ID, jobAWS.ID, test.ID, &suite.ID, 12, release, ts2)
 
 	provider := postgres.NewPostgresProvider(dbc, nil)
 	opts := defaultReqOptions(release)
@@ -1587,7 +1587,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-agg-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-agg-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] agg fallback test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-agg")
@@ -1601,7 +1601,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		createCumulativeSummary(t, dbc, baseLookupEnd, release, test.ID, job.ID, suite.ID, 100, 90, 5)
 		// expected: runs=20, successes=15, flakes=2
 
-		// No prow_job_run_tests rows created for this release
+		// No ci_job_run_tests rows created for this release
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -1645,7 +1645,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		gaStart := gaDate.AddDays(-windowDays)
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-ga-agg-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-ga-agg-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] GA agg fallback test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-ga-agg")
@@ -1653,7 +1653,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 
 		createGARawData(t, dbc, release, windowDays, test.ID, job.ID, suite.ID, 50, 45, 2)
 
-		// No prow_job_run_tests rows
+		// No ci_job_run_tests rows
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -1695,7 +1695,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-prec-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-prec-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] precedence test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-prec")
@@ -1707,13 +1707,13 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		createCumulativeSummary(t, dbc, baseLookupStart, release, test.ID, job.ID, suite.ID, 80, 75, 3)
 		createCumulativeSummary(t, dbc, baseLookupEnd, release, test.ID, job.ID, suite.ID, 100, 90, 5)
 
-		// Also create per-run data (prow_job_run_tests)
+		// Also create per-run data (ci_job_run_tests)
 		ts1 := time.Date(2024, 5, 20, 12, 0, 0, 0, time.UTC)
 		ts2 := time.Date(2024, 5, 25, 12, 0, 0, 0, time.UTC)
-		run1 := createProwJobRunForCR(t, dbc, job.ID, release, ts1)
-		run2 := createProwJobRunForCR(t, dbc, job.ID, release, ts2)
-		createProwJobRunTest(t, dbc, run1.ID, job.ID, test.ID, &suite.ID, 1, release, ts1)
-		createProwJobRunTest(t, dbc, run2.ID, job.ID, test.ID, &suite.ID, 12, release, ts2)
+		run1 := createCIJobRunForCR(t, dbc, job.ID, release, ts1)
+		run2 := createCIJobRunForCR(t, dbc, job.ID, release, ts2)
+		createCIJobRunTest(t, dbc, run1.ID, job.ID, test.ID, &suite.ID, 1, release, ts1)
+		createCIJobRunTest(t, dbc, run2.ID, job.ID, test.ID, &suite.ID, 12, release, ts2)
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -1746,8 +1746,8 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 
 		vcAWS := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 		vcGCP := createVariantCombination(t, dbc, []string{"Platform:gcp", "Network:sdn"})
-		jobAWS := createProwJobWithVC(t, dbc, "periodic-vf-aws", release, vcAWS)
-		jobGCP := createProwJobWithVC(t, dbc, "periodic-vf-gcp", release, vcGCP)
+		jobAWS := createCIJobWithVC(t, dbc, "periodic-vf-aws", release, vcAWS)
+		jobGCP := createCIJobWithVC(t, dbc, "periodic-vf-gcp", release, vcGCP)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] variant filter test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-vf")
@@ -1794,8 +1794,8 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 
 		vcAWSOvn := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 		vcAWSSdn := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:sdn"})
-		jobOvn := createProwJobWithVC(t, dbc, "periodic-rv-ovn", release, vcAWSOvn)
-		jobSdn := createProwJobWithVC(t, dbc, "periodic-rv-sdn", release, vcAWSSdn)
+		jobOvn := createCIJobWithVC(t, dbc, "periodic-rv-ovn", release, vcAWSOvn)
+		jobSdn := createCIJobWithVC(t, dbc, "periodic-rv-sdn", release, vcAWSSdn)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] requested variants test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-rv")
@@ -1842,8 +1842,8 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job1 := createProwJobWithVC(t, dbc, "periodic-multi-aws-1", release, vc)
-		job2 := createProwJobWithVC(t, dbc, "periodic-multi-aws-2", release, vc)
+		job1 := createCIJobWithVC(t, dbc, "periodic-multi-aws-1", release, vc)
+		job2 := createCIJobWithVC(t, dbc, "periodic-multi-aws-2", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] multi job test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-mj")
@@ -1873,8 +1873,8 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 
 		assert.Len(t, result, 2, "should have 2 separate job entries")
 
-		normalizedJob1 := utils.NormalizeProwJobName("periodic-multi-aws-1")
-		normalizedJob2 := utils.NormalizeProwJobName("periodic-multi-aws-2")
+		normalizedJob1 := utils.NormalizeCIJobName("periodic-multi-aws-1")
+		normalizedJob2 := utils.NormalizeCIJobName("periodic-multi-aws-2")
 
 		rows1, ok := result[normalizedJob1]
 		require.True(t, ok, "should have entry for job1")
@@ -1892,7 +1892,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-flag-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-flag-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] aggregate no-run-id test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-flag")
@@ -1930,15 +1930,15 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-notflag-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-notflag-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] per-run has-run-id test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-notflag")
 		tow := createTestOwnership(t, dbc, test.ID, &suite.ID, "openshift-tests:notflag-test", "Storage", []string{"PVC"})
 
 		ts := time.Date(2024, 5, 20, 12, 0, 0, 0, time.UTC)
-		run := createProwJobRunForCR(t, dbc, job.ID, release, ts)
-		createProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 1, release, ts)
+		run := createCIJobRunForCR(t, dbc, job.ID, release, ts)
+		createCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 1, release, ts)
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -1964,7 +1964,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-nosuite-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-nosuite-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] no suite test")
 		tow := createTestOwnership(t, dbc, test.ID, nil, "openshift-tests:no-suite", "Storage", []string{"PVC"})
@@ -2008,8 +2008,8 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		jobActive := createProwJobWithVC(t, dbc, "periodic-having-active", release, vc)
-		jobIdle := createProwJobWithVC(t, dbc, "periodic-having-idle", release, vc)
+		jobActive := createCIJobWithVC(t, dbc, "periodic-having-active", release, vc)
+		jobIdle := createCIJobWithVC(t, dbc, "periodic-having-idle", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] having filter test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-having")
@@ -2058,7 +2058,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-meta-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-meta-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] metadata fallback test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-meta")
@@ -2105,7 +2105,7 @@ func TestQueryBaseJobRunTestStatus_AggregateFallback(t *testing.T) {
 func TestQueryJobVariants(t *testing.T) {
 	dbc := crTestDB(t)
 
-	jobs := []models.ProwJob{
+	jobs := []models.CIJob{
 		{Name: "periodic-e2e-aws-ovn-ha", Release: "4.16", Variants: pq.StringArray{"Platform:aws", "Network:ovn", "Topology:ha"}},
 		{Name: "periodic-e2e-gcp-sdn-single", Release: "4.16", Variants: pq.StringArray{"Platform:gcp", "Network:sdn", "Topology:single"}},
 		{Name: "periodic-e2e-aws-sdn-ha", Release: "4.16", Variants: pq.StringArray{"Platform:aws", "Network:sdn", "Topology:ha"}},
@@ -2142,24 +2142,24 @@ func TestQueryJobRuns(t *testing.T) {
 
 		vcAWS := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 
-		periodicJob := createProwJobWithVC(t, dbc, "periodic-ci-aws-test", release, vcAWS)
-		releaseJob := createProwJobWithVC(t, dbc, "release-ci-aws-test", release, vcAWS)
-		pullJob := createProwJobWithVC(t, dbc, "pull-ci-aws-test", release, vcAWS)
+		periodicJob := createCIJobWithVC(t, dbc, "periodic-ci-aws-test", release, vcAWS)
+		releaseJob := createCIJobWithVC(t, dbc, "release-ci-aws-test", release, vcAWS)
+		pullJob := createCIJobWithVC(t, dbc, "pull-ci-aws-test", release, vcAWS)
 
 		ts1 := time.Date(2024, 6, 5, 12, 0, 0, 0, time.UTC)
 		ts2 := time.Date(2024, 6, 6, 12, 0, 0, 0, time.UTC)
 		ts3 := time.Date(2024, 6, 7, 12, 0, 0, 0, time.UTC)
 
 		// periodic: 2 runs, 1 success
-		createProwJobRunForCR(t, dbc, periodicJob.ID, release, ts1)
-		r2 := createProwJobRunForCR(t, dbc, periodicJob.ID, release, ts2)
+		createCIJobRunForCR(t, dbc, periodicJob.ID, release, ts1)
+		r2 := createCIJobRunForCR(t, dbc, periodicJob.ID, release, ts2)
 		require.NoError(t, dbc.DB.Model(&r2).Updates(map[string]any{"succeeded": false, "failed": true}).Error)
 
 		// release: 1 run, 1 success
-		createProwJobRunForCR(t, dbc, releaseJob.ID, release, ts1)
+		createCIJobRunForCR(t, dbc, releaseJob.ID, release, ts1)
 
 		// pull: 1 run (should be excluded by prefix filter)
-		createProwJobRunForCR(t, dbc, pullJob.ID, release, ts3)
+		createCIJobRunForCR(t, dbc, pullJob.ID, release, ts3)
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -2190,12 +2190,12 @@ func TestQueryJobRuns(t *testing.T) {
 		vcAWS := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 		vcGCP := createVariantCombination(t, dbc, []string{"Platform:gcp", "Network:sdn"})
 
-		awsJob := createProwJobWithVC(t, dbc, "periodic-ci-aws-vf", release, vcAWS)
-		gcpJob := createProwJobWithVC(t, dbc, "periodic-ci-gcp-vf", release, vcGCP)
+		awsJob := createCIJobWithVC(t, dbc, "periodic-ci-aws-vf", release, vcAWS)
+		gcpJob := createCIJobWithVC(t, dbc, "periodic-ci-gcp-vf", release, vcGCP)
 
 		ts := time.Date(2024, 6, 5, 12, 0, 0, 0, time.UTC)
-		createProwJobRunForCR(t, dbc, awsJob.ID, release, ts)
-		createProwJobRunForCR(t, dbc, gcpJob.ID, release, ts)
+		createCIJobRunForCR(t, dbc, awsJob.ID, release, ts)
+		createCIJobRunForCR(t, dbc, gcpJob.ID, release, ts)
 
 		provider := postgres.NewPostgresProvider(dbc, nil)
 		opts := defaultReqOptions(release)
@@ -2215,7 +2215,7 @@ func TestQueryJobRuns(t *testing.T) {
 func TestQueryUniqueVariantValues(t *testing.T) {
 	dbc := crTestDB(t)
 
-	jobs := []models.ProwJob{
+	jobs := []models.CIJob{
 		{Name: "periodic-uv-aws", Variants: pq.StringArray{"Platform:aws", "Network:ovn", "Architecture:amd64"}},
 		{Name: "periodic-uv-gcp", Variants: pq.StringArray{"Platform:gcp", "Network:sdn", "Architecture:arm64"}},
 	}
@@ -2253,8 +2253,8 @@ func TestQueryUniqueVariantValues(t *testing.T) {
 func TestQueryJobVariantValues(t *testing.T) {
 	dbc := crTestDB(t)
 
-	job1 := models.ProwJob{Name: "periodic-jvv-aws", Variants: pq.StringArray{"Platform:aws", "Network:ovn", "Topology:ha"}}
-	job2 := models.ProwJob{Name: "periodic-jvv-gcp", Variants: pq.StringArray{"Platform:gcp", "Network:sdn", "Topology:single"}}
+	job1 := models.CIJob{Name: "periodic-jvv-aws", Variants: pq.StringArray{"Platform:aws", "Network:ovn", "Topology:ha"}}
+	job2 := models.CIJob{Name: "periodic-jvv-gcp", Variants: pq.StringArray{"Platform:gcp", "Network:sdn", "Topology:single"}}
 	require.NoError(t, dbc.DB.Create(&job1).Error)
 	require.NoError(t, dbc.DB.Create(&job2).Error)
 
@@ -2287,7 +2287,7 @@ func TestQueryJobVariantValues(t *testing.T) {
 func TestLookupJobVariants(t *testing.T) {
 	dbc := crTestDB(t)
 
-	job := models.ProwJob{Name: "periodic-ljv-aws", Variants: pq.StringArray{"Platform:aws", "Network:ovn"}}
+	job := models.CIJob{Name: "periodic-ljv-aws", Variants: pq.StringArray{"Platform:aws", "Network:ovn"}}
 	require.NoError(t, dbc.DB.Create(&job).Error)
 
 	provider := postgres.NewPostgresProvider(dbc, nil)
@@ -2399,8 +2399,8 @@ func TestGAPathAggregatesMultipleJobs(t *testing.T) {
 
 	vc1 := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 	vc2 := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:sdn"})
-	job1 := createProwJobWithVC(t, dbc, "periodic-ga-multi-1", release, vc1)
-	job2 := createProwJobWithVC(t, dbc, "periodic-ga-multi-2", release, vc2)
+	job1 := createCIJobWithVC(t, dbc, "periodic-ga-multi-1", release, vc1)
+	job2 := createCIJobWithVC(t, dbc, "periodic-ga-multi-2", release, vc2)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] GA multi-job test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-ga-mj")
@@ -2442,7 +2442,7 @@ func TestMultipleTestsInSameComponent(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-multi", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-multi", release, vc)
 
 	testA := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] PVC create")
 	testB := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] PVC expand")
@@ -2497,8 +2497,8 @@ func TestBaseAggregatesMultipleJobsInSameVariantGroup(t *testing.T) {
 
 	vc1 := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 	vc2 := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:sdn"})
-	job1 := createProwJobWithVC(t, dbc, "periodic-base-agg-1", release, vc1)
-	job2 := createProwJobWithVC(t, dbc, "periodic-base-agg-2", release, vc2)
+	job1 := createCIJobWithVC(t, dbc, "periodic-base-agg-1", release, vc1)
+	job2 := createCIJobWithVC(t, dbc, "periodic-base-agg-2", release, vc2)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] base agg test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-bagg")
@@ -2542,7 +2542,7 @@ func TestTestDetailStatusMapping(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-status-map", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-status-map", release, vc)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] status mapping test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-sm")
@@ -2552,13 +2552,13 @@ func TestTestDetailStatusMapping(t *testing.T) {
 	failTS := time.Date(2024, 6, 6, 12, 0, 0, 0, time.UTC)
 	flakeTS := time.Date(2024, 6, 7, 12, 0, 0, 0, time.UTC)
 
-	passRun := createProwJobRunForCR(t, dbc, job.ID, release, passTS)
-	failRun := createProwJobRunForCR(t, dbc, job.ID, release, failTS)
-	flakeRun := createProwJobRunForCR(t, dbc, job.ID, release, flakeTS)
+	passRun := createCIJobRunForCR(t, dbc, job.ID, release, passTS)
+	failRun := createCIJobRunForCR(t, dbc, job.ID, release, failTS)
+	flakeRun := createCIJobRunForCR(t, dbc, job.ID, release, flakeTS)
 
-	createProwJobRunTest(t, dbc, passRun.ID, job.ID, test.ID, &suite.ID, 1, release, passTS)
-	createProwJobRunTest(t, dbc, failRun.ID, job.ID, test.ID, &suite.ID, 12, release, failTS)
-	createProwJobRunTest(t, dbc, flakeRun.ID, job.ID, test.ID, &suite.ID, 13, release, flakeTS)
+	createCIJobRunTest(t, dbc, passRun.ID, job.ID, test.ID, &suite.ID, 1, release, passTS)
+	createCIJobRunTest(t, dbc, failRun.ID, job.ID, test.ID, &suite.ID, 12, release, failTS)
+	createCIJobRunTest(t, dbc, flakeRun.ID, job.ID, test.ID, &suite.ID, 13, release, flakeTS)
 
 	provider := postgres.NewPostgresProvider(dbc, nil)
 	opts := defaultReqOptions(release)
@@ -2603,8 +2603,8 @@ func TestJobNameNormalizationMergesResults(t *testing.T) {
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 	// Two jobs whose names differ only by version number, which normalizes to the same key
-	job416 := createProwJobWithVC(t, dbc, "periodic-ci-4.16-e2e-aws", release, vc)
-	job417 := createProwJobWithVC(t, dbc, "periodic-ci-4.17-e2e-aws", release, vc)
+	job416 := createCIJobWithVC(t, dbc, "periodic-ci-4.16-e2e-aws", release, vc)
+	job417 := createCIJobWithVC(t, dbc, "periodic-ci-4.17-e2e-aws", release, vc)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] normalization test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-norm")
@@ -2613,11 +2613,11 @@ func TestJobNameNormalizationMergesResults(t *testing.T) {
 	ts1 := time.Date(2024, 6, 5, 12, 0, 0, 0, time.UTC)
 	ts2 := time.Date(2024, 6, 6, 12, 0, 0, 0, time.UTC)
 
-	run1 := createProwJobRunForCR(t, dbc, job416.ID, release, ts1)
-	run2 := createProwJobRunForCR(t, dbc, job417.ID, release, ts2)
+	run1 := createCIJobRunForCR(t, dbc, job416.ID, release, ts1)
+	run2 := createCIJobRunForCR(t, dbc, job417.ID, release, ts2)
 
-	createProwJobRunTest(t, dbc, run1.ID, job416.ID, test.ID, &suite.ID, 1, release, ts1)
-	createProwJobRunTest(t, dbc, run2.ID, job417.ID, test.ID, &suite.ID, 12, release, ts2)
+	createCIJobRunTest(t, dbc, run1.ID, job416.ID, test.ID, &suite.ID, 1, release, ts1)
+	createCIJobRunTest(t, dbc, run2.ID, job417.ID, test.ID, &suite.ID, 12, release, ts2)
 
 	provider := postgres.NewPostgresProvider(dbc, nil)
 	opts := defaultReqOptions(release)
@@ -2630,7 +2630,7 @@ func TestJobNameNormalizationMergesResults(t *testing.T) {
 
 	// Both "periodic-ci-4.16-e2e-aws" and "periodic-ci-4.17-e2e-aws" should normalize
 	// to "periodic-ci-X.X-e2e-aws" and merge under that single key
-	normalizedKey := utils.NormalizeProwJobName("periodic-ci-4.16-e2e-aws")
+	normalizedKey := utils.NormalizeCIJobName("periodic-ci-4.16-e2e-aws")
 	summaries, ok := result[normalizedKey]
 	require.True(t, ok, "both job runs should merge under normalized name %q", normalizedKey)
 	require.Len(t, summaries, 1, "both runs should summarize into 1 entry for the same test key")
@@ -2643,8 +2643,8 @@ func TestTestExistsInBaseButNotSample(t *testing.T) {
 	sampleRelease := "4.17"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	baseJob := createProwJobWithVC(t, dbc, "periodic-e2e-aws-base-only", baseRelease, vc)
-	sampleJob := createProwJobWithVC(t, dbc, "periodic-e2e-aws-sample-only", sampleRelease, vc)
+	baseJob := createCIJobWithVC(t, dbc, "periodic-e2e-aws-base-only", baseRelease, vc)
+	sampleJob := createCIJobWithVC(t, dbc, "periodic-e2e-aws-sample-only", sampleRelease, vc)
 
 	baseOnlyTest := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] base-only test")
 	sampleOnlyTest := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] sample-only test")
@@ -2737,7 +2737,7 @@ func TestSingleDayPeriod(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-1day", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-1day", release, vc)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] single day test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-1day")
@@ -2777,7 +2777,7 @@ func TestMinimumFailureWithCapabilityFilter(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-mfcap", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-mfcap", release, vc)
 
 	testHigh := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] high failure PVC test")
 	testLow := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] low failure PVC test")
@@ -2832,7 +2832,7 @@ func TestDrillDownBySecondaryCapability(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-cap2", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-cap2", release, vc)
 
 	// testShared has both PVC and IPv4 capabilities
 	testShared := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] shared cap test")
@@ -2882,7 +2882,7 @@ func TestCapabilitiesArrayOverlapFilter(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-capoverlap", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-capoverlap", release, vc)
 
 	testPVC := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] PVC overlap test")
 	testIPv4 := intutil.CreateTest(t, dbc, "openshift-tests:[sig-network] IPv4 overlap test")
@@ -2972,7 +2972,7 @@ func TestIgnoreDisruptionFilter(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-disruption", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-disruption", release, vc)
 
 	testDisruption := intutil.CreateTest(t, dbc, "openshift-tests:[sig-disruption] disruption test")
 	testStorage := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] PVC disruption test")
@@ -3064,7 +3064,7 @@ func TestMixedLifecycleRowsProduceCorrectCounts(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-lifecycle", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-lifecycle", release, vc)
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] PVC lifecycle test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 	tow := createTestOwnership(t, dbc, test.ID, &suite.ID, "openshift-tests:lifecycle", "Storage", []string{"PersistentVolumes"})
@@ -3111,7 +3111,7 @@ func TestLifecycleFilterExcludesInformingFromSample(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-lifecycle-filter", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-lifecycle-filter", release, vc)
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-network] informing filter test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 	tow := createTestOwnership(t, dbc, test.ID, &suite.ID, "openshift-tests:lifecycle-filter", "Networking", []string{"Connectivity"})
@@ -3242,7 +3242,7 @@ func TestInformingOnlyTestExcludedFromSamplePlaceholders(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-placeholder-lifecycle", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-placeholder-lifecycle", release, vc)
 
 	testBoth := intutil.CreateTest(t, dbc, "openshift-tests:[sig-network] test with both lifecycles")
 	testInformingOnly := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] informing-only test")
@@ -3305,8 +3305,8 @@ func TestCrossCompareWithLifecycleFilter(t *testing.T) {
 	vcHA := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:ha"})
 	vcSingle := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:single"})
 
-	jobHA := createProwJobWithVC(t, dbc, "periodic-e2e-aws-ha-lifecycle", release, vcHA)
-	jobSingle := createProwJobWithVC(t, dbc, "periodic-e2e-aws-single-lifecycle", release, vcSingle)
+	jobHA := createCIJobWithVC(t, dbc, "periodic-e2e-aws-ha-lifecycle", release, vcHA)
+	jobSingle := createCIJobWithVC(t, dbc, "periodic-e2e-aws-single-lifecycle", release, vcSingle)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] cross-compare lifecycle test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-ccl")
@@ -3376,13 +3376,13 @@ func TestTestDetailsReport_AggregateBaseStats(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-td-agg-aws", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-td-agg-aws", release, vc)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] aggregate base stats test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-td-agg")
 	tow := createTestOwnershipFull(t, dbc, test.ID, &suite.ID, "openshift-tests:td-agg", "Storage", []string{"PVC"}, uintPtr(42))
 
-	// Base: aggregate data only (cumulative summaries, no prow_job_run_tests)
+	// Base: aggregate data only (cumulative summaries, no ci_job_run_tests)
 	baseLookupStart := civil.Date{Year: 2024, Month: 5, Day: 14}
 	baseLookupEnd := civil.Date{Year: 2024, Month: 6, Day: 1}
 	// runs=20, successes=15, flakes=2
@@ -3395,15 +3395,15 @@ func TestTestDetailsReport_AggregateBaseStats(t *testing.T) {
 	sampleTS3 := time.Date(2024, 6, 7, 12, 0, 0, 0, time.UTC)
 	sampleTS4 := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 
-	run1 := createProwJobRunForCR(t, dbc, job.ID, release, sampleTS1)
-	run2 := createProwJobRunForCR(t, dbc, job.ID, release, sampleTS2)
-	run3 := createProwJobRunForCR(t, dbc, job.ID, release, sampleTS3)
-	run4 := createProwJobRunForCR(t, dbc, job.ID, release, sampleTS4)
+	run1 := createCIJobRunForCR(t, dbc, job.ID, release, sampleTS1)
+	run2 := createCIJobRunForCR(t, dbc, job.ID, release, sampleTS2)
+	run3 := createCIJobRunForCR(t, dbc, job.ID, release, sampleTS3)
+	run4 := createCIJobRunForCR(t, dbc, job.ID, release, sampleTS4)
 
-	createProwJobRunTest(t, dbc, run1.ID, job.ID, test.ID, &suite.ID, 1, release, sampleTS1)
-	createProwJobRunTest(t, dbc, run2.ID, job.ID, test.ID, &suite.ID, 1, release, sampleTS2)
-	createProwJobRunTest(t, dbc, run3.ID, job.ID, test.ID, &suite.ID, 1, release, sampleTS3)
-	createProwJobRunTest(t, dbc, run4.ID, job.ID, test.ID, &suite.ID, 12, release, sampleTS4)
+	createCIJobRunTest(t, dbc, run1.ID, job.ID, test.ID, &suite.ID, 1, release, sampleTS1)
+	createCIJobRunTest(t, dbc, run2.ID, job.ID, test.ID, &suite.ID, 1, release, sampleTS2)
+	createCIJobRunTest(t, dbc, run3.ID, job.ID, test.ID, &suite.ID, 1, release, sampleTS3)
+	createCIJobRunTest(t, dbc, run4.ID, job.ID, test.ID, &suite.ID, 12, release, sampleTS4)
 
 	variants := map[string]string{"Platform": "aws", "Network": "ovn"}
 	opts := testDetailsReqOptions(tow.UniqueID, variants)
@@ -3441,7 +3441,7 @@ func TestTestDetailsReport_LastFailureTracking(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-td-lf-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-td-lf-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] last failure tracking test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-td-lf")
@@ -3458,13 +3458,13 @@ func TestTestDetailsReport_LastFailureTracking(t *testing.T) {
 		failTS := time.Date(2024, 6, 8, 14, 30, 0, 0, time.UTC)
 		passTS2 := time.Date(2024, 6, 10, 12, 0, 0, 0, time.UTC)
 
-		runPass1 := createProwJobRunForCR(t, dbc, job.ID, release, passTS1)
-		runFail := createProwJobRunForCR(t, dbc, job.ID, release, failTS)
-		runPass2 := createProwJobRunForCR(t, dbc, job.ID, release, passTS2)
+		runPass1 := createCIJobRunForCR(t, dbc, job.ID, release, passTS1)
+		runFail := createCIJobRunForCR(t, dbc, job.ID, release, failTS)
+		runPass2 := createCIJobRunForCR(t, dbc, job.ID, release, passTS2)
 
-		createProwJobRunTest(t, dbc, runPass1.ID, job.ID, test.ID, &suite.ID, 1, release, passTS1)
-		createProwJobRunTest(t, dbc, runFail.ID, job.ID, test.ID, &suite.ID, 12, release, failTS)
-		createProwJobRunTest(t, dbc, runPass2.ID, job.ID, test.ID, &suite.ID, 1, release, passTS2)
+		createCIJobRunTest(t, dbc, runPass1.ID, job.ID, test.ID, &suite.ID, 1, release, passTS1)
+		createCIJobRunTest(t, dbc, runFail.ID, job.ID, test.ID, &suite.ID, 12, release, failTS)
+		createCIJobRunTest(t, dbc, runPass2.ID, job.ID, test.ID, &suite.ID, 1, release, passTS2)
 
 		variants := map[string]string{"Platform": "aws", "Network": "ovn"}
 		opts := testDetailsReqOptions(tow.UniqueID, variants)
@@ -3486,7 +3486,7 @@ func TestTestDetailsReport_LastFailureTracking(t *testing.T) {
 		release := "4.16"
 
 		vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-		job := createProwJobWithVC(t, dbc, "periodic-td-lf-pass-aws", release, vc)
+		job := createCIJobWithVC(t, dbc, "periodic-td-lf-pass-aws", release, vc)
 
 		test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] last failure nil test")
 		suite := intutil.CreateSuite(t, dbc, "openshift-tests-td-lf-pass")
@@ -3502,11 +3502,11 @@ func TestTestDetailsReport_LastFailureTracking(t *testing.T) {
 		passTS1 := time.Date(2024, 6, 5, 12, 0, 0, 0, time.UTC)
 		passTS2 := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 
-		runPass1 := createProwJobRunForCR(t, dbc, job.ID, release, passTS1)
-		runPass2 := createProwJobRunForCR(t, dbc, job.ID, release, passTS2)
+		runPass1 := createCIJobRunForCR(t, dbc, job.ID, release, passTS1)
+		runPass2 := createCIJobRunForCR(t, dbc, job.ID, release, passTS2)
 
-		createProwJobRunTest(t, dbc, runPass1.ID, job.ID, test.ID, &suite.ID, 1, release, passTS1)
-		createProwJobRunTest(t, dbc, runPass2.ID, job.ID, test.ID, &suite.ID, 1, release, passTS2)
+		createCIJobRunTest(t, dbc, runPass1.ID, job.ID, test.ID, &suite.ID, 1, release, passTS1)
+		createCIJobRunTest(t, dbc, runPass2.ID, job.ID, test.ID, &suite.ID, 1, release, passTS2)
 
 		variants := map[string]string{"Platform": "aws", "Network": "ovn"}
 		opts := testDetailsReqOptions(tow.UniqueID, variants)
@@ -3526,7 +3526,7 @@ func TestTestDetailsReport_FlakeAsFailure(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-td-faf-aws", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-td-faf-aws", release, vc)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] flake as failure test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-td-faf")
@@ -3543,14 +3543,14 @@ func TestTestDetailsReport_FlakeAsFailure(t *testing.T) {
 	baseTS8 := time.Date(2024, 5, 23, 12, 0, 0, 0, time.UTC)
 
 	for _, ts := range []time.Time{baseTS1, baseTS2, baseTS3, baseTS4, baseTS5} {
-		run := createProwJobRunForCR(t, dbc, job.ID, release, ts)
-		createProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 1, release, ts)
+		run := createCIJobRunForCR(t, dbc, job.ID, release, ts)
+		createCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 1, release, ts)
 	}
-	baseFailRun := createProwJobRunForCR(t, dbc, job.ID, release, baseTS6)
-	createProwJobRunTest(t, dbc, baseFailRun.ID, job.ID, test.ID, &suite.ID, 12, release, baseTS6)
+	baseFailRun := createCIJobRunForCR(t, dbc, job.ID, release, baseTS6)
+	createCIJobRunTest(t, dbc, baseFailRun.ID, job.ID, test.ID, &suite.ID, 12, release, baseTS6)
 	for _, ts := range []time.Time{baseTS7, baseTS8} {
-		run := createProwJobRunForCR(t, dbc, job.ID, release, ts)
-		createProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 13, release, ts)
+		run := createCIJobRunForCR(t, dbc, job.ID, release, ts)
+		createCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 13, release, ts)
 	}
 
 	// Sample: per-run data with flakes (4 passes, 1 failure, 1 flake)
@@ -3562,13 +3562,13 @@ func TestTestDetailsReport_FlakeAsFailure(t *testing.T) {
 	sampleTS6 := time.Date(2024, 6, 10, 12, 0, 0, 0, time.UTC)
 
 	for _, ts := range []time.Time{sampleTS1, sampleTS2, sampleTS3, sampleTS4} {
-		run := createProwJobRunForCR(t, dbc, job.ID, release, ts)
-		createProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 1, release, ts)
+		run := createCIJobRunForCR(t, dbc, job.ID, release, ts)
+		createCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, &suite.ID, 1, release, ts)
 	}
-	sampleFailRun := createProwJobRunForCR(t, dbc, job.ID, release, sampleTS5)
-	createProwJobRunTest(t, dbc, sampleFailRun.ID, job.ID, test.ID, &suite.ID, 12, release, sampleTS5)
-	sampleFlakeRun := createProwJobRunForCR(t, dbc, job.ID, release, sampleTS6)
-	createProwJobRunTest(t, dbc, sampleFlakeRun.ID, job.ID, test.ID, &suite.ID, 13, release, sampleTS6)
+	sampleFailRun := createCIJobRunForCR(t, dbc, job.ID, release, sampleTS5)
+	createCIJobRunTest(t, dbc, sampleFailRun.ID, job.ID, test.ID, &suite.ID, 12, release, sampleTS5)
+	sampleFlakeRun := createCIJobRunForCR(t, dbc, job.ID, release, sampleTS6)
+	createCIJobRunTest(t, dbc, sampleFlakeRun.ID, job.ID, test.ID, &suite.ID, 13, release, sampleTS6)
 
 	variants := map[string]string{"Platform": "aws", "Network": "ovn"}
 
@@ -3618,7 +3618,7 @@ func TestGenerateReport_NoRegression(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-noreg", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-noreg", release, vc)
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] no regression test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-noreg")
 	createTestOwnership(t, dbc, test.ID, &suite.ID, "openshift-tests:noreg", "Storage", []string{"PVC"})
@@ -3666,7 +3666,7 @@ func TestGenerateReport_RegressionDetected(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-reg", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-reg", release, vc)
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] regression test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-reg")
 	createTestOwnership(t, dbc, test.ID, &suite.ID, "openshift-tests:reg-test", "Storage", []string{"PVC"})
@@ -3711,8 +3711,8 @@ func TestGenerateReport_DifferentReleases(t *testing.T) {
 	sampleRelease := "4.17"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	baseJob := createProwJobWithVC(t, dbc, "periodic-e2e-aws-base-xr-report", baseRelease, vc)
-	sampleJob := createProwJobWithVC(t, dbc, "periodic-e2e-aws-sample-xr-report", sampleRelease, vc)
+	baseJob := createCIJobWithVC(t, dbc, "periodic-e2e-aws-base-xr-report", baseRelease, vc)
+	sampleJob := createCIJobWithVC(t, dbc, "periodic-e2e-aws-sample-xr-report", sampleRelease, vc)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] cross-release report test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-xr-report")
@@ -3780,8 +3780,8 @@ func TestGenerateReport_MissingSampleAndBasis(t *testing.T) {
 	sampleRelease := "4.17"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	baseJob := createProwJobWithVC(t, dbc, "periodic-base-missing-report", baseRelease, vc)
-	sampleJob := createProwJobWithVC(t, dbc, "periodic-sample-missing-report", sampleRelease, vc)
+	baseJob := createCIJobWithVC(t, dbc, "periodic-base-missing-report", baseRelease, vc)
+	sampleJob := createCIJobWithVC(t, dbc, "periodic-sample-missing-report", sampleRelease, vc)
 
 	baseOnlyTest := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] base-only report test")
 	sampleOnlyTest := intutil.CreateTest(t, dbc, "openshift-tests:[sig-network] sample-only report test")
@@ -3863,8 +3863,8 @@ func TestGenerateReport_VariantGroupingCollapse(t *testing.T) {
 
 	vc1 := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:ha"})
 	vc2 := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:single"})
-	job1 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-ha-grp", release, vc1)
-	job2 := createProwJobWithVC(t, dbc, "periodic-e2e-aws-single-grp", release, vc2)
+	job1 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-ha-grp", release, vc1)
+	job2 := createCIJobWithVC(t, dbc, "periodic-e2e-aws-single-grp", release, vc2)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] grouping report test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-grp-report")
@@ -3921,8 +3921,8 @@ func TestGenerateReport_CrossVariantCompare(t *testing.T) {
 
 	vcHA := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:ha"})
 	vcSingle := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:single"})
-	jobHA := createProwJobWithVC(t, dbc, "periodic-e2e-aws-ha-xv-report", release, vcHA)
-	jobSingle := createProwJobWithVC(t, dbc, "periodic-e2e-aws-single-xv-report", release, vcSingle)
+	jobHA := createCIJobWithVC(t, dbc, "periodic-e2e-aws-ha-xv-report", release, vcHA)
+	jobSingle := createCIJobWithVC(t, dbc, "periodic-e2e-aws-single-xv-report", release, vcSingle)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] cross-variant report test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-xv-report")
@@ -3989,9 +3989,9 @@ func TestGenerateReport_DisjointVariantsBetweenBaseAndSample(t *testing.T) {
 	vcAWS := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
 	vcGCP := createVariantCombination(t, dbc, []string{"Platform:gcp", "Network:sdn"})
 
-	baseJob := createProwJobWithVC(t, dbc, "periodic-disjoint-base-aws", baseRelease, vcAWS)
-	sampleJobAWS := createProwJobWithVC(t, dbc, "periodic-disjoint-sample-aws", sampleRelease, vcAWS)
-	sampleJobGCP := createProwJobWithVC(t, dbc, "periodic-disjoint-sample-gcp", sampleRelease, vcGCP)
+	baseJob := createCIJobWithVC(t, dbc, "periodic-disjoint-base-aws", baseRelease, vcAWS)
+	sampleJobAWS := createCIJobWithVC(t, dbc, "periodic-disjoint-sample-aws", sampleRelease, vcAWS)
+	sampleJobGCP := createCIJobWithVC(t, dbc, "periodic-disjoint-sample-gcp", sampleRelease, vcGCP)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] disjoint variants test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-disjoint")
@@ -4067,8 +4067,8 @@ func TestGenerateReport_EmptyBaseLookupStillReturnsSampleResults(t *testing.T) {
 	// The sample side uses CompareVariants which requests Topology:ha.
 	vcHA := createVariantCombination(t, dbc, []string{"Platform:aws", "Topology:ha"})
 
-	baseJob := createProwJobWithVC(t, dbc, "periodic-empty-base-lookup-base", baseRelease, vcHA)
-	sampleJob := createProwJobWithVC(t, dbc, "periodic-empty-base-lookup-sample", sampleRelease, vcHA)
+	baseJob := createCIJobWithVC(t, dbc, "periodic-empty-base-lookup-base", baseRelease, vcHA)
+	sampleJob := createCIJobWithVC(t, dbc, "periodic-empty-base-lookup-sample", sampleRelease, vcHA)
 
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] empty base lookup test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-empty-base-lookup")
@@ -4144,8 +4144,8 @@ func TestGenerateReport_GABasePath(t *testing.T) {
 	gaStart := gaCivil.AddDays(-windowDays)
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	baseJob := createProwJobWithVC(t, dbc, "periodic-ga-base-report", baseRelease, vc)
-	sampleJob := createProwJobWithVC(t, dbc, "periodic-ga-sample-report", sampleRelease, vc)
+	baseJob := createCIJobWithVC(t, dbc, "periodic-ga-base-report", baseRelease, vc)
+	sampleJob := createCIJobWithVC(t, dbc, "periodic-ga-sample-report", sampleRelease, vc)
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] GA report test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-ga-report")
 	createTestOwnership(t, dbc, test.ID, &suite.ID, "openshift-tests:ga-report", "Storage", []string{"PVC"})
@@ -4206,7 +4206,7 @@ func TestGenerateReport_LifecycleFilter(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-lc-report", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-lc-report", release, vc)
 	test := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] lifecycle report test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests-lc-report")
 	createTestOwnership(t, dbc, test.ID, &suite.ID, "openshift-tests:lc-report", "Storage", []string{"PVC"})
@@ -4261,7 +4261,7 @@ func TestGenerateReport_MinimumFailureThreshold(t *testing.T) {
 	release := "4.16"
 
 	vc := createVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := createProwJobWithVC(t, dbc, "periodic-e2e-aws-mf-report", release, vc)
+	job := createCIJobWithVC(t, dbc, "periodic-e2e-aws-mf-report", release, vc)
 
 	testHigh := intutil.CreateTest(t, dbc, "openshift-tests:[sig-storage] high failure report test")
 	testLow := intutil.CreateTest(t, dbc, "openshift-tests:[sig-network] low failure report test")

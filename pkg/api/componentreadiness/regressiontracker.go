@@ -111,7 +111,7 @@ func (prs *PostgresRegressionStore) MergeJobRuns(regressionID uint, jobRuns []mo
 	for i := range jobRuns {
 		jobRuns[i].RegressionID = regressionID
 		res := prs.dbc.DB.
-			Where("regression_id = ? AND prow_job_run_id = ?", regressionID, jobRuns[i].ProwJobRunID).
+			Where("regression_id = ? AND ci_job_run_id = ?", regressionID, jobRuns[i].CIJobRunID).
 			Assign(models.RegressionJobRun{
 				JobLabels:   jobRuns[i].JobLabels,
 				JobSymptoms: jobRuns[i].JobSymptoms,
@@ -119,7 +119,7 @@ func (prs *PostgresRegressionStore) MergeJobRuns(regressionID uint, jobRuns []mo
 			FirstOrCreate(&jobRuns[i])
 		if res.Error != nil {
 			return fmt.Errorf("error merging job run %s for regression %d: %w",
-				jobRuns[i].ProwJobRunID, regressionID, res.Error)
+				jobRuns[i].CIJobRunID, regressionID, res.Error)
 		}
 	}
 	return nil
@@ -414,9 +414,9 @@ func FailedJobRunsFromTestDetails(report testdetails.Report) []models.Regression
 					continue
 				}
 				jobRun := models.RegressionJobRun{
-					ProwJobRunID: run.JobRunID,
-					ProwJobName:  jobStat.SampleJobName,
-					ProwJobURL:   run.JobURL,
+					CIJobRunID: run.JobRunID,
+					CIJobName:  jobStat.SampleJobName,
+					CIJobURL:   run.JobURL,
 					StartTime:    run.StartTime.In(time.UTC),
 					TestFailures: run.TestFailures,
 					JobLabels:    pq.StringArray(run.JobLabels),

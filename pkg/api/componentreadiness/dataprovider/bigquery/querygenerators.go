@@ -1052,7 +1052,7 @@ func fetchJobRunTestStatusResults(ctx context.Context, logger log.FieldLogger, q
 			errs = append(errs, err2)
 			continue
 		}
-		prowName := utils.NormalizeProwJobName(jobRunTestStatusRow.ProwJob)
+		prowName := utils.NormalizeCIJobName(jobRunTestStatusRow.CIJob)
 		status[prowName] = append(status[prowName], jobRunTestStatusRow)
 	}
 	return status, errs
@@ -1081,12 +1081,12 @@ func deserializeRowToJobRunTestReportStatus(row []bigquery.Value, schema bigquer
 		case col == "flake_count":
 			cts.FlakeCount = int(row[i].(int64))
 		case col == "prowjob_name":
-			cts.ProwJob = row[i].(string)
+			cts.CIJob = row[i].(string)
 		case col == "prowjob_run_id":
-			cts.ProwJobRunID = row[i].(string)
+			cts.CIJobRunID = row[i].(string)
 		case col == "prowjob_url":
 			if row[i] != nil {
-				cts.ProwJobURL = row[i].(string)
+				cts.CIJobURL = row[i].(string)
 			}
 		case col == "prowjob_start":
 			switch v := row[i].(type) {

@@ -25,7 +25,7 @@ func TestBuildJobMap(t *testing.T) {
 	aw := AnalysisWorker{gcsBucket: gcsBucket}
 	logrus.SetLevel(logrus.DebugLevel)
 	logger := logrus.WithContext(context.TODO())
-	runs := aw.buildProwJobRuns(logger, "pr-logs/pull/29501/pull-ci-openshift-origin-master-e2e-aws-ovn-edge-zones/")
+	runs := aw.buildCIJobRuns(logger, "pr-logs/pull/29501/pull-ci-openshift-origin-master-e2e-aws-ovn-edge-zones/")
 	if assert.Greater(t, len(runs), 1, "expect multiple job runs") {
 		cmpTime := time.Now() // expect these to be sorted by decreasing start time
 		for _, run := range runs {
@@ -46,7 +46,7 @@ func TestAssessJobRisks(t *testing.T) {
 	// Initialize GCS client and look up known job in the bucket
 	bucket := util.GetGcsBucket(t)
 	aw := AnalysisWorker{gcsBucket: bucket, newTestsWorker: ntw}
-	jobRuns := aw.buildProwJobRuns(logger, "pr-logs/pull/29512/pull-ci-openshift-origin-master-e2e-aws-ovn-single-node/")
+	jobRuns := aw.buildCIJobRuns(logger, "pr-logs/pull/29512/pull-ci-openshift-origin-master-e2e-aws-ovn-single-node/")
 	numRuns := len(jobRuns)
 	if !assert.True(t, numRuns > 0, "Failed to load job runs") {
 		return
@@ -80,12 +80,12 @@ func TestAssessJobRisks(t *testing.T) {
 	// Wrap fetchJobRun to alternately drop new tests, simulating a test missing in some runs
 	realFetch := ntw.fetchJobRun
 	sawPrevious := map[string]bool{}
-	ntw.fetchJobRun = func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.ProwJobRun, error) {
+	ntw.fetchJobRun = func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.CIJobRun, error) {
 		jr, err := realFetch(dbc, jobRunID, onlyNewTests, preloads, logger)
 		if err != nil || jr == nil {
 			return jr, err
 		}
-		var filtered []models.ProwJobRunTest
+		var filtered []models.CIJobRunTest
 		for _, test := range jr.Tests {
 			sawPrevious[test.Test.Name] = !sawPrevious[test.Test.Name]
 			if sawPrevious[test.Test.Name] {
@@ -132,18 +132,18 @@ func TestAssessCrossJobRisks(t *testing.T) {
 	// Wrap fetchJobRun to only return new tests for one specific job
 	targetJob := "pull-ci-openshift-origin-master-e2e-aws-ovn-single-node"
 	realFetch := ntw.fetchJobRun
-	ntw.fetchJobRun = func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.ProwJobRun, error) {
+	ntw.fetchJobRun = func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.CIJobRun, error) {
 		jr, err := realFetch(dbc, jobRunID, onlyNewTests, preloads, logger)
 		if err != nil || jr == nil {
 			return jr, err
 		}
-		if jr.ProwJob.Name != targetJob {
+		if jr.CIJob.Name != targetJob {
 			jr.Tests = nil
 		}
 		return jr, nil
 	}
 	for idx, jobInfo := range completedJobs {
-		completedJobs[idx].prowJobRuns = aw.buildProwJobRuns(logger, jobInfo.bucketPrefix)
+		completedJobs[idx].ciJobRuns = aw.buildCIJobRuns(logger, jobInfo.bucketPrefix)
 		completedJobs[idx].prShaSum = "8849ed78d4c51e2add729a68a2cbf8551c6d60c9" // so we can check whether runs are against the expected PR commit
 	}
 	risks := ntw.analyzeRisks(logger, completedJobs)
@@ -249,19 +249,19 @@ func TestUnit_getNewTestsForJobRun(t *testing.T) {
 	}
 	tests := []struct {
 		name          string
-		fetchJobRun   func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.ProwJobRun, error)
+		fetchJobRun   func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.CIJobRun, error)
 		expectedTests []NewTest
 		expectedError error
 	}{
 		{
 			name: "successful fetch",
-			fetchJobRun: func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.ProwJobRun, error) {
-				pjr := models.ProwJobRun{
-					ProwJobRelease: "4.12",
-					Tests: []models.ProwJobRunTest{
-						{ProwJobID: 1, ProwJobRunRelease: "4.12", Test: models.Test{Name: "test1"}, Status: int(v1.TestStatusSuccess)},
-						{ProwJobID: 1, ProwJobRunRelease: "4.12", Test: models.Test{Name: "test2"}, Status: int(v1.TestStatusFailure)},
-						{ProwJobID: 1, ProwJobRunRelease: "4.12", Test: models.Test{Name: "test3"}, Status: int(v1.TestStatusFlake)},
+			fetchJobRun: func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.CIJobRun, error) {
+				pjr := models.CIJobRun{
+					CIJobRelease: "4.12",
+					Tests: []models.CIJobRunTest{
+						{CIJobID: 1, CIJobRunRelease: "4.12", Test: models.Test{Name: "test1"}, Status: int(v1.TestStatusSuccess)},
+						{CIJobID: 1, CIJobRunRelease: "4.12", Test: models.Test{Name: "test2"}, Status: int(v1.TestStatusFailure)},
+						{CIJobID: 1, CIJobRunRelease: "4.12", Test: models.Test{Name: "test3"}, Status: int(v1.TestStatusFlake)},
 					},
 				}
 				pjr.ID = 12345 // Gorm model ID for some reason can't be put in the struct literal
@@ -276,7 +276,7 @@ func TestUnit_getNewTestsForJobRun(t *testing.T) {
 		},
 		{
 			name: "jobRun run not found",
-			fetchJobRun: func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.ProwJobRun, error) {
+			fetchJobRun: func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.CIJobRun, error) {
 				return nil, gorm.ErrRecordNotFound
 			},
 			expectedTests: nil,
@@ -284,7 +284,7 @@ func TestUnit_getNewTestsForJobRun(t *testing.T) {
 		},
 		{
 			name: "error fetching jobRun run",
-			fetchJobRun: func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.ProwJobRun, error) {
+			fetchJobRun: func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.CIJobRun, error) {
 				return nil, errors.New("fetch error")
 			},
 			expectedTests: nil,
@@ -308,10 +308,10 @@ func TestUnit_getNewTestsForJobRun(t *testing.T) {
 type jobRunUnfiltered struct{}
 
 func (n *jobRunUnfiltered) OnlyLatestSha(_ *logrus.Entry, jobInfo prJobInfo) []*prow.ProwJob {
-	return jobInfo.prowJobRuns
+	return jobInfo.ciJobRuns
 }
 
-func (n *jobRunUnfiltered) JobFailedEarly(_ *logrus.Entry, _ *models.ProwJobRun) bool {
+func (n *jobRunUnfiltered) JobFailedEarly(_ *logrus.Entry, _ *models.CIJobRun) bool {
 	return false
 }
 

@@ -26,7 +26,7 @@ export default function TriagedTestJobRuns(props) {
         <Table>
           <TableHead>
             <TableRow>
-              {tableCell('ProwJob Name', 0)}
+              {tableCell('CI Job Name', 0)}
               {tableCell('Failed Job Runs', 1)}
             </TableRow>
           </TableHead>

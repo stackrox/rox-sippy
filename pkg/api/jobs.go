@@ -254,21 +254,21 @@ func (jobs jobDetailAPIResult) limit(req *http.Request) jobDetailAPIResult {
 }
 
 // JobDetailsReport runs the job details query for the half-open date range [start, end).
-func JobDetailsReport(dbc *db.DB, release, jobSearchStr string, start, end civil.Date) ([]*models.ProwJobRun, error) {
-	prowJobRuns := make([]*models.ProwJobRun, 0)
-	res := dbc.DB.Joins("ProwJob").
+func JobDetailsReport(dbc *db.DB, release, jobSearchStr string, start, end civil.Date) ([]*models.CIJobRun, error) {
+	ciJobRuns := make([]*models.CIJobRun, 0)
+	res := dbc.DB.Joins("CIJob").
 		Where("name LIKE ?", "%"+jobSearchStr+"%").
-		Where("prow_job_release = ?", release).
+		Where("ci_job_release = ?", release).
 		Where("timestamp >= ? AND timestamp < ?", start, end).
 		Where("release = ?", release).
-		Preload("Tests", "status = ? AND prow_job_run_release = ? AND prow_job_run_timestamp >= ? AND prow_job_run_timestamp < ?", 12, release, start, end).
+		Preload("Tests", "status = ? AND ci_job_run_release = ? AND ci_job_run_timestamp >= ? AND ci_job_run_timestamp < ?", 12, release, start, end).
 		Preload("Tests.Test").
-		Find(&prowJobRuns)
+		Find(&ciJobRuns)
 	if res.Error != nil {
 		return nil, res.Error
 	}
-	log.WithFields(log.Fields{"prowJobRuns": len(prowJobRuns), "start": start, "end": end}).Info("loaded ProwJobRuns from db")
-	return prowJobRuns, nil
+	log.WithFields(log.Fields{"ciJobRuns": len(ciJobRuns), "start": start, "end": end}).Info("loaded CIJobRuns from db")
+	return ciJobRuns, nil
 }
 
 const jobDetailsLookbackDays = 14
@@ -278,15 +278,15 @@ func PrintJobDetailsReportFromDB(w http.ResponseWriter, req *http.Request, dbc *
 	end := civil.DateOf(reportEnd.UTC())
 	start := end.AddDays(-jobDetailsLookbackDays)
 
-	prowJobRuns, err := JobDetailsReport(dbc, release, jobSearchStr, start, end.AddDays(1))
+	ciJobRuns, err := JobDetailsReport(dbc, release, jobSearchStr, start, end.AddDays(1))
 	if err != nil {
-		log.Errorf("error querying %s ProwJobRuns from db: %v", jobSearchStr, err)
+		log.Errorf("error querying %s CIJobRuns from db: %v", jobSearchStr, err)
 		return err
 	}
 
 	jobDetails := map[string]*jobDetail{}
-	for _, pjr := range prowJobRuns {
-		jobName := pjr.ProwJob.Name
+	for _, pjr := range ciJobRuns {
+		jobName := pjr.CIJob.Name
 		if _, ok := jobDetails[jobName]; !ok {
 			jobDetails[jobName] = &jobDetail{Name: jobName, Results: []v1sippyprocessing.JobRunResult{}}
 		}

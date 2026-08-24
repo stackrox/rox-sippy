@@ -80,7 +80,7 @@ const (
 	BugLoaderFetchBugs                  QueryValue = "bug-loader-fetch-bugs"
 	BugLoaderTestBugs                   QueryValue = "bug-loader-test-bugs"
 	BugLoaderJobBugs                    QueryValue = "bug-loader-job-bugs"
-	ProwLoaderProwJobs                  QueryValue = "prow-loader-prow-jobs"
+	ProwLoaderCIJobs                  QueryValue = "prow-loader-prow-jobs"
 	ProwLoaderJobLabels                 QueryValue = "prow-loader-job-labels"
 	VariantRegistryDeleteJobBatch       QueryValue = "variant-registry-delete-job-batch"
 	VariantRegistryDeleteVariant        QueryValue = "variant-registry-delete-variant"

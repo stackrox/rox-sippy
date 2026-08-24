@@ -40,7 +40,7 @@ const LabelInfraFailure = "InfraFailure"
 // (RowsAffected == 0), which the caller treats as an idempotent no-op because
 // the subtraction has already been performed.
 const setInfraFailureLabelSQL = `
-UPDATE prow_job_runs
+UPDATE ci_job_runs
 SET labels = array_append(labels, 'InfraFailure')
 WHERE id = ?
   AND (labels IS NULL OR NOT (labels @> ARRAY['InfraFailure']))`
@@ -53,7 +53,7 @@ WHERE id = ?
 // The grouping matches the write path (pgwriter.createBatchDeltas and
 // dailysummary.insertSQL) exactly so the subtraction targets the same rows the
 // addition created: keyed by (release, date, test_id, suite_id, lifecycle,
-// prow_job_id), using date(prow_job_run_timestamp) with no timezone conversion
+// ci_job_id), using date(ci_job_run_timestamp) with no timezone conversion
 // and COALESCE(suite_id, 0). Status values are 1=success, 12=failure,
 // 13=flake (see sippyprocessing/v1 TestStatus constants).
 //
@@ -63,22 +63,22 @@ WHERE id = ?
 const createDeltasTempTableSQL = `
 CREATE TEMP TABLE infra_failure_deltas ON COMMIT DROP AS
 SELECT
-	prow_job_run_release AS release,
-	date(prow_job_run_timestamp) AS date,
+	ci_job_run_release AS release,
+	date(ci_job_run_timestamp) AS date,
 	test_id,
 	COALESCE(suite_id, 0) AS suite_id,
 	lifecycle,
-	prow_job_id,
+	ci_job_id,
 	COUNT(*) FILTER (WHERE status = 1) AS successes,
 	COUNT(*) FILTER (WHERE status = 12) AS failures,
 	COUNT(*) FILTER (WHERE status = 13) AS flakes,
 	COUNT(*) AS runs
-FROM prow_job_run_tests
-WHERE prow_job_run_id = ? AND deleted_at IS NULL
-	AND prow_job_run_release = ?
-	AND prow_job_run_timestamp = ?
-GROUP BY prow_job_run_release, date(prow_job_run_timestamp), test_id,
-	COALESCE(suite_id, 0), lifecycle, prow_job_id`
+FROM ci_job_run_tests
+WHERE ci_job_run_id = ? AND deleted_at IS NULL
+	AND ci_job_run_release = ?
+	AND ci_job_run_timestamp = ?
+GROUP BY ci_job_run_release, date(ci_job_run_timestamp), test_id,
+	COALESCE(suite_id, 0), lifecycle, ci_job_id`
 
 // subtractDailyTotalsSQL removes the run's per-day counts from
 // test_daily_totals for each affected summary key, reading the deltas from the
@@ -95,7 +95,7 @@ WHERE dt.release = d.release
 	AND dt.test_id = d.test_id
 	AND dt.suite_id = d.suite_id
 	AND dt.lifecycle = d.lifecycle
-	AND dt.prow_job_id = d.prow_job_id`
+	AND dt.ci_job_id = d.ci_job_id`
 
 // subtractCumulativeSummariesSQL cascades the same subtraction into the
 // cumulative prefix sums, reading the deltas from the materialized temp table.
@@ -113,7 +113,7 @@ WHERE cs.release = d.release
 	AND cs.test_id = d.test_id
 	AND cs.suite_id = d.suite_id
 	AND cs.lifecycle = d.lifecycle
-	AND cs.prow_job_id = d.prow_job_id
+	AND cs.ci_job_id = d.ci_job_id
 	AND cs.date >= d.date`
 
 // RecordInfraFailure marks a prow job run as an infrastructure failure and
@@ -125,24 +125,24 @@ WHERE cs.release = d.release
 // The operation is idempotent: if the run already carries the InfraFailure
 // label the function returns nil without touching the summary tables, because
 // the invariant guarantees the subtraction was already performed.
-func RecordInfraFailure(ctx context.Context, dbc *gorm.DB, prowJobRunID int64) error {
+func RecordInfraFailure(ctx context.Context, dbc *gorm.DB, ciJobRunID int64) error {
 	return dbc.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return recordInfraFailureInTx(tx, prowJobRunID)
+		return recordInfraFailureInTx(tx, ciJobRunID)
 	})
 }
 
 // recordInfraFailureInTx performs the label set and summary subtraction on the
 // supplied transaction. Returning an error rolls back the transaction so
 // neither the label nor the subtraction persists, preserving the invariant.
-func recordInfraFailureInTx(tx *gorm.DB, prowJobRunID int64) error {
-	logger := log.WithField("prowJobRunID", prowJobRunID)
+func recordInfraFailureInTx(tx *gorm.DB, ciJobRunID int64) error {
+	logger := log.WithField("ciJobRunID", ciJobRunID)
 
 	// Conditional UPDATE as the first operation: set the label and acquire the
 	// row lock together. RowsAffected == 0 means the label was already set, so
 	// the subtraction is already done -- nothing further to do.
-	res := tx.Exec(setInfraFailureLabelSQL, prowJobRunID)
+	res := tx.Exec(setInfraFailureLabelSQL, ciJobRunID)
 	if res.Error != nil {
-		return fmt.Errorf("setting InfraFailure label on prow_job_run %d: %w", prowJobRunID, res.Error)
+		return fmt.Errorf("setting InfraFailure label on ci_job_run %d: %w", ciJobRunID, res.Error)
 	}
 	if res.RowsAffected == 0 {
 		logger.Debug("prow job run already labeled InfraFailure; summary subtraction already applied, skipping")
@@ -152,7 +152,7 @@ func recordInfraFailureInTx(tx *gorm.DB, prowJobRunID int64) error {
 
 	// The atomic gate passed (the label was newly applied), so remove the run's
 	// contribution from the summary tables in the same transaction.
-	return subtractFromSummaries(tx, prowJobRunID)
+	return subtractFromSummaries(tx, ciJobRunID)
 }
 
 // subtractFromSummaries removes a single prow job run's test results from the
@@ -161,15 +161,15 @@ func recordInfraFailureInTx(tx *gorm.DB, prowJobRunID int64) error {
 // own the label and any gating that decides whether the subtraction should run.
 // All work happens on the supplied transaction so it commits or rolls back
 // atomically with the caller's other writes.
-func subtractFromSummaries(tx *gorm.DB, prowJobRunID int64) error {
-	logger := log.WithField("prowJobRunID", prowJobRunID)
+func subtractFromSummaries(tx *gorm.DB, ciJobRunID int64) error {
+	logger := log.WithField("ciJobRunID", ciJobRunID)
 
 	// Read the run's partition keys (release and timestamp) so the delta scan
 	// below can prune to the run's single partition instead of scanning every
 	// partition for the run id.
-	partKeys, err := query.LookupProwJobRunPartitionKeys(tx, prowJobRunID)
+	partKeys, err := query.LookupCIJobRunPartitionKeys(tx, ciJobRunID)
 	if err != nil {
-		return fmt.Errorf("reading partition keys for prow_job_run %d: %w", prowJobRunID, err)
+		return fmt.Errorf("reading partition keys for ci_job_run %d: %w", ciJobRunID, err)
 	}
 
 	// Drop any stale temp table before recreating it. ON COMMIT DROP ties the
@@ -179,20 +179,20 @@ func subtractFromSummaries(tx *gorm.DB, prowJobRunID int64) error {
 	// CREATE would collide with the table left by the first. Dropping first makes
 	// the CREATE idempotent within the outer transaction.
 	if err := tx.Exec("DROP TABLE IF EXISTS infra_failure_deltas").Error; err != nil {
-		return fmt.Errorf("dropping stale infra_failure_deltas temp table for prow_job_run %d: %w", prowJobRunID, err)
+		return fmt.Errorf("dropping stale infra_failure_deltas temp table for ci_job_run %d: %w", ciJobRunID, err)
 	}
 
 	// Materialize the per-summary-key deltas once so both UPDATEs below read
 	// them from a single scan and aggregation rather than re-evaluating the
 	// join twice.
-	if err := tx.Exec(createDeltasTempTableSQL, prowJobRunID, partKeys.ProwJobRelease, partKeys.Timestamp).Error; err != nil {
-		return fmt.Errorf("materializing deltas for prow_job_run %d: %w", prowJobRunID, err)
+	if err := tx.Exec(createDeltasTempTableSQL, ciJobRunID, partKeys.CIJobRelease, partKeys.Timestamp).Error; err != nil {
+		return fmt.Errorf("materializing deltas for ci_job_run %d: %w", ciJobRunID, err)
 	}
 
 	// Subtract the run's counts from the per-day totals.
 	dailyRes := tx.Exec(subtractDailyTotalsSQL)
 	if dailyRes.Error != nil {
-		return fmt.Errorf("subtracting daily totals for prow_job_run %d: %w", prowJobRunID, dailyRes.Error)
+		return fmt.Errorf("subtracting daily totals for ci_job_run %d: %w", ciJobRunID, dailyRes.Error)
 	}
 	logger.WithField("rowsAffected", dailyRes.RowsAffected).Debug("subtracted infra-failure run from test_daily_totals")
 
@@ -200,7 +200,7 @@ func subtractFromSummaries(tx *gorm.DB, prowJobRunID int64) error {
 	// date onward.
 	cumulativeRes := tx.Exec(subtractCumulativeSummariesSQL)
 	if cumulativeRes.Error != nil {
-		return fmt.Errorf("subtracting cumulative summaries for prow_job_run %d: %w", prowJobRunID, cumulativeRes.Error)
+		return fmt.Errorf("subtracting cumulative summaries for ci_job_run %d: %w", ciJobRunID, cumulativeRes.Error)
 	}
 	logger.WithField("rowsAffected", cumulativeRes.RowsAffected).Debug("subtracted infra-failure run from test_cumulative_summaries")
 
@@ -210,7 +210,7 @@ func subtractFromSummaries(tx *gorm.DB, prowJobRunID int64) error {
 // SubtractNewInfraFailure removes a prow job run's contribution from the summary
 // tables when the run is being newly labeled InfraFailure, without setting the
 // label itself. It is the re-evaluator's entry point: the re-evaluator owns the
-// prow_job_runs.labels array (it fully replaces it) and applies InfraFailure
+// ci_job_runs.labels array (it fully replaces it) and applies InfraFailure
 // there, so this function must not touch the label.
 //
 // It is idempotent with respect to the summary subtraction. If the row already
@@ -221,17 +221,17 @@ func subtractFromSummaries(tx *gorm.DB, prowJobRunID int64) error {
 // Callers must run this inside the same row-locked transaction that later
 // replaces the labels array so the containment check and the subtraction stay
 // consistent with a concurrent RecordInfraFailure.
-func SubtractNewInfraFailure(tx *gorm.DB, prowJobRunID int64) error {
+func SubtractNewInfraFailure(tx *gorm.DB, ciJobRunID int64) error {
 	var found int
 	res := tx.Raw(
-		"SELECT 1 FROM prow_job_runs WHERE id = ? AND labels @> ARRAY[?] LIMIT 1",
-		prowJobRunID, LabelInfraFailure).Scan(&found)
+		"SELECT 1 FROM ci_job_runs WHERE id = ? AND labels @> ARRAY[?] LIMIT 1",
+		ciJobRunID, LabelInfraFailure).Scan(&found)
 	if res.Error != nil {
-		return fmt.Errorf("checking InfraFailure label on prow_job_run %d: %w", prowJobRunID, res.Error)
+		return fmt.Errorf("checking InfraFailure label on ci_job_run %d: %w", ciJobRunID, res.Error)
 	}
 	if res.RowsAffected > 0 {
-		log.WithField("prowJobRunID", prowJobRunID).Debug("prow job run already labeled InfraFailure; summary subtraction already applied, skipping")
+		log.WithField("ciJobRunID", ciJobRunID).Debug("prow job run already labeled InfraFailure; summary subtraction already applied, skipping")
 		return nil
 	}
-	return subtractFromSummaries(tx, prowJobRunID)
+	return subtractFromSummaries(tx, ciJobRunID)
 }

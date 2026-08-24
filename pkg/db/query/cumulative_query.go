@@ -325,7 +325,7 @@ func resolvePrefixSumDates(dbc *db.DB, release string, sample, base *DateRange) 
 
 // testReportCoreJoin builds the 3-way self-join on test_cumulative_summaries
 // and aggregates per (test_id, suite_id, variant_combination_id, release).
-// Multiple prow_jobs can share the same variant_combination_id, so summing
+// Multiple ci_jobs can share the same variant_combination_id, so summing
 // here produces one row per variant combination (matching the old matview
 // granularity). Keeping rows narrow lets callers add percentages before
 // metadata joins.
@@ -346,9 +346,9 @@ func testReportCoreJoin(dbc *db.DB, release string, sample, base DateRange, name
 			SUM(COALESCE(e.prefix_sum_flakes    - COALESCE(m.prefix_sum_flakes,    0), 0))::bigint AS current_flakes,
 			SUM(COALESCE(e.prefix_sum_failures  - COALESCE(m.prefix_sum_failures,  0), 0))::bigint AS current_failures,
 			SUM(COALESCE(e.prefix_sum_runs      - COALESCE(m.prefix_sum_runs,      0), 0))::bigint AS current_runs`).
-		Joins("JOIN prow_jobs pj ON e.prow_job_id = pj.id AND pj.variant_combination_id IS NOT NULL").
-		Joins("LEFT JOIN test_cumulative_summaries m ON m.test_id = e.test_id AND m.prow_job_id = e.prow_job_id AND m.suite_id = e.suite_id AND m.lifecycle = e.lifecycle AND m.release = e.release AND m.date = ?", boundary).
-		Joins("LEFT JOIN test_cumulative_summaries s ON s.test_id = e.test_id AND s.prow_job_id = e.prow_job_id AND s.suite_id = e.suite_id AND s.lifecycle = e.lifecycle AND s.release = e.release AND s.date = ?", start).
+		Joins("JOIN ci_jobs pj ON e.ci_job_id = pj.id AND pj.variant_combination_id IS NOT NULL").
+		Joins("LEFT JOIN test_cumulative_summaries m ON m.test_id = e.test_id AND m.ci_job_id = e.ci_job_id AND m.suite_id = e.suite_id AND m.lifecycle = e.lifecycle AND m.release = e.release AND m.date = ?", boundary).
+		Joins("LEFT JOIN test_cumulative_summaries s ON s.test_id = e.test_id AND s.ci_job_id = e.ci_job_id AND s.suite_id = e.suite_id AND s.lifecycle = e.lifecycle AND s.release = e.release AND s.date = ?", start).
 		Where("e.date = ? AND e.release = ?", end, release).
 		Group("e.test_id, e.suite_id, pj.variant_combination_id, e.release")
 
@@ -389,7 +389,7 @@ func testReportPreAgg(dbc *db.DB, release string, sample, base DateRange, nameMa
 // TestReportQueryCollapsed builds collapsed test report rows keyed by (test_id, suite_id).
 // It aggregates prefix sums per date partition separately (~16K groups each), then joins
 // the three small results to compute period counts. This avoids the expensive 3-way
-// self-join on all ~1.8M per-prow_job rows that the uncollapsed path requires.
+// self-join on all ~1.8M per-ci_job rows that the uncollapsed path requires.
 func TestReportQueryCollapsed(dbc *db.DB, release string, sample, base DateRange, variantFilter, nameFilter, lifecycleFilter *filter.Filter) (*gorm.DB, error) {
 	end, boundary, start, err := resolvePrefixSumDates(dbc, release, &sample, &base)
 	if err != nil {
@@ -424,7 +424,7 @@ func TestReportQueryCollapsed(dbc *db.DB, release string, sample, base DateRange
     SUM(tcs.prefix_sum_runs)      AS ps_runs,
     array_agg(DISTINCT tcs.lifecycle) AS lifecycles
   FROM test_cumulative_summaries tcs
-  JOIN prow_jobs pj ON tcs.prow_job_id = pj.id AND pj.variant_combination_id IS NOT NULL
+  JOIN ci_jobs pj ON tcs.ci_job_id = pj.id AND pj.variant_combination_id IS NOT NULL
 `)
 		if nameJoinClause != "" {
 			buf.WriteString("  ")

@@ -251,13 +251,13 @@ type RegressionView struct {
 }
 
 // RegressionJobRun represents a single job run observed during the lifetime of a regression.
-// It stores data from BigQuery so we don't depend on the job existing in PostgreSQL's prow_job_runs table.
+// It stores data from BigQuery so we don't depend on the job existing in PostgreSQL's ci_job_runs table.
 type RegressionJobRun struct {
 	ID           uint           `json:"id" gorm:"primaryKey"`
 	RegressionID uint           `json:"regression_id" gorm:"column:regression_id;not null;uniqueIndex:idx_regression_job_run"`
-	ProwJobRunID string         `json:"prowjob_run_id" gorm:"column:prow_job_run_id;not null;uniqueIndex:idx_regression_job_run"`
-	ProwJobName  string         `json:"prowjob_name" gorm:"column:prow_job_name;not null"`
-	ProwJobURL   string         `json:"prowjob_url" gorm:"column:prow_job_url"`
+	CIJobRunID string         `json:"prowjob_run_id" gorm:"column:ci_job_run_id;not null;uniqueIndex:idx_regression_job_run"`
+	CIJobName  string         `json:"prowjob_name" gorm:"column:ci_job_name;not null"`
+	CIJobURL   string         `json:"prowjob_url" gorm:"column:ci_job_url"`
 	StartTime    time.Time      `json:"start_time" gorm:"column:start_time"`
 	TestFailed   bool           `json:"test_failed" gorm:"column:test_failed"`
 	TestFailures int            `json:"test_failures" gorm:"column:test_failures"`

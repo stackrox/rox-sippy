@@ -15,21 +15,21 @@ import (
 	"github.com/openshift/sippy/pkg/db/models"
 )
 
-func CreateProwJob(t *testing.T, dbc *db.DB, name, release string, variants []string) models.ProwJob {
+func CreateCIJob(t *testing.T, dbc *db.DB, name, release string, variants []string) models.CIJob {
 	t.Helper()
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     name,
 		Release:  release,
 		Variants: pq.StringArray(variants),
 	}
-	require.NoError(t, dbc.DB.Create(&job).Error, "creating ProwJob %q", name)
+	require.NoError(t, dbc.DB.Create(&job).Error, "creating CIJob %q", name)
 	return job
 }
 
-type ProwJobOption func(*models.ProwJob)
+type CIJobOption func(*models.CIJob)
 
-func WithKind(kind models.ProwKind) ProwJobOption {
-	return func(j *models.ProwJob) {
+func WithKind(kind models.ProwKind) CIJobOption {
+	return func(j *models.CIJob) {
 		j.Kind = kind
 	}
 }
@@ -38,16 +38,16 @@ func WithKind(kind models.ProwKind) ProwJobOption {
 // VariantCombination. In production, VariantCombinationID is populated by a database
 // trigger; the integration schema intentionally skips triggers (see SetupIntegrationSchema),
 // so tests must set it explicitly via this option.
-func WithVariantCombination(vc models.VariantCombination) ProwJobOption {
-	return func(j *models.ProwJob) {
+func WithVariantCombination(vc models.VariantCombination) CIJobOption {
+	return func(j *models.CIJob) {
 		j.Variants = vc.Variants
 		j.VariantCombinationID = &vc.ID
 	}
 }
 
 // CreateVariantCombination creates a variant_combinations row. Pass the result to
-// WithVariantCombination when creating a ProwJob so cumulative-summary-based reports
-// (which join through prow_jobs.variant_combination_id) can find it.
+// WithVariantCombination when creating a CIJob so cumulative-summary-based reports
+// (which join through ci_jobs.variant_combination_id) can find it.
 func CreateVariantCombination(t *testing.T, dbc *db.DB, variants []string) models.VariantCombination {
 	t.Helper()
 	vc := models.VariantCombination{Variants: pq.StringArray(variants)}
@@ -55,9 +55,9 @@ func CreateVariantCombination(t *testing.T, dbc *db.DB, variants []string) model
 	return vc
 }
 
-func CreateProwJobWithOptions(t *testing.T, dbc *db.DB, name, release string, variants []string, opts ...ProwJobOption) models.ProwJob {
+func CreateCIJobWithOptions(t *testing.T, dbc *db.DB, name, release string, variants []string, opts ...CIJobOption) models.CIJob {
 	t.Helper()
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     name,
 		Release:  release,
 		Variants: pq.StringArray(variants),
@@ -65,27 +65,27 @@ func CreateProwJobWithOptions(t *testing.T, dbc *db.DB, name, release string, va
 	for _, opt := range opts {
 		opt(&job)
 	}
-	require.NoError(t, dbc.DB.Create(&job).Error, "creating ProwJob %q", name)
+	require.NoError(t, dbc.DB.Create(&job).Error, "creating CIJob %q", name)
 	return job
 }
 
-type ProwJobRunOption func(*models.ProwJobRun)
+type CIJobRunOption func(*models.CIJobRun)
 
-func WithURL(url string) ProwJobRunOption {
-	return func(r *models.ProwJobRun) { r.URL = url }
+func WithURL(url string) CIJobRunOption {
+	return func(r *models.CIJobRun) { r.URL = url }
 }
 
 // WithLabels sets the job run's Labels array (e.g. infrafailure.LabelInfraFailure).
 // Read-time summary queries exclude runs carrying the InfraFailure label.
-func WithLabels(labels ...string) ProwJobRunOption {
-	return func(r *models.ProwJobRun) { r.Labels = pq.StringArray(labels) }
+func WithLabels(labels ...string) CIJobRunOption {
+	return func(r *models.CIJobRun) { r.Labels = pq.StringArray(labels) }
 }
 
-func CreateProwJobRun(t *testing.T, dbc *db.DB, prowJobID uint, release string, timestamp time.Time, succeeded bool, overallResult v1.JobOverallResult, opts ...ProwJobRunOption) models.ProwJobRun {
+func CreateCIJobRun(t *testing.T, dbc *db.DB, ciJobID uint, release string, timestamp time.Time, succeeded bool, overallResult v1.JobOverallResult, opts ...CIJobRunOption) models.CIJobRun {
 	t.Helper()
-	run := models.ProwJobRun{
-		ProwJobID:      prowJobID,
-		ProwJobRelease: release,
+	run := models.CIJobRun{
+		CIJobID:      ciJobID,
+		CIJobRelease: release,
 		Timestamp:      timestamp,
 		Succeeded:      succeeded,
 		Failed:         !succeeded,
@@ -94,7 +94,7 @@ func CreateProwJobRun(t *testing.T, dbc *db.DB, prowJobID uint, release string, 
 	for _, opt := range opts {
 		opt(&run)
 	}
-	require.NoError(t, dbc.DB.Create(&run).Error, "creating ProwJobRun")
+	require.NoError(t, dbc.DB.Create(&run).Error, "creating CIJobRun")
 	return run
 }
 
@@ -163,58 +163,58 @@ func CreateTestOwnership(t *testing.T, dbc *db.DB, testID uint, suiteID *uint, u
 	return to
 }
 
-type ProwJobRunTestOption func(*models.ProwJobRunTest)
+type CIJobRunTestOption func(*models.CIJobRunTest)
 
-func WithSuiteID(suiteID uint) ProwJobRunTestOption {
-	return func(pjrt *models.ProwJobRunTest) {
+func WithSuiteID(suiteID uint) CIJobRunTestOption {
+	return func(pjrt *models.CIJobRunTest) {
 		pjrt.SuiteID = &suiteID
 	}
 }
 
-func WithLifecycle(lifecycle string) ProwJobRunTestOption {
-	return func(pjrt *models.ProwJobRunTest) {
+func WithLifecycle(lifecycle string) CIJobRunTestOption {
+	return func(pjrt *models.CIJobRunTest) {
 		pjrt.Lifecycle = lifecycle
 	}
 }
 
 // WithDuration sets the test result's duration (seconds). TestDurations averages
 // this column per day.
-func WithDuration(duration float64) ProwJobRunTestOption {
-	return func(pjrt *models.ProwJobRunTest) {
+func WithDuration(duration float64) CIJobRunTestOption {
+	return func(pjrt *models.CIJobRunTest) {
 		pjrt.Duration = duration
 	}
 }
 
-func CreateProwJobRunTest(t *testing.T, dbc *db.DB, prowJobRunID, prowJobID, testID uint, release string, timestamp time.Time, status int, opts ...ProwJobRunTestOption) models.ProwJobRunTest {
+func CreateCIJobRunTest(t *testing.T, dbc *db.DB, ciJobRunID, ciJobID, testID uint, release string, timestamp time.Time, status int, opts ...CIJobRunTestOption) models.CIJobRunTest {
 	t.Helper()
-	pjrt := models.ProwJobRunTest{
-		ProwJobRunID:        prowJobRunID,
-		ProwJobID:           prowJobID,
+	pjrt := models.CIJobRunTest{
+		CIJobRunID:        ciJobRunID,
+		CIJobID:           ciJobID,
 		TestID:              testID,
-		ProwJobRunRelease:   release,
-		ProwJobRunTimestamp: timestamp,
+		CIJobRunRelease:   release,
+		CIJobRunTimestamp: timestamp,
 		Status:              status,
 	}
 	for _, opt := range opts {
 		opt(&pjrt)
 	}
-	require.NoError(t, dbc.DB.Create(&pjrt).Error, "creating ProwJobRunTest")
+	require.NoError(t, dbc.DB.Create(&pjrt).Error, "creating CIJobRunTest")
 	return pjrt
 }
 
-// CreateProwJobRunTestOutput creates the prow_job_run_test_outputs row for a given
-// ProwJobRunTest. It wires the composite (id, timestamp, release) key that the
+// CreateCIJobRunTestOutput creates the ci_job_run_test_outputs row for a given
+// CIJobRunTest. It wires the composite (id, timestamp, release) key that the
 // read-time TestOutputs query joins on, denormalizing the timestamp and release
 // from the parent test result.
-func CreateProwJobRunTestOutput(t *testing.T, dbc *db.DB, pjrt models.ProwJobRunTest, output string) models.ProwJobRunTestOutput {
+func CreateCIJobRunTestOutput(t *testing.T, dbc *db.DB, pjrt models.CIJobRunTest, output string) models.CIJobRunTestOutput {
 	t.Helper()
-	o := models.ProwJobRunTestOutput{
-		ProwJobRunTestID:        pjrt.ID,
+	o := models.CIJobRunTestOutput{
+		CIJobRunTestID:        pjrt.ID,
 		Output:                  output,
-		ProwJobRunTestTimestamp: pjrt.ProwJobRunTimestamp,
-		ProwJobRunTestRelease:   pjrt.ProwJobRunRelease,
+		CIJobRunTestTimestamp: pjrt.CIJobRunTimestamp,
+		CIJobRunTestRelease:   pjrt.CIJobRunRelease,
 	}
-	require.NoError(t, dbc.DB.Create(&o).Error, "creating ProwJobRunTestOutput for test %d", pjrt.ID)
+	require.NoError(t, dbc.DB.Create(&o).Error, "creating CIJobRunTestOutput for test %d", pjrt.ID)
 	return o
 }
 
@@ -230,7 +230,7 @@ func CreateReleaseDefinition(t *testing.T, dbc *db.DB, release string, major, mi
 	return rd
 }
 
-func CreateBug(t *testing.T, dbc *db.DB, key, status, summary string, lastChangeTime time.Time, jobs []models.ProwJob) models.Bug {
+func CreateBug(t *testing.T, dbc *db.DB, key, status, summary string, lastChangeTime time.Time, jobs []models.CIJob) models.Bug {
 	t.Helper()
 	bug := models.Bug{
 		Key:            key,
@@ -290,13 +290,13 @@ func WithCumulativeSummaryLastSuccess(t time.Time) CumulativeSummaryOption {
 // totals as of Date: callers computing a period count from two rows (e.g. for dates end
 // and boundary) get period_count = end.PrefixSumX - boundary.PrefixSumX. Lifecycle
 // defaults to "blocking" (matching the column's DB default) unless overridden.
-func CreateCumulativeSummary(t *testing.T, dbc *db.DB, date civil.Date, release string, testID, prowJobID, suiteID uint, runs, successes, flakes int64, opts ...CumulativeSummaryOption) models.TestCumulativeSummary {
+func CreateCumulativeSummary(t *testing.T, dbc *db.DB, date civil.Date, release string, testID, ciJobID, suiteID uint, runs, successes, flakes int64, opts ...CumulativeSummaryOption) models.TestCumulativeSummary {
 	t.Helper()
 	tcs := models.TestCumulativeSummary{
 		Date:               date,
 		Release:            release,
 		TestID:             testID,
-		ProwJobID:          prowJobID,
+		CIJobID:          ciJobID,
 		SuiteID:            suiteID,
 		Lifecycle:          "blocking",
 		PrefixSumRuns:      runs,
@@ -374,11 +374,11 @@ func CreateReleasePullRequest(t *testing.T, dbc *db.DB, url, name, description s
 	return pr
 }
 
-func CreateReleaseJobRun(t *testing.T, dbc *db.DB, releaseTagID, prowJobRunID uint, jobName, kind, state, url string) models.ReleaseJobRun {
+func CreateReleaseJobRun(t *testing.T, dbc *db.DB, releaseTagID, ciJobRunID uint, jobName, kind, state, url string) models.ReleaseJobRun {
 	t.Helper()
 	rjr := models.ReleaseJobRun{
 		ReleaseTagID: fmt.Sprintf("%d", releaseTagID),
-		Name:         prowJobRunID,
+		Name:         ciJobRunID,
 		JobName:      jobName,
 		Kind:         kind,
 		State:        state,

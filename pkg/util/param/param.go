@@ -42,8 +42,8 @@ var paramRegexp = map[string]*regexp.Regexp{
 	"job_name":          nameRegexp,
 	"test":              regexp.MustCompile(`^.+$`),        // tests can be anything, so always parameterize in sql
 	"test_id":           regexp.MustCompile(`^[\w:. -]+$`), // test IDs like "openshift-tests-upgrade:af8a62c596e5c2b5448a5d308f4989a6" or "cluster install:0cb1bb27e418491b1ffdacab58c5c8c0"
-	"prow_job_run_id":   uintRegexp,
-	"prow_job_run_ids":  regexp.MustCompile(`^\d+(,\d+)*$`), // comma-separated integers
+	"ci_job_run_id":   uintRegexp,
+	"ci_job_run_ids":  regexp.MustCompile(`^\d+(,\d+)*$`), // comma-separated integers
 	"org":               nameRegexp,
 	"repo":              nameRegexp,
 	"pr_number":         uintRegexp,
@@ -68,7 +68,7 @@ var paramRegexp = map[string]*regexp.Regexp{
 	"view":             nameRegexp,                                  // component readiness view name
 	"dataSource":       regexp.MustCompile(`^(bigquery|postgres)$`), // data source for CR queries
 	// jobartifacts params
-	"prowJobRuns":        regexp.MustCompile(`^\d+(,\d+)*$`), // comma-separated integers
+	"ciJobRuns":        regexp.MustCompile(`^\d+(,\d+)*$`), // comma-separated integers
 	"pathGlob":           nonEmptyRegex,                      // a glob can be anything
 	"maxJobFilesToScan ": uintRegexp,
 	"textContains":       nonEmptyRegex, // text search can look for anything

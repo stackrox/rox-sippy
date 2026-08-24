@@ -33,9 +33,9 @@ BEGIN
                     END), 0::bigint) AS current_failures,
             count(*) AS current_runs
         FROM
-            prow_job_run_tests pjrt
-            INNER JOIN prow_job_runs pjr ON pjr.id = pjrt.prow_job_run_id
-            INNER JOIN prow_jobs pj ON pj.id = pjr.prow_job_id
+            ci_job_run_tests pjrt
+            INNER JOIN ci_job_runs pjr ON pjr.id = pjrt.ci_job_run_id
+            INNER JOIN ci_jobs pj ON pj.id = pjr.ci_job_id
             INNER JOIN tests ON pjrt.test_id = tests.id
         WHERE
             tests.name LIKE test_substring

@@ -191,10 +191,10 @@ func getIndividualQueryCases() map[string]queryCase {
 				res := dbc.DB.Raw(`
 					SELECT DISTINCT t.id, t.name
 					FROM tests t
-					JOIN prow_job_run_tests pjrt ON pjrt.test_id = t.id
-					WHERE pjrt.prow_job_run_release = ?
+					JOIN ci_job_run_tests pjrt ON pjrt.test_id = t.id
+					WHERE pjrt.ci_job_run_release = ?
 					  AND t.name LIKE ?
-					  AND pjrt.prow_job_run_timestamp > NOW() - INTERVAL '14 days'
+					  AND pjrt.ci_job_run_timestamp > NOW() - INTERVAL '14 days'
 					ORDER BY t.name
 					LIMIT 20`, benchmarkRelease, "%events should not repeat%").Scan(&results)
 				if res.Error != nil {
@@ -391,11 +391,11 @@ func getQueryCases() []queryCase {
 				var result counts
 				truncatedTime := asOf.AddDate(0, 0, -14).Truncate(24 * time.Hour)
 				res := dbc.DB.Raw(`
-					SELECT count(distinct pjrt.prow_job_run_id) as job_runs_count,
+					SELECT count(distinct pjrt.ci_job_run_id) as job_runs_count,
 					       count(distinct pjrt.test_id) as test_ids_count
-					FROM prow_job_run_tests pjrt
-					WHERE pjrt.prow_job_run_timestamp > ?
-					  AND pjrt.prow_job_run_release = ?`, truncatedTime, benchmarkRelease).Scan(&result)
+					FROM ci_job_run_tests pjrt
+					WHERE pjrt.ci_job_run_timestamp > ?
+					  AND pjrt.ci_job_run_release = ?`, truncatedTime, benchmarkRelease).Scan(&result)
 				if res.Error != nil {
 					return validationSnapshot{}, res.Error
 				}
@@ -419,11 +419,11 @@ func getQueryCases() []queryCase {
 				var result counts
 				truncatedTime := asOf.AddDate(0, 0, -9).Truncate(24 * time.Hour)
 				res := dbc.DB.Raw(`
-					SELECT count(distinct pjrt.prow_job_run_id) as job_runs_count,
+					SELECT count(distinct pjrt.ci_job_run_id) as job_runs_count,
 					       count(distinct pjrt.test_id) as test_ids_count
-					FROM prow_job_run_tests pjrt
-					WHERE pjrt.prow_job_run_timestamp > ?
-					  AND pjrt.prow_job_run_release = ?`, truncatedTime, benchmarkRelease).Scan(&result)
+					FROM ci_job_run_tests pjrt
+					WHERE pjrt.ci_job_run_timestamp > ?
+					  AND pjrt.ci_job_run_release = ?`, truncatedTime, benchmarkRelease).Scan(&result)
 				if res.Error != nil {
 					return validationSnapshot{}, res.Error
 				}
@@ -441,37 +441,37 @@ func getQueryCases() []queryCase {
 			name: "FetchJobRunByID",
 			fn: func(dbc *db.DB, _ time.Time) (validationSnapshot, error) {
 				var jobRunID int64
-				res := dbc.DB.Table("prow_job_runs").
-					Joins("JOIN prow_jobs ON prow_jobs.id = prow_job_runs.prow_job_id").
-					Where("prow_jobs.name = ? AND prow_jobs.release = ?", benchmarkJobName, benchmarkRelease).
-					Order("prow_job_runs.timestamp DESC").
+				res := dbc.DB.Table("ci_job_runs").
+					Joins("JOIN ci_jobs ON ci_jobs.id = ci_job_runs.ci_job_id").
+					Where("ci_jobs.name = ? AND ci_jobs.release = ?", benchmarkJobName, benchmarkRelease).
+					Order("ci_job_runs.timestamp DESC").
 					Limit(1).
-					Select("prow_job_runs.id").
+					Select("ci_job_runs.id").
 					Scan(&jobRunID)
 				if res.Error != nil {
 					return validationSnapshot{}, res.Error
 				}
 
-				partKeys, err := query.LookupProwJobRunPartitionKeys(dbc.DB, jobRunID)
+				partKeys, err := query.LookupCIJobRunPartitionKeys(dbc.DB, jobRunID)
 				if err != nil {
 					return validationSnapshot{}, err
 				}
 
-				var jobRun models.ProwJobRun
-				res = dbc.DB.Joins("ProwJob").
+				var jobRun models.CIJobRun
+				res = dbc.DB.Joins("CIJob").
 					Preload("PullRequests").
-					Where("prow_job_release = ? AND timestamp = ?", partKeys.ProwJobRelease, partKeys.Timestamp).
+					Where("ci_job_release = ? AND timestamp = ?", partKeys.CIJobRelease, partKeys.Timestamp).
 					Take(&jobRun, jobRunID)
 				if res.Error != nil {
 					return validationSnapshot{}, res.Error
 				}
 				log.Printf("FetchJobRunByID for run %d: release=%s job=%s",
-					jobRun.ID, jobRun.ProwJobRelease, jobRun.ProwJob.Name)
+					jobRun.ID, jobRun.CIJobRelease, jobRun.CIJob.Name)
 				return validationSnapshot{
 					RowCount: 1,
 					SpotChecks: map[string]string{
-						"release":  jobRun.ProwJobRelease,
-						"job_name": jobRun.ProwJob.Name,
+						"release":  jobRun.CIJobRelease,
+						"job_name": jobRun.CIJob.Name,
 					},
 				}, nil
 			},
@@ -566,32 +566,32 @@ func getReportQueryCases() []queryCase {
 			},
 		},
 		{
-			name: "ProwJobHistoricalTestCounts",
+			name: "CIJobHistoricalTestCounts",
 			fn: func(dbc *db.DB, _ time.Time) (validationSnapshot, error) {
-				var prowJob models.ProwJob
-				if err := dbc.DB.Where("name = ? AND release = ?", benchmarkJobName, benchmarkRelease).First(&prowJob).Error; err != nil {
+				var ciJob models.CIJob
+				if err := dbc.DB.Where("name = ? AND release = ?", benchmarkJobName, benchmarkRelease).First(&ciJob).Error; err != nil {
 					return validationSnapshot{}, err
 				}
-				count, err := query.ProwJobHistoricalTestCounts(dbc, prowJob.ID, benchmarkRelease)
+				count, err := query.CIJobHistoricalTestCounts(dbc, ciJob.ID, benchmarkRelease)
 				if err != nil {
 					return validationSnapshot{}, err
 				}
-				log.Printf("ProwJobHistoricalTestCounts for %s: %d", benchmarkJobName, count)
+				log.Printf("CIJobHistoricalTestCounts for %s: %d", benchmarkJobName, count)
 				return validationSnapshot{RowCount: count}, nil
 			},
 		},
 		{
-			name: "ProwJobRunCount",
+			name: "CIJobRunCount",
 			fn: func(dbc *db.DB, asOf time.Time) (validationSnapshot, error) {
-				var prowJob models.ProwJob
-				if err := dbc.DB.Where("name = ? AND release = ?", benchmarkJobName, benchmarkRelease).First(&prowJob).Error; err != nil {
+				var ciJob models.CIJob
+				if err := dbc.DB.Where("name = ? AND release = ?", benchmarkJobName, benchmarkRelease).First(&ciJob).Error; err != nil {
 					return validationSnapshot{}, err
 				}
-				count, err := query.ProwJobRunCount(dbc, prowJob.ID, benchmarkRelease, asOf.Add(-14*24*time.Hour))
+				count, err := query.CIJobRunCount(dbc, ciJob.ID, benchmarkRelease, asOf.Add(-14*24*time.Hour))
 				if err != nil {
 					return validationSnapshot{}, err
 				}
-				log.Printf("ProwJobRunCount for %s: %d", benchmarkJobName, count)
+				log.Printf("CIJobRunCount for %s: %d", benchmarkJobName, count)
 				return validationSnapshot{RowCount: count}, nil
 			},
 		},
@@ -602,13 +602,13 @@ func getReportQueryCases() []queryCase {
 					ID        int64
 					Timestamp time.Time
 				}
-				res := dbc.DB.Table("prow_job_runs").
-					Joins("JOIN prow_jobs ON prow_jobs.id = prow_job_runs.prow_job_id").
-					Where("prow_jobs.name = ? AND prow_jobs.release = ?", benchmarkJobName, benchmarkRelease).
-					Where("prow_job_runs.prow_job_release = ?", benchmarkRelease).
-					Order("prow_job_runs.timestamp DESC").
+				res := dbc.DB.Table("ci_job_runs").
+					Joins("JOIN ci_jobs ON ci_jobs.id = ci_job_runs.ci_job_id").
+					Where("ci_jobs.name = ? AND ci_jobs.release = ?", benchmarkJobName, benchmarkRelease).
+					Where("ci_job_runs.ci_job_release = ?", benchmarkRelease).
+					Order("ci_job_runs.timestamp DESC").
 					Limit(1).
-					Select("prow_job_runs.id, prow_job_runs.timestamp").
+					Select("ci_job_runs.id, ci_job_runs.timestamp").
 					Scan(&result)
 				if res.Error != nil {
 					return validationSnapshot{}, res.Error
@@ -643,14 +643,14 @@ func getReportQueryCases() []queryCase {
 					MergedAt *time.Time
 				}
 				res = dbc.DB.
-					Table("prow_job_run_tests as t").
-					Joins("INNER JOIN prow_job_run_prow_pull_requests as prmap on prmap.prow_job_run_id = t.prow_job_run_id AND prmap.prow_job_run_release = t.prow_job_run_release").
-					Joins("INNER JOIN prow_pull_requests as prs on prs.id = prmap.prow_pull_request_id").
+					Table("ci_job_run_tests as t").
+					Joins("INNER JOIN ci_job_run_pull_requests as prmap on prmap.ci_job_run_id = t.ci_job_run_id AND prmap.ci_job_run_release = t.ci_job_run_release").
+					Joins("INNER JOIN pull_requests as prs on prs.id = prmap.prow_pull_request_id").
 					Where("t.test_id = ?", testID).
-					Where("t.prow_job_run_release = ?", benchmarkRelease).
+					Where("t.ci_job_run_release = ?", benchmarkRelease).
 					Where("merged_at is not null").
 					Select("org, repo, number, sha, merged_at").
-					Order("t.prow_job_run_id, prs.id").
+					Order("t.ci_job_run_id, prs.id").
 					Limit(1).Scan(&result)
 				if res.Error != nil {
 					return validationSnapshot{}, res.Error
@@ -814,15 +814,15 @@ func Test_CompareTestOutputsQueries(t *testing.T) {
 
 	var baseline []apitype.TestOutput
 	baseStart := time.Now()
-	res := dbc.DB.Table("prow_job_run_test_outputs").
-		Joins("JOIN prow_job_run_tests ON prow_job_run_test_outputs.prow_job_run_test_id = prow_job_run_tests.id").
-		Joins("JOIN prow_job_runs ON prow_job_run_tests.prow_job_run_id = prow_job_runs.id").
-		Joins("JOIN prow_jobs ON prow_job_runs.prow_job_id = prow_jobs.id").
-		Where("prow_job_runs.timestamp > current_date - interval '14' day").
-		Where("prow_job_run_tests.test_id = (?)", testQuery).
-		Where("prow_jobs.release = ?", benchmarkRelease).
-		Select("prow_job_runs.url as prow_job_url, output").
-		Order("prow_job_run_test_outputs.id DESC").
+	res := dbc.DB.Table("ci_job_run_test_outputs").
+		Joins("JOIN ci_job_run_tests ON ci_job_run_test_outputs.ci_job_run_test_id = ci_job_run_tests.id").
+		Joins("JOIN ci_job_runs ON ci_job_run_tests.ci_job_run_id = ci_job_runs.id").
+		Joins("JOIN ci_jobs ON ci_job_runs.ci_job_id = ci_jobs.id").
+		Where("ci_job_runs.timestamp > current_date - interval '14' day").
+		Where("ci_job_run_tests.test_id = (?)", testQuery).
+		Where("ci_jobs.release = ?", benchmarkRelease).
+		Select("ci_job_runs.url as ci_job_url, output").
+		Order("ci_job_run_test_outputs.id DESC").
 		Limit(quantity).
 		Scan(&baseline)
 	if res.Error != nil {
@@ -844,11 +844,11 @@ func Test_CompareTestOutputsQueries(t *testing.T) {
 
 	baselineByURL := make(map[string]string, len(baseline))
 	for _, r := range baseline {
-		baselineByURL[r.ProwJobURL] = r.Output
+		baselineByURL[r.CIJobURL] = r.Output
 	}
 	currentByURL := make(map[string]string, len(current))
 	for _, r := range current {
-		currentByURL[r.ProwJobURL] = r.Output
+		currentByURL[r.CIJobURL] = r.Output
 	}
 
 	missingFromCurrent := 0

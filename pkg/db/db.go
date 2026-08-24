@@ -26,8 +26,8 @@ const (
 	hashTypeView                            SchemaHashType = "view"
 	hashTypeMatViewIndex                    SchemaHashType = "matview_index"
 	hashTypeFunction                        SchemaHashType = "function"
-	partitionedTableProwJobRunTests                        = "prow_job_run_tests"
-	partitionedTableProwJobRunTestsOutputs                 = "prow_job_run_test_outputs"
+	partitionedTableCIJobRunTests                        = "ci_job_run_tests"
+	partitionedTableCIJobRunTestsOutputs                 = "ci_job_run_test_outputs"
 	partitionedTableTestDailyTotals                        = "test_daily_totals"
 	partitionedTableTestCumulativeSummaries                = "test_cumulative_summaries"
 )
@@ -130,9 +130,9 @@ func New(dsn string, logLevel gormlogger.LogLevel, opts ...Option) (*DB, error) 
 func (d *DB) UpdateSchema(reportEnd *time.Time) error {
 
 	// Run versioned migrations (golang-migrate) BEFORE AutoMigrate.
-	// This ensures tables like prow_job_run_tests exist before
-	// prow_job_runs trys to create it via AutoMigrate
-	// when we move prow_job_runs to be managed via RunMigrations
+	// This ensures tables like ci_job_run_tests exist before
+	// ci_job_runs trys to create it via AutoMigrate
+	// when we move ci_job_runs to be managed via RunMigrations
 	// we may need GORM AutoMigrate to run first
 	if err := sippymigrate.RunMigrations(d.DB); err != nil {
 		return err
@@ -140,8 +140,8 @@ func (d *DB) UpdateSchema(reportEnd *time.Time) error {
 
 	// Register explicit join table so GORM uses our model (with release/timestamp)
 	// instead of auto-generating a bare join table.
-	if err := d.DB.SetupJoinTable(&models.ProwJobRun{}, "PullRequests", &models.ProwJobRunProwPullRequest{}); err != nil {
-		return fmt.Errorf("setup join table ProwJobRun.PullRequests: %w", err)
+	if err := d.DB.SetupJoinTable(&models.CIJobRun{}, "PullRequests", &models.CIJobRunProwPullRequest{}); err != nil {
+		return fmt.Errorf("setup join table CIJobRun.PullRequests: %w", err)
 	}
 
 	// List of all models to migrate
@@ -153,15 +153,15 @@ func (d *DB) UpdateSchema(reportEnd *time.Time) error {
 		&models.ReleaseJobRun{},
 		&models.ProwGARawTestDatum{},
 		&models.VariantCombination{},
-		&models.ProwJob{},
-		&models.ProwJobRun{},
-		&models.ProwJobRunAnnotation{},
+		&models.CIJob{},
+		&models.CIJobRun{},
+		&models.CIJobRunAnnotation{},
 		&models.Test{},
 		&models.Suite{},
 		&models.APISnapshot{},
 		&models.Bug{},
 		&models.ProwPullRequest{},
-		&models.ProwJobRunProwPullRequest{},
+		&models.CIJobRunProwPullRequest{},
 		&models.SchemaHash{},
 		&models.PullRequestComment{},
 		&models.JiraIncident{},
@@ -222,8 +222,8 @@ func (d *DB) UpdateSchema(reportEnd *time.Time) error {
 // and managed by gopar partition lifecycle management.
 func (d *DB) PartitionedTables() []string {
 	return []string{
-		partitionedTableProwJobRunTests,
-		partitionedTableProwJobRunTestsOutputs,
+		partitionedTableCIJobRunTests,
+		partitionedTableCIJobRunTestsOutputs,
 		partitionedTableTestDailyTotals,
 		partitionedTableTestCumulativeSummaries,
 	}
@@ -247,10 +247,10 @@ func (d *DB) EnsurePartitions(releases []string, startDate, endDate time.Time, d
 	for _, tableName := range d.PartitionedTables() {
 		var dateColumn string
 		switch tableName {
-		case partitionedTableProwJobRunTests:
-			dateColumn = "prow_job_run_timestamp"
-		case partitionedTableProwJobRunTestsOutputs:
-			dateColumn = "prow_job_run_test_timestamp"
+		case partitionedTableCIJobRunTests:
+			dateColumn = "ci_job_run_timestamp"
+		case partitionedTableCIJobRunTestsOutputs:
+			dateColumn = "ci_job_run_test_timestamp"
 		case partitionedTableTestDailyTotals, partitionedTableTestCumulativeSummaries:
 			dateColumn = "date"
 		default:
@@ -554,7 +554,7 @@ func ensureTriageSymptomCascade(db *gorm.DB) error {
 }
 
 // ensureVariantCombinationTrigger attaches the variant_combination_id
-// trigger to prow_jobs if it does not already exist. The trigger
+// trigger to ci_jobs if it does not already exist. The trigger
 // function is created by migration 000003; the table is created by
 // AutoMigrate, so this must run after both.
 //
@@ -566,26 +566,26 @@ func ensureVariantCombinationTrigger(db *gorm.DB) error {
 		DO $$
 		BEGIN
 			IF NOT EXISTS (
-				SELECT 1 FROM pg_trigger WHERE tgname = 'trg_prow_jobs_variant_combination'
+				SELECT 1 FROM pg_trigger WHERE tgname = 'trg_ci_jobs_variant_combination'
 			) THEN
-				CREATE TRIGGER trg_prow_jobs_variant_combination
-					BEFORE INSERT OR UPDATE OF variants ON prow_jobs
+				CREATE TRIGGER trg_ci_jobs_variant_combination
+					BEFORE INSERT OR UPDATE OF variants ON ci_jobs
 					FOR EACH ROW
 					EXECUTE FUNCTION set_variant_combination_id();
 
 				-- Backfill only needed when trigger is first attached (fresh DB
 				-- or recovery); the trigger handles all subsequent rows.
 				INSERT INTO variant_combinations (variants)
-				SELECT DISTINCT variants FROM prow_jobs
+				SELECT DISTINCT variants FROM ci_jobs
 				WHERE variants IS NOT NULL AND variant_combination_id IS NULL
 				ON CONFLICT (variants) DO NOTHING;
 
-				UPDATE prow_jobs
+				UPDATE ci_jobs
 				SET variant_combination_id = vc.id
 				FROM variant_combinations vc
-				WHERE prow_jobs.variants = vc.variants
-				  AND prow_jobs.variants IS NOT NULL
-				  AND prow_jobs.variant_combination_id IS NULL;
+				WHERE ci_jobs.variants = vc.variants
+				  AND ci_jobs.variants IS NOT NULL
+				  AND ci_jobs.variant_combination_id IS NULL;
 			END IF;
 		END $$`).Error
 }

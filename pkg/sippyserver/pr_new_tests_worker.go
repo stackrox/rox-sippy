@@ -66,7 +66,7 @@ type JobRunFilter interface {
 	// OnlyLatestSha filters out runs that are not against the PR's latest sha
 	OnlyLatestSha(entry *logrus.Entry, info prJobInfo) []*prow.ProwJob
 	// JobFailedEarly determines if a run did not get far enough to be included in new test analysis
-	JobFailedEarly(logger *logrus.Entry, run *models.ProwJobRun) bool
+	JobFailedEarly(logger *logrus.Entry, run *models.CIJobRun) bool
 }
 
 type pgJobRunFilter struct {
@@ -78,7 +78,7 @@ type pgJobRunFilter struct {
 type NewTestsWorker struct {
 	dbc          *db.DB
 	jobRunFilter JobRunFilter
-	fetchJobRun  func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.ProwJobRun, error)
+	fetchJobRun  func(dbc *db.DB, jobRunID int64, onlyNewTests bool, preloads []string, logger *logrus.Entry) (*models.CIJobRun, error)
 }
 
 // StandardNewTestsWorker is a convenience method to create a NewTestsWorker with standard filters
@@ -185,13 +185,13 @@ func assignRiskLevels(jobRisks []*JobNewTestRisks) {
 func (jrf *pgJobRunFilter) OnlyLatestSha(logger *logrus.Entry, jobInfo prJobInfo) []*prow.ProwJob {
 	logger = logger.WithField("func", "OnlyLatestSha").WithField("job", jobInfo.name).WithField("sha", jobInfo.prShaSum)
 	var latestRuns []*prow.ProwJob
-	for idx, run := range jobInfo.prowJobRuns {
+	for idx, run := range jobInfo.ciJobRuns {
 		if sha := run.Spec.Refs.Pulls[0].SHA; sha != jobInfo.prShaSum {
 			logger.Debugf("Excluding run %s against sha %s", run.Status.BuildID, sha)
 			continue
 		}
 		logger.Debugf("Including run %s", run.Status.BuildID)
-		latestRuns = append(latestRuns, jobInfo.prowJobRuns[idx])
+		latestRuns = append(latestRuns, jobInfo.ciJobRuns[idx])
 	}
 	return latestRuns
 }
@@ -200,22 +200,22 @@ func (jrf *pgJobRunFilter) OnlyLatestSha(logger *logrus.Entry, jobInfo prJobInfo
 // when looking for new tests, runs that broke before running all the tests will muddy the analysis.
 // such runs should be left to risk analysis for comment.
 // if any errors occur, return true so the run is not included in the new test analysis.
-func (jrf *pgJobRunFilter) JobFailedEarly(logger *logrus.Entry, run *models.ProwJobRun) bool {
-	logger = logger.WithField("func", "JobFailedEarly").WithField("job", run.ProwJob.Name).WithField("run", run.ID)
+func (jrf *pgJobRunFilter) JobFailedEarly(logger *logrus.Entry, run *models.CIJobRun) bool {
+	logger = logger.WithField("func", "JobFailedEarly").WithField("job", run.CIJob.Name).WithField("run", run.ID)
 	if run.TestCount <= 0 { // this can in theory happen when building the run, filter these out
 		logger.Warn("Failed to count tests earlier, ignoring this run")
 		return true
 	}
 	// figure out how many runs this job usually has
-	historicalCount, ok := jrf.historicalTestCount[run.ProwJob.ID]
+	historicalCount, ok := jrf.historicalTestCount[run.CIJob.ID]
 	if !ok {
 		var err error
-		historicalCount, err = query.ProwJobHistoricalTestCounts(jrf.dbc, run.ProwJobID, run.ProwJob.Release)
+		historicalCount, err = query.CIJobHistoricalTestCounts(jrf.dbc, run.CIJobID, run.CIJob.Release)
 		if err != nil {
 			logger.WithError(err).Error("Error determining historical job test count, ignoring this run")
 			return true
 		}
-		jrf.historicalTestCount[run.ProwJob.ID] = historicalCount
+		jrf.historicalTestCount[run.CIJob.ID] = historicalCount
 	}
 
 	if run.TestCount*100 < historicalCount*75 {
@@ -289,7 +289,7 @@ func makeNewTestRisk(testName string, jobRuns int, tests []NewTest) *NewTestRisk
 // getNewTestsForJobRun builds sippy's model of a job run and searches it for new tests.
 func (ntw *NewTestsWorker) getNewTestsForJobRun(logger *logrus.Entry, prowjob *prow.ProwJob) (newTests []NewTest, err error) {
 	logger = logger.WithField("func", "getNewTestsForJobRun").WithField("job", prowjob.Spec.Job).WithField("run", prowjob.Status.BuildID)
-	var jobRun *models.ProwJobRun
+	var jobRun *models.CIJobRun
 	if jobRunIntID, err := strconv.ParseInt(prowjob.Status.BuildID, 10, 64); err != nil {
 		logger.WithError(err).Error("Failed to parse jobRunId id") // this would be exceedingly strange
 		return nil, err

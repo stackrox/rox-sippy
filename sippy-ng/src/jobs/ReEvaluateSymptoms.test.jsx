@@ -24,7 +24,7 @@ function successResponse(buildID) {
     status: 200,
     json: () =>
       Promise.resolve({
-        results: [{ prow_job_build_id: buildID, status: 'success' }],
+        results: [{ ci_job_build_id: buildID, status: 'success' }],
       }),
   }
 }
@@ -35,7 +35,7 @@ function errorResponse(buildID, status) {
     status: 200,
     json: () =>
       Promise.resolve({
-        results: [{ prow_job_build_id: buildID, status }],
+        results: [{ ci_job_build_id: buildID, status }],
       }),
   }
 }
@@ -215,8 +215,8 @@ describe('ReEvaluateButton', () => {
     })
     const sentIDs = global.fetch.mock.calls.map((call) => {
       const body = JSON.parse(call[1].body)
-      expect(body.prow_job_build_ids).toHaveLength(1)
-      return body.prow_job_build_ids[0]
+      expect(body.ci_job_build_ids).toHaveLength(1)
+      return body.ci_job_build_ids[0]
     })
     expect(sentIDs.sort()).toEqual(['1', '2', '3'])
   })

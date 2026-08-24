@@ -317,8 +317,8 @@ func processFailedTests(failedTests []models.PayloadFailedTest, testNameToAnalys
 			}
 		}
 
-		ta.FailedPayloads[pl].FailedJobs = append(ta.FailedPayloads[pl].FailedJobs, ft.ProwJobName)
-		ta.FailedPayloads[pl].FailedJobRuns = append(ta.FailedPayloads[pl].FailedJobRuns, ft.ProwJobRunURL)
+		ta.FailedPayloads[pl].FailedJobs = append(ta.FailedPayloads[pl].FailedJobs, ft.CIJobName)
+		ta.FailedPayloads[pl].FailedJobRuns = append(ta.FailedPayloads[pl].FailedJobRuns, ft.CIJobRunURL)
 	}
 }
 
@@ -666,7 +666,7 @@ func BuildReleasesResponse(releases []sippyv1.Release, lastUpdated time.Time) ap
 	return response
 }
 
-// GetLastUpdateTime returns the most recent prow_job_runs created_at for the
+// GetLastUpdateTime returns the most recent ci_job_runs created_at for the
 // current active release. It uses query.CurrentActiveRelease to identify the
 // release, then queries the most recent created_at scoped to the last 14 days
 // for partition pruning.
@@ -676,7 +676,7 @@ func GetLastUpdateTime(dbc *db.DB) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("get current active release: %w", err)
 	}
 	var lastUpdated time.Time
-	if err := dbc.DB.Raw("SELECT COALESCE(MAX(created_at), '0001-01-01') FROM prow_job_runs WHERE prow_job_release = ? AND timestamp > NOW() - INTERVAL '14 days'", rel).
+	if err := dbc.DB.Raw("SELECT COALESCE(MAX(created_at), '0001-01-01') FROM ci_job_runs WHERE ci_job_release = ? AND timestamp > NOW() - INTERVAL '14 days'", rel).
 		Scan(&lastUpdated).Error; err != nil {
 		return time.Time{}, fmt.Errorf("query last update time: %w", err)
 	}
@@ -689,9 +689,9 @@ func PayloadForJobRun(dbClient *db.DB, jobRunID string) ([]apitype.JobPayload, e
 	res := dbClient.DB.Table("release_job_runs").
 		Select(`release_job_runs.job_name AS prowjob_job_name,
 			release_tags.release_tag AS payload,
-			release_job_runs.prow_job_run_id AS prowjob_build_id`).
+			release_job_runs.ci_job_run_id AS prowjob_build_id`).
 		Joins("JOIN release_tags ON release_tags.id = release_job_runs.release_tag_id").
-		Where("release_job_runs.prow_job_run_id = ?", jobRunID).
+		Where("release_job_runs.ci_job_run_id = ?", jobRunID).
 		Find(&results)
 	if res.Error != nil {
 		log.WithError(res.Error).Error("error querying job run payload from database")

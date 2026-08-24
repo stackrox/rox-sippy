@@ -1032,7 +1032,7 @@ func (s *Server) jsonBackendDisruptionByRun(w http.ResponseWriter, req *http.Req
 
 	var minTime, maxTime time.Time
 	if s.db != nil {
-		row := s.db.DB.Raw("SELECT MIN(timestamp), MAX(timestamp) FROM prow_job_runs WHERE id IN ?", jobRunNames).Row()
+		row := s.db.DB.Raw("SELECT MIN(timestamp), MAX(timestamp) FROM ci_job_runs WHERE id IN ?", jobRunNames).Row()
 		if err := row.Scan(&minTime, &maxTime); err != nil {
 			log.WithError(err).Warn("could not look up job run timestamps from postgres, falling back to no time bound")
 		}
@@ -1066,13 +1066,13 @@ func (s *Server) jsonTestRunsAndOutputsFromBigQuery(w http.ResponseWriter, req *
 	}
 
 	// Parse optional comma-separated prow job run IDs
-	var prowJobRunIDList []string
-	if prowJobRunIDs := param.SafeRead(req, "prow_job_run_ids"); prowJobRunIDs != "" {
-		prowJobRunIDList = strings.Split(prowJobRunIDs, ",")
+	var ciJobRunIDList []string
+	if ciJobRunIDs := param.SafeRead(req, "ci_job_run_ids"); ciJobRunIDs != "" {
+		ciJobRunIDList = strings.Split(ciJobRunIDs, ",")
 	}
 
 	// Parse optional multi-valued prowjob_name parameter. Substring matching.
-	prowJobNames := req.URL.Query()["prowjob_name"]
+	ciJobNames := req.URL.Query()["prowjob_name"]
 
 	// Parse include_success parameter (defaults to false)
 	includeSuccess, err := param.ReadBool(req, "include_success", false)
@@ -1108,7 +1108,7 @@ func (s *Server) jsonTestRunsAndOutputsFromBigQuery(w http.ResponseWriter, req *
 		return
 	}
 
-	outputs, err := api.GetTestRunsAndOutputsFromBigQuery(req.Context(), s.bigQueryClient, testID, prowJobRunIDList, prowJobNames, includeSuccess, startDate, endDate)
+	outputs, err := api.GetTestRunsAndOutputsFromBigQuery(req.Context(), s.bigQueryClient, testID, ciJobRunIDList, ciJobNames, includeSuccess, startDate, endDate)
 	if err != nil {
 		log.WithError(err).Error("error querying test runs")
 		failureResponse(w, http.StatusInternalServerError, "error querying test runs")
@@ -1532,14 +1532,14 @@ func (s *Server) jsonPullRequestTestResults(w http.ResponseWriter, req *http.Req
 }
 
 func (s *Server) jsonJobRunSummary(w http.ResponseWriter, req *http.Request) {
-	jobRunIDStr := s.getParamOrFail(w, req, "prow_job_run_id")
+	jobRunIDStr := s.getParamOrFail(w, req, "ci_job_run_id")
 	if jobRunIDStr == "" {
 		return
 	}
 
 	jobRunID, err := strconv.ParseInt(jobRunIDStr, 10, 64)
 	if err != nil {
-		failureResponse(w, http.StatusBadRequest, "unable to parse prow_job_run_id: "+err.Error())
+		failureResponse(w, http.StatusBadRequest, "unable to parse ci_job_run_id: "+err.Error())
 		return
 	}
 
@@ -1558,7 +1558,7 @@ func (s *Server) jsonJobRunSummary(w http.ResponseWriter, req *http.Request) {
 
 // jsonJobRunPayload returns the payload release tag that was used for a given job run.
 func (s *Server) jsonJobRunPayload(w http.ResponseWriter, req *http.Request) {
-	jobRunIDStr := s.getParamOrFail(w, req, "prow_job_run_id")
+	jobRunIDStr := s.getParamOrFail(w, req, "ci_job_run_id")
 	if jobRunIDStr == "" {
 		return
 	}
@@ -1613,8 +1613,8 @@ func (s *Server) jsonJobRunsReportFromDB(w http.ResponseWriter, req *http.Reques
 // jsonJobRunRiskAnalysis is an API to make a guess at the severity of failures in a prow job run, based on historical
 // pass rates for each failed test, on-going incidents, and other factors.
 //
-// This API can be called in two ways, a GET with a prow_job_run_id query param, or a GET with a
-// partial ProwJobRun struct serialized as json in the request body. The ID version will return the
+// This API can be called in two ways, a GET with a ci_job_run_id query param, or a GET with a
+// partial CIJobRun struct serialized as json in the request body. The ID version will return the
 // stored analysis for the job when it was imported into sippy. The other version is a transient
 // request to be used when sippy has not yet imported the job, but we wish to analyze the failure risk.
 // Soon, we expect the transient version is called from CI to get a risk analysis json result, which will
@@ -1624,15 +1624,15 @@ func (s *Server) jsonJobRunRiskAnalysis(w http.ResponseWriter, req *http.Request
 
 	logger := log.WithField("func", "jsonJobRunRiskAnalysis")
 
-	jobRun := &models.ProwJobRun{}
+	jobRun := &models.CIJobRun{}
 
 	// API path one where we return a risk analysis for a prow job run ID we already know about:
-	jobRunIDStr := req.URL.Query().Get("prow_job_run_id")
+	jobRunIDStr := req.URL.Query().Get("ci_job_run_id")
 	if jobRunIDStr != "" {
 
 		jobRunID, err := strconv.ParseInt(jobRunIDStr, 10, 64)
 		if err != nil {
-			failureResponse(w, http.StatusBadRequest, "unable to parse prow_job_run_id: "+err.Error())
+			failureResponse(w, http.StatusBadRequest, "unable to parse ci_job_run_id: "+err.Error())
 			return
 		}
 
@@ -1656,13 +1656,13 @@ func (s *Server) jsonJobRunRiskAnalysis(w http.ResponseWriter, req *http.Request
 		// validate the jobRun isn't empty
 		// valid case where test artifacts are not available
 		// we want to mark this as a high risk
-		if isValid, detailReason := isValidProwJobRun(jobRun); !isValid {
+		if isValid, detailReason := isValidCIJobRun(jobRun); !isValid {
 
-			log.Warn("Invalid ProwJob provided for analysis, returning elevated risk")
-			result := apitype.ProwJobRunRiskAnalysis{
+			log.Warn("Invalid CIJob provided for analysis, returning elevated risk")
+			result := apitype.CIJobRunRiskAnalysis{
 				OverallRisk: apitype.JobFailureRisk{
 					Level:   apitype.FailureRiskLevelMissingData,
-					Reasons: []string{fmt.Sprintf("Invalid ProwJob provided for analysis: %s", detailReason)},
+					Reasons: []string{fmt.Sprintf("Invalid CIJob provided for analysis: %s", detailReason)},
 				},
 			}
 
@@ -1671,28 +1671,28 @@ func (s *Server) jsonJobRunRiskAnalysis(w http.ResponseWriter, req *http.Request
 			return
 		}
 
-		// We don't expect the caller to fully populate the ProwJob, just its name;
-		// override the input by looking up the actual ProwJob so we have access to release and variants.
-		job := &models.ProwJob{}
-		res := s.db.DB.Where("name = ?", jobRun.ProwJob.Name).First(job)
+		// We don't expect the caller to fully populate the CIJob, just its name;
+		// override the input by looking up the actual CIJob so we have access to release and variants.
+		job := &models.CIJob{}
+		res := s.db.DB.Where("name = ?", jobRun.CIJob.Name).First(job)
 		if res.Error != nil {
 			if errors.Is(res.Error, gorm.ErrRecordNotFound) {
-				// sippy does not import all jobs to its prow_jobs table; for context see
+				// sippy does not import all jobs to its ci_jobs table; for context see
 				// https://redhat-internal.slack.com/archives/C02K89U2EV8/p1736972504210699
 				// for example, PR jobs on GA releases are excluded, and various other jobs
-				errMsg := fmt.Sprintf("ProwJob '%s' is not included in imported jobs so risk analysis will not run.", jobRun.ProwJob.Name)
-				result := apitype.ProwJobRunRiskAnalysis{
+				errMsg := fmt.Sprintf("CIJob '%s' is not included in imported jobs so risk analysis will not run.", jobRun.CIJob.Name)
+				result := apitype.CIJobRunRiskAnalysis{
 					OverallRisk: apitype.JobFailureRisk{Level: apitype.FailureRiskLevelUnknown, Reasons: []string{errMsg}},
 				}
 				api.RespondWithJSON(http.StatusOK, w, result)
 			} else {
-				failureResponse(w, http.StatusBadRequest, fmt.Sprintf("unable to find ProwJob '%s': %v", jobRun.ProwJob.Name, res.Error))
+				failureResponse(w, http.StatusBadRequest, fmt.Sprintf("unable to find CIJob '%s': %v", jobRun.CIJob.Name, res.Error))
 			}
 			return
 		}
-		jobRun.ProwJob = *job
+		jobRun.CIJob = *job
 
-		jobRun.ProwJob.Variants = s.variantManager.IdentifyVariants(jobRun.ProwJob.Name)
+		jobRun.CIJob.Variants = s.variantManager.IdentifyVariants(jobRun.CIJob.Name)
 		logger = logger.WithField("jobRunID", jobRun.ID)
 	}
 
@@ -1719,14 +1719,14 @@ func (s *Server) jsonJobRunIntervals(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	jobRunIDStr := s.getParamOrFail(w, req, "prow_job_run_id")
+	jobRunIDStr := s.getParamOrFail(w, req, "ci_job_run_id")
 	if jobRunIDStr == "" {
 		return
 	}
 
 	jobRunID, err := strconv.ParseInt(jobRunIDStr, 10, 64)
 	if err != nil {
-		failureResponse(w, http.StatusBadRequest, "unable to parse prow_job_run_id: "+err.Error())
+		failureResponse(w, http.StatusBadRequest, "unable to parse ci_job_run_id: "+err.Error())
 		return
 	}
 	logger = logger.WithField("jobRunID", jobRunID)
@@ -1775,14 +1775,14 @@ func (s *Server) jsonJobRunEvents(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	jobRunIDStr := s.getParamOrFail(w, req, "prow_job_run_id")
+	jobRunIDStr := s.getParamOrFail(w, req, "ci_job_run_id")
 	if jobRunIDStr == "" {
 		return
 	}
 
 	jobRunID, err := strconv.ParseInt(jobRunIDStr, 10, 64)
 	if err != nil {
-		failureResponse(w, http.StatusBadRequest, "unable to parse prow_job_run_id: "+err.Error())
+		failureResponse(w, http.StatusBadRequest, "unable to parse ci_job_run_id: "+err.Error())
 		return
 	}
 	logger = logger.WithField("jobRunID", jobRunID)
@@ -1814,18 +1814,18 @@ func (s *Server) jsonJobRunEvents(w http.ResponseWriter, req *http.Request) {
 	api.RespondWithJSON(http.StatusOK, w, result)
 }
 
-func isValidProwJobRun(jobRun *models.ProwJobRun) (bool, string) {
-	if (jobRun == nil || jobRun == &models.ProwJobRun{} || &jobRun.ProwJob == &models.ProwJob{} || jobRun.ProwJob.Name == "") {
+func isValidCIJobRun(jobRun *models.CIJobRun) (bool, string) {
+	if (jobRun == nil || jobRun == &models.CIJobRun{} || &jobRun.CIJob == &models.CIJob{} || jobRun.CIJob.Name == "") {
 
-		detailReason := "empty ProwJobRun"
+		detailReason := "empty CIJobRun"
 
-		if (jobRun != nil && jobRun != &models.ProwJobRun{}) {
+		if (jobRun != nil && jobRun != &models.CIJobRun{}) {
 
-			// not likely to be empty when we have a non empty ProwJobRun
-			detailReason = "empty ProwJob"
+			// not likely to be empty when we have a non empty CIJobRun
+			detailReason = "empty CIJob"
 
-			if (&jobRun.ProwJob != &models.ProwJob{}) {
-				detailReason = "missing ProwJob Name"
+			if (&jobRun.CIJob != &models.CIJob{}) {
+				detailReason = "missing CIJob Name"
 			}
 		}
 
@@ -2308,7 +2308,7 @@ func logJiraError(response *jira.Response, err error) {
 }
 
 // queryJobArtifacts is an API to query GCS for artifacts from a set of job runs. Parameters:
-// - prowJobRuns (required): a comma-separated list of prow job run IDs to query
+// - ciJobRuns (required): a comma-separated list of prow job run IDs to query
 // - pathGlob (required): a glob pattern to match against the GCS path (ref. https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-object-glob)
 // - textContains: a string to search for in the contents of the artifacts, returning the containing line
 // - textRegex: a regex string to match in the contents of the artifacts, returning the matching line
@@ -2337,17 +2337,17 @@ func (s *Server) queryJobArtifacts(w http.ResponseWriter, req *http.Request) {
 		ContentMatcher: contentMatcher,
 	}
 
-	jobRunIDStr := param.SafeRead(req, "prowJobRuns")
+	jobRunIDStr := param.SafeRead(req, "ciJobRuns")
 	if jobRunIDStr == "" {
-		typedFailureResponse(w, http.StatusBadRequest, ParameterMissing, "prowJobRuns",
+		typedFailureResponse(w, http.StatusBadRequest, ParameterMissing, "ciJobRuns",
 			"required parameter is missing")
 		return
 	}
 	for _, jobRunIDStr := range strings.Split(jobRunIDStr, ",") {
 		id, err := strconv.ParseInt(jobRunIDStr, 10, 64)
 		if err != nil {
-			typedFailureResponse(w, http.StatusBadRequest, ParameterInvalid, "prowJobRuns",
-				fmt.Sprintf("unable to parse prowJobRuns id %q: %s", id, err.Error()))
+			typedFailureResponse(w, http.StatusBadRequest, ParameterInvalid, "ciJobRuns",
+				fmt.Sprintf("unable to parse ciJobRuns id %q: %s", id, err.Error()))
 			return
 		}
 		q.JobRunIDs = append(q.JobRunIDs, id)

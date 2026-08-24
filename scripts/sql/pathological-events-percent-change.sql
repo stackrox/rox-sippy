@@ -6,19 +6,19 @@ WITH current_events AS (
         md.metadata ->> 'ns' AS "ns",
         count(md.metadata)
     FROM
-        prow_job_run_test_output_metadata md,
-        prow_job_run_test_outputs o,
-        prow_job_run_tests rt,
-        prow_job_runs r,
-        prow_jobs j,
+        ci_job_run_test_output_metadata md,
+        ci_job_run_test_outputs o,
+        ci_job_run_tests rt,
+        ci_job_runs r,
+        ci_jobs j,
         tests t
     WHERE
         md.created_at > NOW() - INTERVAL '7 days'
-        AND md.prow_job_run_test_output_id = o.id
-        AND o.prow_job_run_test_id = rt.id
+        AND md.ci_job_run_test_output_id = o.id
+        AND o.ci_job_run_test_id = rt.id
         AND rt.status = 12
-        AND rt.prow_job_run_id = r.id
-        AND r.prow_job_id = j.id
+        AND rt.ci_job_run_id = r.id
+        AND r.ci_job_id = j.id
         AND rt.test_id = t.id
         AND (j.release = '4.13'
             OR j.release = 'Presubmits')
@@ -39,20 +39,20 @@ previous_events AS (
         md.metadata ->> 'ns' AS "ns",
         count(md.metadata)
     FROM
-        prow_job_run_test_output_metadata md,
-        prow_job_run_test_outputs o,
-        prow_job_run_tests rt,
-        prow_job_runs r,
-        prow_jobs j,
+        ci_job_run_test_output_metadata md,
+        ci_job_run_test_outputs o,
+        ci_job_run_tests rt,
+        ci_job_runs r,
+        ci_jobs j,
         tests t
     WHERE
         md.created_at < NOW() - INTERVAL '7 days'
         AND md.created_at >= NOW() - INTERVAL '14 days'
-        AND md.prow_job_run_test_output_id = o.id
-        AND o.prow_job_run_test_id = rt.id
+        AND md.ci_job_run_test_output_id = o.id
+        AND o.ci_job_run_test_id = rt.id
         AND rt.status = 12
-        AND rt.prow_job_run_id = r.id
-        AND r.prow_job_id = j.id
+        AND rt.ci_job_run_id = r.id
+        AND r.ci_job_id = j.id
         AND rt.test_id = t.id
         AND (j.release = '4.13'
             OR j.release = 'Presubmits')

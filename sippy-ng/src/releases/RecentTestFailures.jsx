@@ -282,7 +282,7 @@ function FailureRow({ row, release, classes, defaultExpanded }) {
                         noWrap
                         className={classes.jobName}
                       >
-                        {output.prow_job_name}
+                        {output.ci_job_name}
                       </Typography>
                       <Tooltip
                         title={new Date(output.failed_at).toLocaleString()}
@@ -300,7 +300,7 @@ function FailureRow({ row, release, classes, defaultExpanded }) {
                           size="small"
                           target="_blank"
                           startIcon={<DirectionsBoat />}
-                          href={encodeURI(output.prow_job_url)}
+                          href={encodeURI(output.ci_job_url)}
                           onClick={(e) => e.stopPropagation()}
                           className={classes.prowButton}
                         />

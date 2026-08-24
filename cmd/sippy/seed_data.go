@@ -530,11 +530,11 @@ func releaseTimeWindow(release string) (start, end time.Time) {
 func seedSyntheticData(dbc *db.DB) error {
 	// Check if data already exists
 	var count int64
-	if err := dbc.DB.Model(&models.ProwJob{}).Count(&count).Error; err != nil {
+	if err := dbc.DB.Model(&models.CIJob{}).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to check for existing data: %w", err)
 	}
 	if count > 0 {
-		log.Infof("Database already contains %d ProwJobs, skipping seed. Drop and recreate the database to re-seed (e.g. docker compose down -v).", count)
+		log.Infof("Database already contains %d CIJobs, skipping seed. Drop and recreate the database to re-seed (e.g. docker compose down -v).", count)
 		// Feature gates use FirstOrCreate and are safe to re-run on an existing DB.
 		if err := seedFeatureGates(dbc); err != nil {
 			return errors.WithMessage(err, "failed to seed feature gates")
@@ -552,7 +552,7 @@ func seedSyntheticData(dbc *db.DB) error {
 	}
 	log.Info("Created test suite 'synthetic'")
 
-	if err := seedProwJobs(dbc); err != nil {
+	if err := seedCIJobs(dbc); err != nil {
 		return err
 	}
 
@@ -627,7 +627,7 @@ func seedSyntheticData(dbc *db.DB) error {
 	}
 	log.Info("Seeded symptom-to-job-run linkage")
 
-	log.Infof("Seeded synthetic data: %d ProwJobRuns, %d test results across %d releases",
+	log.Infof("Seeded synthetic data: %d CIJobRuns, %d test results across %d releases",
 		totalRuns, totalResults, len(syntheticReleases))
 	return nil
 }
@@ -690,24 +690,24 @@ func seedReleaseDefinitions(dbc *db.DB) error {
 	return nil
 }
 
-func seedProwJobs(dbc *db.DB) error {
+func seedCIJobs(dbc *db.DB) error {
 	for _, release := range syntheticReleases {
 		for _, job := range syntheticJobs {
 			name := fmt.Sprintf(job.nameTemplate, release)
 			variants := variantMapToArray(job.variants)
-			prowJob := models.ProwJob{
+			ciJob := models.CIJob{
 				Kind:     models.ProwKind("periodic"),
 				Name:     name,
 				Release:  release,
 				Variants: variants,
 			}
-			var existing models.ProwJob
-			if err := dbc.DB.Where("name = ?", name).FirstOrCreate(&existing, prowJob).Error; err != nil {
-				return fmt.Errorf("failed to create ProwJob %s: %w", name, err)
+			var existing models.CIJob
+			if err := dbc.DB.Where("name = ?", name).FirstOrCreate(&existing, ciJob).Error; err != nil {
+				return fmt.Errorf("failed to create CIJob %s: %w", name, err)
 			}
 		}
 	}
-	log.Infof("Created ProwJobs for %d releases x %d jobs", len(syntheticReleases), len(syntheticJobs))
+	log.Infof("Created CIJobs for %d releases x %d jobs", len(syntheticReleases), len(syntheticJobs))
 	return nil
 }
 
@@ -801,12 +801,12 @@ func seedJobRunsAndResults(dbc *db.DB) (int, int, error) {
 		}
 
 		jobName := fmt.Sprintf(jrKey.jobTemplate, jrKey.release)
-		var prowJob models.ProwJob
-		if err := dbc.DB.Where("name = ?", jobName).First(&prowJob).Error; err != nil {
-			return 0, 0, fmt.Errorf("failed to find ProwJob %s: %w", jobName, err)
+		var ciJob models.CIJob
+		if err := dbc.DB.Where("name = ?", jobName).First(&ciJob).Error; err != nil {
+			return 0, 0, fmt.Errorf("failed to find CIJob %s: %w", jobName, err)
 		}
 
-		runs, results, err := seedRunsForJob(dbc, &suite, prowJob, jrKey, runCount, testIDsByName)
+		runs, results, err := seedRunsForJob(dbc, &suite, ciJob, jrKey, runCount, testIDsByName)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -819,7 +819,7 @@ func seedJobRunsAndResults(dbc *db.DB) (int, int, error) {
 	return totalRuns, totalResults, nil
 }
 
-func seedRunsForJob(dbc *db.DB, suite *models.Suite, prowJob models.ProwJob, jrKey jobReleaseKey, runCount int, testIDsByName map[string]uint) (int, int, error) {
+func seedRunsForJob(dbc *db.DB, suite *models.Suite, ciJob models.CIJob, jrKey jobReleaseKey, runCount int, testIDsByName map[string]uint) (int, int, error) {
 	start, end := releaseTimeWindow(jrKey.release)
 	window := end.Sub(start)
 	infraRuns := 2
@@ -828,15 +828,15 @@ func seedRunsForJob(dbc *db.DB, suite *models.Suite, prowJob models.ProwJob, jrK
 	runIDs := make([]uint, totalRuns)
 	for i := range totalRuns {
 		timestamp := start.Add(time.Duration(i) * interval)
-		run := models.ProwJobRun{
-			ProwJobID:      prowJob.ID,
-			ProwJobRelease: prowJob.Release,
+		run := models.CIJobRun{
+			CIJobID:      ciJob.ID,
+			CIJobRelease: ciJob.Release,
 			Cluster:        "build01",
 			Timestamp:      timestamp,
 			Duration:       3 * time.Hour,
 		}
 		if err := dbc.DB.Create(&run).Error; err != nil {
-			return 0, 0, fmt.Errorf("failed to create ProwJobRun: %w", err)
+			return 0, 0, fmt.Errorf("failed to create CIJobRun: %w", err)
 		}
 		runIDs[i] = run.ID
 	}
@@ -871,11 +871,11 @@ func seedRunsForJob(dbc *db.DB, suite *models.Suite, prowJob models.ProwJob, jrK
 				runsWithFailure[runIDs[i]] = true
 			}
 
-			result := models.ProwJobRunTest{
-				ProwJobRunID:        runIDs[i],
-				ProwJobID:           prowJob.ID,
-				ProwJobRunRelease:   prowJob.Release,
-				ProwJobRunTimestamp: start.Add(time.Duration(i) * interval),
+			result := models.CIJobRunTest{
+				CIJobRunID:        runIDs[i],
+				CIJobID:           ciJob.ID,
+				CIJobRunRelease:   ciJob.Release,
+				CIJobRunTimestamp: start.Add(time.Duration(i) * interval),
 				TestID:              testID,
 				SuiteID:             &suite.ID,
 				Status:              status,
@@ -883,7 +883,7 @@ func seedRunsForJob(dbc *db.DB, suite *models.Suite, prowJob models.ProwJob, jrK
 				CreatedAt:           start.Add(time.Duration(i) * interval),
 			}
 			if err := dbc.DB.Create(&result).Error; err != nil {
-				return 0, 0, fmt.Errorf("failed to create ProwJobRunTest: %w", err)
+				return 0, 0, fmt.Errorf("failed to create CIJobRunTest: %w", err)
 			}
 			totalResults++
 		}
@@ -915,31 +915,31 @@ func seedRunsForJob(dbc *db.DB, suite *models.Suite, prowJob models.ProwJob, jrK
 			updates["labels"] = pq.StringArray{"InfraFailure"}
 		}
 
-		if err := dbc.DB.Model(&models.ProwJobRun{}).
-			Where("id = ? AND prow_job_release = ?", runID, prowJob.Release).
+		if err := dbc.DB.Model(&models.CIJobRun{}).
+			Where("id = ? AND ci_job_release = ?", runID, ciJob.Release).
 			Updates(updates).Error; err != nil {
-			return 0, 0, fmt.Errorf("failed to update ProwJobRun result: %w", err)
+			return 0, 0, fmt.Errorf("failed to update CIJobRun result: %w", err)
 		}
 	}
 
 	// Update test_failures and test_flakes counts
 	if err := dbc.DB.Exec(`
-		UPDATE prow_job_runs SET
+		UPDATE ci_job_runs SET
 			test_failures = COALESCE((
-				SELECT COUNT(*) FROM prow_job_run_tests
-				WHERE prow_job_run_id = prow_job_runs.id
-				AND prow_job_run_release = prow_job_runs.prow_job_release
+				SELECT COUNT(*) FROM ci_job_run_tests
+				WHERE ci_job_run_id = ci_job_runs.id
+				AND ci_job_run_release = ci_job_runs.ci_job_release
 				AND status = ?
 			), 0),
 			test_flakes = COALESCE((
-				SELECT COUNT(*) FROM prow_job_run_tests
-				WHERE prow_job_run_id = prow_job_runs.id
-				AND prow_job_run_release = prow_job_runs.prow_job_release
+				SELECT COUNT(*) FROM ci_job_run_tests
+				WHERE ci_job_run_id = ci_job_runs.id
+				AND ci_job_run_release = ci_job_runs.ci_job_release
 				AND status = ?
 			), 0)
-		WHERE prow_job_id = ? AND prow_job_release = ?`,
-		int(v1.TestStatusFailure), int(v1.TestStatusFlake), prowJob.ID, prowJob.Release).Error; err != nil {
-		return 0, 0, fmt.Errorf("updating test counts for prow job %s: %w", prowJob.Name, err)
+		WHERE ci_job_id = ? AND ci_job_release = ?`,
+		int(v1.TestStatusFailure), int(v1.TestStatusFlake), ciJob.ID, ciJob.Release).Error; err != nil {
+		return 0, 0, fmt.Errorf("updating test counts for prow job %s: %w", ciJob.Name, err)
 	}
 
 	return totalRuns, totalResults, nil
@@ -1069,8 +1069,8 @@ func seedPresubmitData(dbc *db.DB) error {
 		testsByName[name] = t.ID
 	}
 
-	// Create presubmit ProwJobs
-	presubmitJobs := []models.ProwJob{
+	// Create presubmit CIJobs
+	presubmitJobs := []models.CIJob{
 		{
 			Kind:    models.ProwKind("presubmit"),
 			Name:    "openshift-origin-ci-5.0-e2e-aws-ovn-upgrade",
@@ -1095,7 +1095,7 @@ func seedPresubmitData(dbc *db.DB) error {
 
 	for i, pj := range presubmitJobs {
 		if err := dbc.DB.Create(&pj).Error; err != nil {
-			return fmt.Errorf("failed to create presubmit ProwJob %s: %w", pj.Name, err)
+			return fmt.Errorf("failed to create presubmit CIJob %s: %w", pj.Name, err)
 		}
 		presubmitJobs[i] = pj
 	}
@@ -1145,7 +1145,7 @@ func seedPresubmitData(dbc *db.DB) error {
 
 	// Create runs: 3 runs per job, PR 99001 gets job[0] runs, PR 99002 gets job[1] runs
 	type runInfo struct {
-		run   models.ProwJobRun
+		run   models.CIJobRun
 		prIdx int
 	}
 	var runs []runInfo
@@ -1153,9 +1153,9 @@ func seedPresubmitData(dbc *db.DB) error {
 	for jobIdx, pj := range presubmitJobs {
 		for i := 0; i < 3; i++ {
 			timestamp := now.Add(-time.Duration(3-i) * 20 * time.Hour)
-			run := models.ProwJobRun{
-				ProwJobID:      pj.ID,
-				ProwJobRelease: models.ReleasePresubmits,
+			run := models.CIJobRun{
+				CIJobID:      pj.ID,
+				CIJobRelease: models.ReleasePresubmits,
 				Cluster:        "build01",
 				Timestamp:      timestamp,
 				Duration:       2 * time.Hour,
@@ -1163,7 +1163,7 @@ func seedPresubmitData(dbc *db.DB) error {
 				Failed:         true,
 			}
 			if err := dbc.DB.Create(&run).Error; err != nil {
-				return fmt.Errorf("failed to create ProwJobRun: %w", err)
+				return fmt.Errorf("failed to create CIJobRun: %w", err)
 			}
 			runs = append(runs, runInfo{run: run, prIdx: jobIdx})
 		}
@@ -1177,14 +1177,14 @@ func seedPresubmitData(dbc *db.DB) error {
 		if ri.prIdx == 0 && runIdx == 0 {
 			prID = oldSHAPR.ID
 		}
-		jrpr := models.ProwJobRunProwPullRequest{
-			ProwJobRunID:        ri.run.ID,
+		jrpr := models.CIJobRunProwPullRequest{
+			CIJobRunID:        ri.run.ID,
 			ProwPullRequestID:   prID,
-			ProwJobRunRelease:   models.ReleasePresubmits,
-			ProwJobRunTimestamp: ri.run.Timestamp,
+			CIJobRunRelease:   models.ReleasePresubmits,
+			CIJobRunTimestamp: ri.run.Timestamp,
 		}
 		if err := dbc.DB.Create(&jrpr).Error; err != nil {
-			return fmt.Errorf("failed to create ProwJobRunProwPullRequest: %w", err)
+			return fmt.Errorf("failed to create CIJobRunProwPullRequest: %w", err)
 		}
 	}
 
@@ -1194,11 +1194,11 @@ func seedPresubmitData(dbc *db.DB) error {
 
 	for _, ri := range runs {
 		// Failure result for install test
-		failResult := models.ProwJobRunTest{
-			ProwJobRunID:        ri.run.ID,
-			ProwJobID:           ri.run.ProwJobID,
-			ProwJobRunRelease:   models.ReleasePresubmits,
-			ProwJobRunTimestamp: ri.run.Timestamp,
+		failResult := models.CIJobRunTest{
+			CIJobRunID:        ri.run.ID,
+			CIJobID:           ri.run.CIJobID,
+			CIJobRunRelease:   models.ReleasePresubmits,
+			CIJobRunTimestamp: ri.run.Timestamp,
 			TestID:              installTestID,
 			SuiteID:             &suite.ID,
 			Status:              int(v1.TestStatusFailure),
@@ -1206,28 +1206,28 @@ func seedPresubmitData(dbc *db.DB) error {
 			CreatedAt:           ri.run.Timestamp,
 		}
 		if err := dbc.DB.Create(&failResult).Error; err != nil {
-			return fmt.Errorf("failed to create failure ProwJobRunTest: %w", err)
+			return fmt.Errorf("failed to create failure CIJobRunTest: %w", err)
 		}
 
 		// Add output for the first failure only
 		if ri.prIdx == 0 && ri.run.Timestamp.Equal(runs[0].run.Timestamp) {
-			output := models.ProwJobRunTestOutput{
-				ProwJobRunTestID:        failResult.ID,
+			output := models.CIJobRunTestOutput{
+				CIJobRunTestID:        failResult.ID,
 				Output:                  "Expected install to succeed but got timeout after 30m",
-				ProwJobRunTestTimestamp: ri.run.Timestamp,
-				ProwJobRunTestRelease:   models.ReleasePresubmits,
+				CIJobRunTestTimestamp: ri.run.Timestamp,
+				CIJobRunTestRelease:   models.ReleasePresubmits,
 			}
 			if err := dbc.DB.Create(&output).Error; err != nil {
-				return fmt.Errorf("failed to create ProwJobRunTestOutput: %w", err)
+				return fmt.Errorf("failed to create CIJobRunTestOutput: %w", err)
 			}
 		}
 
 		// Success result for network test
-		successResult := models.ProwJobRunTest{
-			ProwJobRunID:        ri.run.ID,
-			ProwJobID:           ri.run.ProwJobID,
-			ProwJobRunRelease:   models.ReleasePresubmits,
-			ProwJobRunTimestamp: ri.run.Timestamp,
+		successResult := models.CIJobRunTest{
+			CIJobRunID:        ri.run.ID,
+			CIJobID:           ri.run.CIJobID,
+			CIJobRunRelease:   models.ReleasePresubmits,
+			CIJobRunTimestamp: ri.run.Timestamp,
 			TestID:              networkTestID,
 			SuiteID:             &suite.ID,
 			Status:              int(v1.TestStatusSuccess),
@@ -1235,15 +1235,15 @@ func seedPresubmitData(dbc *db.DB) error {
 			CreatedAt:           ri.run.Timestamp,
 		}
 		if err := dbc.DB.Create(&successResult).Error; err != nil {
-			return fmt.Errorf("failed to create success ProwJobRunTest: %w", err)
+			return fmt.Errorf("failed to create success CIJobRunTest: %w", err)
 		}
 
 		// Success result for install test (used by include_successes=install e2e test)
-		installSuccessResult := models.ProwJobRunTest{
-			ProwJobRunID:        ri.run.ID,
-			ProwJobID:           ri.run.ProwJobID,
-			ProwJobRunRelease:   models.ReleasePresubmits,
-			ProwJobRunTimestamp: ri.run.Timestamp,
+		installSuccessResult := models.CIJobRunTest{
+			CIJobRunID:        ri.run.ID,
+			CIJobID:           ri.run.CIJobID,
+			CIJobRunRelease:   models.ReleasePresubmits,
+			CIJobRunTimestamp: ri.run.Timestamp,
 			TestID:              installTestID,
 			SuiteID:             &suite.ID,
 			Status:              int(v1.TestStatusSuccess),
@@ -1251,15 +1251,15 @@ func seedPresubmitData(dbc *db.DB) error {
 			CreatedAt:           ri.run.Timestamp,
 		}
 		if err := dbc.DB.Create(&installSuccessResult).Error; err != nil {
-			return fmt.Errorf("failed to create install success ProwJobRunTest: %w", err)
+			return fmt.Errorf("failed to create install success CIJobRunTest: %w", err)
 		}
 
 		// Flake result for install test
-		flakeResult := models.ProwJobRunTest{
-			ProwJobRunID:        ri.run.ID,
-			ProwJobID:           ri.run.ProwJobID,
-			ProwJobRunRelease:   models.ReleasePresubmits,
-			ProwJobRunTimestamp: ri.run.Timestamp,
+		flakeResult := models.CIJobRunTest{
+			CIJobRunID:        ri.run.ID,
+			CIJobID:           ri.run.CIJobID,
+			CIJobRunRelease:   models.ReleasePresubmits,
+			CIJobRunTimestamp: ri.run.Timestamp,
 			TestID:              installTestID,
 			SuiteID:             &suite.ID,
 			Status:              int(v1.TestStatusFlake),
@@ -1267,7 +1267,7 @@ func seedPresubmitData(dbc *db.DB) error {
 			CreatedAt:           ri.run.Timestamp,
 		}
 		if err := dbc.DB.Create(&flakeResult).Error; err != nil {
-			return fmt.Errorf("failed to create flake ProwJobRunTest: %w", err)
+			return fmt.Errorf("failed to create flake CIJobRunTest: %w", err)
 		}
 	}
 
@@ -1595,18 +1595,18 @@ func seedRegressionJobRuns(dbc *db.DB) error {
 		}
 
 		type failedRunInfo struct {
-			ProwJobRunID uint      `gorm:"column:prow_job_run_id"`
-			ProwJobName  string    `gorm:"column:prow_job_name"`
+			CIJobRunID uint      `gorm:"column:ci_job_run_id"`
+			CIJobName  string    `gorm:"column:ci_job_name"`
 			Timestamp    time.Time `gorm:"column:timestamp"`
 			Labels       pq.StringArray
 		}
 		var failedRuns []failedRunInfo
 		if err := dbc.DB.Raw(`
-			SELECT DISTINCT pjr.id AS prow_job_run_id, pj.name AS prow_job_name,
+			SELECT DISTINCT pjr.id AS ci_job_run_id, pj.name AS ci_job_name,
 			       pjr.timestamp, pjr.labels
-			FROM prow_job_run_tests pjrt
-			JOIN prow_job_runs pjr ON pjr.id = pjrt.prow_job_run_id
-			JOIN prow_jobs pj ON pj.id = pjrt.prow_job_id
+			FROM ci_job_run_tests pjrt
+			JOIN ci_job_runs pjr ON pjr.id = pjrt.ci_job_run_id
+			JOIN ci_jobs pj ON pj.id = pjrt.ci_job_id
 			WHERE pjrt.test_id = ? AND pjrt.status = ? AND pj.release = ?
 			ORDER BY pjr.id
 			LIMIT 10
@@ -1617,8 +1617,8 @@ func seedRegressionJobRuns(dbc *db.DB) error {
 		for _, fr := range failedRuns {
 			rjr := models.RegressionJobRun{
 				RegressionID: reg.ID,
-				ProwJobRunID: fmt.Sprintf("%d", fr.ProwJobRunID),
-				ProwJobName:  fr.ProwJobName,
+				CIJobRunID: fmt.Sprintf("%d", fr.CIJobRunID),
+				CIJobName:  fr.CIJobName,
 				StartTime:    fr.Timestamp,
 				TestFailed:   true,
 				TestFailures: 1,
@@ -1650,7 +1650,7 @@ func seedBugsAndTriages(dbc *db.DB) error {
 		return fmt.Errorf("failed to find memory test: %w", err)
 	}
 
-	var awsJob models.ProwJob
+	var awsJob models.CIJob
 	if err := dbc.DB.Where("name = ?", fmt.Sprintf(awsAmd64Parallel, "4.22")).First(&awsJob).Error; err != nil {
 		return fmt.Errorf("failed to find aws job: %w", err)
 	}
@@ -1693,7 +1693,7 @@ func seedBugsAndTriages(dbc *db.DB) error {
 			Labels:          pq.StringArray{"ci-test-failure"},
 			URL:             "https://issues.redhat.com/browse/OCPBUGS-40003",
 			Tests:           []models.Test{etcdTest},
-			Jobs:            []models.ProwJob{awsJob},
+			Jobs:            []models.CIJob{awsJob},
 		},
 		{
 			Key:             "OCPBUGS-40004",
@@ -1794,11 +1794,11 @@ func seedBugsAndTriages(dbc *db.DB) error {
 
 func seedSymptomJobRunLinkage(dbc *db.DB) error {
 	// Apply labels to some failed job runs (for label display on job runs)
-	var jobRuns []models.ProwJobRun
+	var jobRuns []models.CIJobRun
 	if err := dbc.DB.
-		Joins("JOIN prow_jobs ON prow_jobs.id = prow_job_runs.prow_job_id").
-		Where("prow_jobs.release = ? AND prow_job_runs.failed = true", "4.22").
-		Order("prow_job_runs.id").
+		Joins("JOIN ci_jobs ON ci_jobs.id = ci_job_runs.ci_job_id").
+		Where("ci_jobs.release = ? AND ci_job_runs.failed = true", "4.22").
+		Order("ci_job_runs.id").
 		Limit(4).
 		Find(&jobRuns).Error; err != nil {
 		return fmt.Errorf("failed to find failed job runs: %w", err)
@@ -1815,7 +1815,7 @@ func seedSymptomJobRunLinkage(dbc *db.DB) error {
 			break
 		}
 		merged := sets.New[string](jobRuns[idx].Labels...).Insert(labels...)
-		if err := dbc.DB.Model(&models.ProwJobRun{}).Where("id = ?", jobRuns[idx].ID).
+		if err := dbc.DB.Model(&models.CIJobRun{}).Where("id = ?", jobRuns[idx].ID).
 			Update("labels", pq.StringArray(sets.List(merged))).Error; err != nil {
 			return fmt.Errorf("failed to update job run labels: %w", err)
 		}
@@ -1920,12 +1920,12 @@ func seedTestOutputsForPeriodicJobs(dbc *db.DB) error {
 
 	created := 0
 	for _, spec := range specs {
-		var testResults []models.ProwJobRunTest
+		var testResults []models.CIJobRunTest
 		if err := dbc.DB.
-			Joins("JOIN prow_jobs ON prow_jobs.id = prow_job_run_tests.prow_job_id").
-			Where("prow_job_run_tests.status = ? AND prow_job_run_tests.test_id = (SELECT id FROM tests WHERE name = ?) AND prow_jobs.release = ? AND prow_jobs.kind = ?",
+			Joins("JOIN ci_jobs ON ci_jobs.id = ci_job_run_tests.ci_job_id").
+			Where("ci_job_run_tests.status = ? AND ci_job_run_tests.test_id = (SELECT id FROM tests WHERE name = ?) AND ci_jobs.release = ? AND ci_jobs.kind = ?",
 				int(v1.TestStatusFailure), spec.testName, spec.release, "periodic").
-			Order("prow_job_run_tests.id").
+			Order("ci_job_run_tests.id").
 			Limit(2).
 			Find(&testResults).Error; err != nil {
 			return fmt.Errorf("querying failed results for %q: %w", spec.testName, err)
@@ -1937,11 +1937,11 @@ func seedTestOutputsForPeriodicJobs(dbc *db.DB) error {
 		}
 
 		for _, tr := range testResults {
-			output := models.ProwJobRunTestOutput{
-				ProwJobRunTestID:        tr.ID,
+			output := models.CIJobRunTestOutput{
+				CIJobRunTestID:        tr.ID,
 				Output:                  spec.output,
-				ProwJobRunTestTimestamp: tr.ProwJobRunTimestamp,
-				ProwJobRunTestRelease:   tr.ProwJobRunRelease,
+				CIJobRunTestTimestamp: tr.CIJobRunTimestamp,
+				CIJobRunTestRelease:   tr.CIJobRunRelease,
 			}
 			if err := dbc.DB.Create(&output).Error; err != nil {
 				return fmt.Errorf("failed to create test output for %s: %w", spec.testName, err)
@@ -1954,7 +1954,7 @@ func seedTestOutputsForPeriodicJobs(dbc *db.DB) error {
 	return nil
 }
 
-// seedGARawTestData populates prow_ga_raw_test_data for GA releases using
+// seedGARawTestData populates ci_ga_raw_test_data for GA releases using
 // the same synthetic test/job definitions.
 func seedGARawTestData(dbc *db.DB) error {
 	var gaReleases []models.ReleaseDefinition
@@ -2004,17 +2004,17 @@ func seedGARawTestData(dbc *db.DB) error {
 						continue
 					}
 					jobName := fmt.Sprintf(jobTemplate, rel.Release)
-					prowJobID, ok := jobIDCache[jobName]
+					ciJobID, ok := jobIDCache[jobName]
 					if !ok {
-						var job models.ProwJob
+						var job models.CIJob
 						if err := dbc.DB.Where("name = ?", jobName).First(&job).Error; err != nil {
 							if !stderrors.Is(err, gorm.ErrRecordNotFound) {
 								return fmt.Errorf("looking up prow job %q: %w", jobName, err)
 							}
 							continue
 						}
-						prowJobID = job.ID
-						jobIDCache[jobName] = prowJobID
+						ciJobID = job.ID
+						jobIDCache[jobName] = ciJobID
 					}
 
 					scale := int64(windowDays)
@@ -2022,7 +2022,7 @@ func seedGARawTestData(dbc *db.DB) error {
 						Release:    rel.Release,
 						WindowDays: windowDays,
 						TestID:     testID,
-						ProwJobID:  prowJobID,
+						CIJobID:  ciJobID,
 						SuiteID:    suiteID,
 						Passes:     int64(counts.success) * scale,
 						Failures:   int64(counts.total-counts.success-counts.flake) * scale,

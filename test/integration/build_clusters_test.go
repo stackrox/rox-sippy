@@ -33,7 +33,7 @@ func TestHasBuildClusterData(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dbc := intutil.NewTestDB(t, pgContainer)
 
-			job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+			job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 			createSingleRun(t, dbc, job.ID, "4.16", runSpec{
 				timestamp: time.Date(2024, 6, 10, 12, 0, 0, 0, time.UTC),
 				succeeded: true,
@@ -64,7 +64,7 @@ func TestBuildClusterHealth(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := intutil.CreateProwJobWithOptions(t, dbc,
+	job := intutil.CreateCIJobWithOptions(t, dbc,
 		"periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"},
 		intutil.WithKind("periodic"),
 	)
@@ -107,7 +107,7 @@ func TestBuildClusterHealthMultipleClusters(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := intutil.CreateProwJobWithOptions(t, dbc,
+	job := intutil.CreateCIJobWithOptions(t, dbc,
 		"periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"},
 		intutil.WithKind("periodic"),
 	)
@@ -138,7 +138,7 @@ func TestBuildClusterHealthZeroRunsInPreviousPeriod(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := intutil.CreateProwJobWithOptions(t, dbc,
+	job := intutil.CreateCIJobWithOptions(t, dbc,
 		"periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"},
 		intutil.WithKind("periodic"),
 	)
@@ -170,7 +170,7 @@ func TestBuildClusterHealthExcludesNonPeriodic(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	presubmitJob := intutil.CreateProwJobWithOptions(t, dbc,
+	presubmitJob := intutil.CreateCIJobWithOptions(t, dbc,
 		"pull-ci-e2e-aws-4.16", "4.16", []string{"aws"},
 		intutil.WithKind("presubmit"),
 	)
@@ -188,7 +188,7 @@ func TestBuildClusterHealthExcludesNonPeriodic(t *testing.T) {
 func TestBuildClusterAnalysis(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJobWithOptions(t, dbc,
+	job := intutil.CreateCIJobWithOptions(t, dbc,
 		"periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"},
 		intutil.WithKind("periodic"),
 	)
@@ -238,7 +238,7 @@ func TestBuildClusterAnalysis(t *testing.T) {
 func TestBuildClusterAnalysisByDay(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJobWithOptions(t, dbc,
+	job := intutil.CreateCIJobWithOptions(t, dbc,
 		"periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"},
 		intutil.WithKind("periodic"),
 	)
@@ -265,7 +265,7 @@ func TestBuildClusterAnalysisByDay(t *testing.T) {
 func TestBuildClusterAnalysisExcludesOldData(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJobWithOptions(t, dbc,
+	job := intutil.CreateCIJobWithOptions(t, dbc,
 		"periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"},
 		intutil.WithKind("periodic"),
 	)
@@ -285,7 +285,7 @@ func TestBuildClusterAnalysisExcludesOldData(t *testing.T) {
 func TestBuildClusterAnalysisExcludesNonPeriodic(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	presubmitJob := intutil.CreateProwJobWithOptions(t, dbc,
+	presubmitJob := intutil.CreateCIJobWithOptions(t, dbc,
 		"pull-ci-e2e-aws-4.16", "4.16", []string{"aws"},
 		intutil.WithKind("presubmit"),
 	)

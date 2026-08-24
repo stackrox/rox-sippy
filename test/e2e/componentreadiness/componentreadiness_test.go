@@ -166,8 +166,8 @@ func TestRegressionCacheLoader(t *testing.T) {
 
 			// Every tracked job run should have basic fields populated
 			for _, jr := range jobRuns {
-				assert.NotEmpty(t, jr.ProwJobRunID, "job run missing ProwJobRunID")
-				assert.NotEmpty(t, jr.ProwJobName, "job run missing ProwJobName")
+				assert.NotEmpty(t, jr.CIJobRunID, "job run missing CIJobRunID")
+				assert.NotEmpty(t, jr.CIJobName, "job run missing CIJobName")
 				assert.False(t, jr.StartTime.IsZero(), "job run missing StartTime")
 			}
 

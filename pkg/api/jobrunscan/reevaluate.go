@@ -49,7 +49,7 @@ const (
 
 // ReEvaluationResult reports what happened for a single job run.
 type ReEvaluationResult struct {
-	ProwJobBuildID      string            `json:"prow_job_build_id"`
+	CIJobBuildID      string            `json:"ci_job_build_id"`
 	Status              ReEvalStatus      `json:"status"`
 	SymptomsEvaluated   int               `json:"symptoms_evaluated,omitempty"`
 	SymptomsMatched     []string          `json:"symptoms_matched,omitempty"`
@@ -121,15 +121,15 @@ type symptomMatch struct {
 }
 
 // ReEvaluateJobRuns re-evaluates all symptom matches for the specified job runs.
-func (r *ReEvaluator) ReEvaluateJobRuns(ctx context.Context, prowJobBuildIDs []string) ([]ReEvaluationResult, error) {
+func (r *ReEvaluator) ReEvaluateJobRuns(ctx context.Context, ciJobBuildIDs []string) ([]ReEvaluationResult, error) {
 	symptoms, err := r.loadActiveSymptoms()
 	if err != nil {
 		return nil, fmt.Errorf("loading symptoms: %w", err)
 	}
 	log.WithField("activeSymptoms", len(symptoms)).Debug("symptom reEval: loaded active symptoms")
 
-	results := make([]ReEvaluationResult, 0, len(prowJobBuildIDs))
-	for _, buildID := range prowJobBuildIDs {
+	results := make([]ReEvaluationResult, 0, len(ciJobBuildIDs))
+	for _, buildID := range ciJobBuildIDs {
 		result := r.reEvaluateOne(ctx, buildID, symptoms)
 		results = append(results, result)
 	}
@@ -168,7 +168,7 @@ func filterRelevantSymptoms(symptoms []jobrunscan.Symptom) []jobrunscan.Symptom 
 // reEvaluateOne processes a single job run through all symptoms.
 func (r *ReEvaluator) reEvaluateOne(ctx context.Context, buildID string, symptoms []jobrunscan.Symptom) ReEvaluationResult {
 	result := ReEvaluationResult{
-		ProwJobBuildID:    buildID,
+		CIJobBuildID:    buildID,
 		SymptomsEvaluated: len(symptoms),
 	}
 
@@ -179,15 +179,15 @@ func (r *ReEvaluator) reEvaluateOne(ctx context.Context, buildID string, symptom
 		return result
 	}
 
-	partKeys, err := query.LookupProwJobRunPartitionKeys(r.db.DB, jobRunID)
+	partKeys, err := query.LookupCIJobRunPartitionKeys(r.db.DB, jobRunID)
 	if err != nil {
 		result.Status = ReEvalEvalError
 		result.Error = fmt.Sprintf("looking up partition keys for job run %s: %v", buildID, err)
 		return result
 	}
 
-	jobRunModel := new(models.ProwJobRun)
-	res := r.db.DB.Where("prow_job_release = ? AND timestamp = ?", partKeys.ProwJobRelease, partKeys.Timestamp).
+	jobRunModel := new(models.CIJobRun)
+	res := r.db.DB.Where("ci_job_release = ? AND timestamp = ?", partKeys.CIJobRelease, partKeys.Timestamp).
 		Take(jobRunModel, jobRunID)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
@@ -332,7 +332,7 @@ func ContentMatcherForSymptom(symptom jobrunscan.SymptomContent) (jobartifacts.C
 }
 
 // buildOutputs creates the BQ labels and GCS bucket labels from symptom matches.
-func (r *ReEvaluator) buildOutputs(matches []symptomMatch, buildID string, jobRun *models.ProwJobRun) ([]models.JobRunLabel, []jobrunannotator.JobRunBucketLabel, error) {
+func (r *ReEvaluator) buildOutputs(matches []symptomMatch, buildID string, jobRun *models.CIJobRun) ([]models.JobRunLabel, []jobrunannotator.JobRunBucketLabel, error) {
 	now := civil.DateTimeOf(time.Now())
 	startTime := civil.DateTimeOf(jobRun.Timestamp)
 	jobRunPath := jobRunPathFromURL(jobRun.URL)
@@ -398,7 +398,7 @@ func (r *ReEvaluator) loadLabelDefinitions(matches []symptomMatch) (map[string]j
 }
 
 // clearAndWrite clears existing symptom-originated data in BQ and GCS, then writes new results.
-func (r *ReEvaluator) clearAndWrite(ctx context.Context, buildID string, jobRun *models.ProwJobRun,
+func (r *ReEvaluator) clearAndWrite(ctx context.Context, buildID string, jobRun *models.CIJobRun,
 	bqLabels []models.JobRunLabel, bucketLabels []jobrunannotator.JobRunBucketLabel) error {
 
 	// Clear BQ
@@ -491,10 +491,10 @@ func (r *ReEvaluator) clearGCSLabels(ctx context.Context, jobRunPath string) err
 	return nil
 }
 
-// updatePostgresLabels updates the labels array on prow_job_runs (and
+// updatePostgresLabels updates the labels array on ci_job_runs (and
 // release_job_runs if applicable) with the merged label set.
 //
-// For prow_job_runs the InfraFailure label is coupled to the summary-table
+// For ci_job_runs the InfraFailure label is coupled to the summary-table
 // subtraction (see pkg/db/infrafailure): whenever the merged set carries
 // InfraFailure, the subtraction is performed inline via SubtractNewInfraFailure
 // (idempotent) inside the same row-locked transaction that replaces the labels
@@ -504,7 +504,7 @@ func (r *ReEvaluator) clearGCSLabels(ctx context.Context, jobRunPath string) err
 // clobber it and break the "InfraFailure label in PostgreSQL == subtraction
 // done" invariant. release_job_runs is not coupled to the subtraction, so it
 // receives the merged set as-is.
-func (r *ReEvaluator) updatePostgresLabels(ctx context.Context, buildID string, jobRun *models.ProwJobRun, newBQLabels []models.JobRunLabel) error {
+func (r *ReEvaluator) updatePostgresLabels(ctx context.Context, buildID string, jobRun *models.CIJobRun, newBQLabels []models.JobRunLabel) error {
 	// Query BQ for existing non-symptom labels for this build ID
 	manualLabels, err := r.queryNonSymptomLabels(ctx, buildID, jobRun.Timestamp)
 	if err != nil {
@@ -517,24 +517,24 @@ func (r *ReEvaluator) updatePostgresLabels(ctx context.Context, buildID string, 
 	// Merge manual labels with new symptom labels
 	merged := mergeLabels(manualLabels, newBQLabels)
 
-	// The InfraFailure label in prow_job_runs is coupled to the summary-table
+	// The InfraFailure label in ci_job_runs is coupled to the summary-table
 	// subtraction (see pkg/db/infrafailure). Serialize the label read and the
 	// full-array-replace write against RecordInfraFailure by running both inside
 	// a single transaction that first takes a row lock (SELECT ... FOR UPDATE) on
-	// the prow_job_runs row. RecordInfraFailure acquires the same row lock via
+	// the ci_job_runs row. RecordInfraFailure acquires the same row lock via
 	// its conditional UPDATE, so the lock forces the two paths to run one after
 	// the other and keeps the "InfraFailure label in PostgreSQL == subtraction
 	// done" invariant intact.
 	mergedHasInfraFailure := slices.Contains(merged, infrafailure.LabelInfraFailure)
-	prowJobRunLabels := merged
+	ciJobRunLabels := merged
 	if err := r.db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Read (and lock) the current labels from the row so we can preserve an
 		// InfraFailure that RecordInfraFailure already applied.
-		var currentRun models.ProwJobRun
+		var currentRun models.CIJobRun
 		if err := tx.Raw(
-			"SELECT labels FROM prow_job_runs WHERE id = ? AND prow_job_release = ? AND timestamp = ? FOR UPDATE",
-			jobRun.ID, jobRun.ProwJobRelease, jobRun.Timestamp).Scan(&currentRun).Error; err != nil {
-			return fmt.Errorf("locking prow_job_runs row for build %s: %w", buildID, err)
+			"SELECT labels FROM ci_job_runs WHERE id = ? AND ci_job_release = ? AND timestamp = ? FOR UPDATE",
+			jobRun.ID, jobRun.CIJobRelease, jobRun.Timestamp).Scan(&currentRun).Error; err != nil {
+			return fmt.Errorf("locking ci_job_runs row for build %s: %w", buildID, err)
 		}
 
 		if mergedHasInfraFailure {
@@ -542,7 +542,7 @@ func (r *ReEvaluator) updatePostgresLabels(ctx context.Context, buildID string, 
 			// subtraction now (idempotent -- a no-op if the row already carries
 			// the label). The label itself is written by the full-array replace
 			// below, so the merged set is used as-is.
-			if err := infrafailure.SubtractNewInfraFailure(tx, int64(jobRun.ID)); err != nil { //nolint:gosec // G115: prow_job_runs.id is a PostgreSQL serial, always within int64 range
+			if err := infrafailure.SubtractNewInfraFailure(tx, int64(jobRun.ID)); err != nil { //nolint:gosec // G115: ci_job_runs.id is a PostgreSQL serial, always within int64 range
 				return fmt.Errorf("subtracting infra-failure summaries for build %s: %w", buildID, err)
 			}
 		} else if slices.Contains(currentRun.Labels, infrafailure.LabelInfraFailure) {
@@ -550,13 +550,13 @@ func (r *ReEvaluator) updatePostgresLabels(ctx context.Context, buildID string, 
 			// (its subtraction was done by RecordInfraFailure): preserve the
 			// label so the full-array replace does not clobber it and break the
 			// invariant.
-			prowJobRunLabels = append(prowJobRunLabels, infrafailure.LabelInfraFailure)
+			ciJobRunLabels = append(ciJobRunLabels, infrafailure.LabelInfraFailure)
 		}
 
-		if err := tx.Model(&models.ProwJobRun{}).
-			Where("id = ? AND prow_job_release = ? AND timestamp = ?", jobRun.ID, jobRun.ProwJobRelease, jobRun.Timestamp).
-			Update("labels", pq.StringArray(prowJobRunLabels)).Error; err != nil {
-			return fmt.Errorf("updating prow_job_runs.labels: %w", err)
+		if err := tx.Model(&models.CIJobRun{}).
+			Where("id = ? AND ci_job_release = ? AND timestamp = ?", jobRun.ID, jobRun.CIJobRelease, jobRun.Timestamp).
+			Update("labels", pq.StringArray(ciJobRunLabels)).Error; err != nil {
+			return fmt.Errorf("updating ci_job_runs.labels: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -564,11 +564,11 @@ func (r *ReEvaluator) updatePostgresLabels(ctx context.Context, buildID string, 
 	}
 
 	// Mirror the merged labels onto release_job_runs when this job run has a
-	// release row. Unlike prow_job_runs, release_job_runs is not coupled to the
+	// release row. Unlike ci_job_runs, release_job_runs is not coupled to the
 	// summary-table subtraction, so the merged set is written as-is. Select only
 	// the primary key: it is all the label update needs.
 	var releaseJobRun models.ReleaseJobRun
-	if err := r.db.DB.Select("id").Where("prow_job_run_id = ?", jobRun.ID).First(&releaseJobRun).Error; err != nil {
+	if err := r.db.DB.Select("id").Where("ci_job_run_id = ?", jobRun.ID).First(&releaseJobRun).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("looking up release_job_runs for build %s: %w", buildID, err)
 		}
@@ -578,7 +578,7 @@ func (r *ReEvaluator) updatePostgresLabels(ctx context.Context, buildID string, 
 		}
 	}
 
-	log.WithFields(log.Fields{"buildID": buildID, "labels": pq.StringArray(prowJobRunLabels)}).Debug("symptom reEval: updated PostgreSQL labels")
+	log.WithFields(log.Fields{"buildID": buildID, "labels": pq.StringArray(ciJobRunLabels)}).Debug("symptom reEval: updated PostgreSQL labels")
 	return nil
 }
 
@@ -627,7 +627,7 @@ func mergeLabels(manualLabels []string, bqLabels []models.JobRunLabel) []string 
 	return merged.UnsortedList()
 }
 
-// jobRunPathFromURL extracts the GCS path from a ProwJobRun URL.
+// jobRunPathFromURL extracts the GCS path from a CIJobRun URL.
 func jobRunPathFromURL(url string) string {
 	const marker = "/" + util.GcsBucketRoot + "/"
 	pathStart := strings.Index(url, marker)
@@ -660,16 +660,16 @@ func uniqueLabels(labels []models.JobRunLabel) []string {
 }
 
 // ValidateReEvalRequest validates the re-evaluation request parameters.
-func ValidateReEvalRequest(prowJobBuildIDs []string) error {
-	if len(prowJobBuildIDs) == 0 {
-		return fmt.Errorf("prow_job_build_ids is required")
+func ValidateReEvalRequest(ciJobBuildIDs []string) error {
+	if len(ciJobBuildIDs) == 0 {
+		return fmt.Errorf("ci_job_build_ids is required")
 	}
-	if len(prowJobBuildIDs) > maxJobRunsPerReq {
+	if len(ciJobBuildIDs) > maxJobRunsPerReq {
 		return fmt.Errorf("maximum %d job runs per request", maxJobRunsPerReq)
 	}
-	for _, id := range prowJobBuildIDs {
+	for _, id := range ciJobBuildIDs {
 		if _, err := strconv.ParseInt(id, 10, 64); err != nil {
-			return fmt.Errorf("invalid prow_job_build_id %q: must be a numeric string", id)
+			return fmt.Errorf("invalid ci_job_build_id %q: must be a numeric string", id)
 		}
 	}
 	return nil

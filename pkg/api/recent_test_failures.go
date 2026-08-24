@@ -116,7 +116,7 @@ func GetRecentTestFailures(
 }
 
 // buildRecentFailuresQuery builds the main aggregation query using a reversed join
-// order (prow_job_run_tests first, filtered by the status index) and deferred
+// order (ci_job_run_tests first, filtered by the status index) and deferred
 // dimension lookups (tests/suites/test_ownerships joined after aggregation).
 func buildRecentFailuresQuery(
 	dbc *db.DB,
@@ -128,12 +128,12 @@ func buildRecentFailuresQuery(
 
 	innerSQL := `SELECT pjrt.test_id, pjrt.suite_id,
 			COUNT(*) AS failure_count,
-			MIN(pjrt.prow_job_run_timestamp) AS first_failure,
-			MAX(pjrt.prow_job_run_timestamp) AS last_failure
-		FROM prow_job_run_tests pjrt
+			MIN(pjrt.ci_job_run_timestamp) AS first_failure,
+			MAX(pjrt.ci_job_run_timestamp) AS last_failure
+		FROM ci_job_run_tests pjrt
 		WHERE pjrt.status = ?
-			AND pjrt.prow_job_run_release = ?
-			AND pjrt.prow_job_run_timestamp >= ? AND pjrt.prow_job_run_timestamp < ?
+			AND pjrt.ci_job_run_release = ?
+			AND pjrt.ci_job_run_timestamp >= ? AND pjrt.ci_job_run_timestamp < ?
 			AND pjrt.deleted_at IS NULL`
 
 	params := []interface{}{
@@ -144,12 +144,12 @@ func buildRecentFailuresQuery(
 		prevStart := periodStart.Add(-*previousPeriod)
 		innerSQL += `
 			AND NOT EXISTS (
-				SELECT 1 FROM prow_job_run_tests prev_t
+				SELECT 1 FROM ci_job_run_tests prev_t
 				WHERE prev_t.test_id = pjrt.test_id
 					AND prev_t.suite_id IS NOT DISTINCT FROM pjrt.suite_id
 					AND prev_t.status = ?
-					AND prev_t.prow_job_run_release = ?
-					AND prev_t.prow_job_run_timestamp >= ? AND prev_t.prow_job_run_timestamp < ?
+					AND prev_t.ci_job_run_release = ?
+					AND prev_t.ci_job_run_timestamp >= ? AND prev_t.ci_job_run_timestamp < ?
 					AND prev_t.deleted_at IS NULL
 			)`
 		params = append(params,
@@ -179,7 +179,7 @@ type testSuiteKey struct {
 // findLastPass retrieves the most recent successful run timestamp for each
 // (test_id, suite_id) pair from test_cumulative_summaries using the
 // prefix_max_last_success column. This replaces the previous approach of
-// scanning prow_job_run_tests one day at a time in a loop (up to 90 iterations).
+// scanning ci_job_run_tests one day at a time in a loop (up to 90 iterations).
 func findLastPass(
 	dbc *db.DB,
 	keys []testSuiteKey,
@@ -239,33 +239,33 @@ func fetchOutputs(
 	var outputs []struct {
 		TestID       uint      `gorm:"column:test_id"`
 		SuiteID      *uint     `gorm:"column:suite_id"`
-		ProwJobRunID uint      `gorm:"column:prow_job_run_id"`
-		ProwJobName  string    `gorm:"column:prow_job_name"`
-		ProwJobURL   string    `gorm:"column:prow_job_url"`
+		CIJobRunID uint      `gorm:"column:ci_job_run_id"`
+		CIJobName  string    `gorm:"column:ci_job_name"`
+		CIJobURL   string    `gorm:"column:ci_job_url"`
 		FailedAt     time.Time `gorm:"column:failed_at"`
 		Output       string    `gorm:"column:output"`
 	}
 
-	if err := dbc.DB.Table("prow_job_run_tests pjrt").
-		Joins("JOIN prow_job_runs pjr ON pjr.id = pjrt.prow_job_run_id").
-		Joins("JOIN prow_jobs pj ON pj.id = pjr.prow_job_id").
-		Joins(`LEFT JOIN prow_job_run_test_outputs pjrto ON pjrto.prow_job_run_test_id = pjrt.id
-			AND pjrto.prow_job_run_test_release = pjrt.prow_job_run_release
-			AND pjrto.prow_job_run_test_timestamp = pjrt.prow_job_run_timestamp`).
+	if err := dbc.DB.Table("ci_job_run_tests pjrt").
+		Joins("JOIN ci_job_runs pjr ON pjr.id = pjrt.ci_job_run_id").
+		Joins("JOIN ci_jobs pj ON pj.id = pjr.ci_job_id").
+		Joins(`LEFT JOIN ci_job_run_test_outputs pjrto ON pjrto.ci_job_run_test_id = pjrt.id
+			AND pjrto.ci_job_run_test_release = pjrt.ci_job_run_release
+			AND pjrto.ci_job_run_test_timestamp = pjrt.ci_job_run_timestamp`).
 		Where("pjrt.test_id IN ?", testIDs).
 		Where("pjrt.status = ?", int(sippyprocessingv1.TestStatusFailure)).
-		Where("pjrt.prow_job_run_release = ?", release).
-		Where("pjrt.prow_job_run_timestamp >= ? AND pjrt.prow_job_run_timestamp < ?", periodStart, reportEnd).
+		Where("pjrt.ci_job_run_release = ?", release).
+		Where("pjrt.ci_job_run_timestamp >= ? AND pjrt.ci_job_run_timestamp < ?", periodStart, reportEnd).
 		Where("pjrt.deleted_at IS NULL").
-		Where("pjr.prow_job_release = ?", release).
+		Where("pjr.ci_job_release = ?", release).
 		Where("pjr.timestamp >= ? AND pjr.timestamp < ?", periodStart, reportEnd).
 		Where("pjr.deleted_at IS NULL").
 		Where("pj.deleted_at IS NULL").
 		Select(`pjrt.test_id AS test_id,
 			pjrt.suite_id AS suite_id,
-			pjr.id AS prow_job_run_id,
-			pj.name AS prow_job_name,
-			pjr.url AS prow_job_url,
+			pjr.id AS ci_job_run_id,
+			pj.name AS ci_job_name,
+			pjr.url AS ci_job_url,
 			pjr.timestamp AS failed_at,
 			COALESCE(pjrto.output, '') AS output`).
 		Scan(&outputs).Error; err != nil {
@@ -279,9 +279,9 @@ func fetchOutputs(
 			key.suiteID = *o.SuiteID
 		}
 		result[key] = append(result[key], apitype.RecentTestFailureOutput{
-			ProwJobRunID: o.ProwJobRunID,
-			ProwJobName:  o.ProwJobName,
-			ProwJobURL:   o.ProwJobURL,
+			CIJobRunID: o.CIJobRunID,
+			CIJobName:  o.CIJobName,
+			CIJobURL:   o.CIJobURL,
 			FailedAt:     o.FailedAt,
 			Output:       o.Output,
 		})

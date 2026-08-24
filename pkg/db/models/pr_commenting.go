@@ -19,7 +19,7 @@ type PullRequestComment struct {
 	SHA                   string    `json:"sha" gorm:"primaryKey"`
 	Org                   string    `json:"org" gorm:"primaryKey"`
 	Repo                  string    `json:"repo" gorm:"primaryKey"`
-	ProwJobRoot           string    `json:"prowJobRoot"`
+	CIJobRoot           string    `json:"ciJobRoot"`
 	LastCommentAttempt    time.Time `json:"lastCommentAttempt"`
 	FailedCommentAttempts int       `json:"failedCommentAttempts"`
 }

@@ -13,37 +13,37 @@ import (
 	"github.com/openshift/sippy/pkg/db/models"
 )
 
-func TestValidateProwJobRun(t *testing.T) {
+func TestValidateCIJobRun(t *testing.T) {
 
 	tests := []struct {
 		name                 string
-		prowJobRun           *models.ProwJobRun
+		ciJobRun           *models.CIJobRun
 		expectedValidation   bool
 		expectedDetailReason string
 	}{
 		{
-			// no prowJobRun specified
+			// no ciJobRun specified
 			// simulates what we are seeing from the origin riskanalysis command
 			// when missing junit artifacts
-			name:                 "Test Nil ProwJobRun",
+			name:                 "Test Nil CIJobRun",
 			expectedValidation:   false,
-			expectedDetailReason: "empty ProwJobRun",
+			expectedDetailReason: "empty CIJobRun",
 		},
 		{
-			prowJobRun:           &models.ProwJobRun{},
-			name:                 "Test Empty ProwJobRun",
+			ciJobRun:           &models.CIJobRun{},
+			name:                 "Test Empty CIJobRun",
 			expectedValidation:   false,
-			expectedDetailReason: "missing ProwJob Name",
+			expectedDetailReason: "missing CIJob Name",
 		},
 		{
-			prowJobRun:           &models.ProwJobRun{ProwJob: models.ProwJob{}},
-			name:                 "Test Empty ProwJob",
+			ciJobRun:           &models.CIJobRun{CIJob: models.CIJob{}},
+			name:                 "Test Empty CIJob",
 			expectedValidation:   false,
-			expectedDetailReason: "missing ProwJob Name",
+			expectedDetailReason: "missing CIJob Name",
 		},
 		{
-			prowJobRun:         &models.ProwJobRun{ProwJob: models.ProwJob{Name: "test"}},
-			name:               "Test Valid ProwJob",
+			ciJobRun:         &models.CIJobRun{CIJob: models.CIJob{Name: "test"}},
+			name:               "Test Valid CIJob",
 			expectedValidation: true,
 		},
 	}
@@ -51,8 +51,8 @@ func TestValidateProwJobRun(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			// no files found so we marshall the null prowJobRun
-			inputBytes, err := json.Marshal(tc.prowJobRun)
+			// no files found so we marshall the null ciJobRun
+			inputBytes, err := json.Marshal(tc.ciJobRun)
 
 			// we don't encounter an error
 			if err != nil {
@@ -64,7 +64,7 @@ func TestValidateProwJobRun(t *testing.T) {
 				t.Fatalf("Nil Bytes for %s", tc.name)
 			}
 
-			jobRun := &models.ProwJobRun{}
+			jobRun := &models.CIJobRun{}
 
 			// we decode the string 'null' but we don't get an error...
 			err = json.NewDecoder(strings.NewReader(string(inputBytes))).Decode(&jobRun)
@@ -73,7 +73,7 @@ func TestValidateProwJobRun(t *testing.T) {
 				t.Fatalf("Error decoding prowjob for %s", tc.name)
 			}
 
-			isValid, detailReason := isValidProwJobRun(jobRun)
+			isValid, detailReason := isValidCIJobRun(jobRun)
 
 			if isValid != tc.expectedValidation {
 				t.Fatalf("Validation %t did not match expected Expected %t for %s", isValid, tc.expectedValidation, tc.name)
@@ -112,10 +112,10 @@ func TestLogRequestHandlerAllowsWebSocketUpgrade(t *testing.T) {
 }
 
 func TestEncodeDefaultHighRisk(t *testing.T) {
-	result := apitype.ProwJobRunRiskAnalysis{
+	result := apitype.CIJobRunRiskAnalysis{
 		OverallRisk: apitype.JobFailureRisk{
 			Level:   apitype.FailureRiskLevelHigh,
-			Reasons: []string{"Invalid ProwJob provided for analysis"},
+			Reasons: []string{"Invalid CIJob provided for analysis"},
 		},
 	}
 
@@ -131,7 +131,7 @@ func TestEncodeDefaultHighRisk(t *testing.T) {
 		t.Fatal("Invalid risk analysis json")
 	}
 
-	analysis := &apitype.ProwJobRunRiskAnalysis{}
+	analysis := &apitype.CIJobRunRiskAnalysis{}
 
 	err = json.NewDecoder(strings.NewReader(string(encodedRiskResult))).Decode(&analysis)
 

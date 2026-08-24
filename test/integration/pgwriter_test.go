@@ -19,9 +19,9 @@ import (
 
 var testDate = civil.Date{Year: 2026, Month: 7, Day: 15}
 
-func seedProwJob(t *testing.T, dbc *db.DB, name, release string) uint {
+func seedCIJob(t *testing.T, dbc *db.DB, name, release string) uint {
 	t.Helper()
-	job := models.ProwJob{Name: name, Release: release}
+	job := models.CIJob{Name: name, Release: release}
 	require.NoError(t, dbc.DB.Create(&job).Error)
 	return job.ID
 }
@@ -38,23 +38,23 @@ func carryForward(t *testing.T, dbc *db.DB, currentDate civil.Date, releases []s
 
 func TestJobRunsPersisted(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
 		Run: pgwriter.RunRow{
 			ID: 1001, Cluster: "build01", Duration: 30 * time.Minute,
-			ProwJobID: jobID, ProwJobRelease: "4.18", URL: "https://prow/1001",
+			CIJobID: jobID, CIJobRelease: "4.18", URL: "https://prow/1001",
 			GCSBucket: "origin-ci-test", Timestamp: ts,
 			OverallResult: "S", TestFailures: 2, Succeeded: true,
 			Labels: []string{"cloud:aws", "upgrade:none"},
 		},
 	}})
 
-	var run models.ProwJobRun
+	var run models.CIJobRun
 	require.NoError(t, dbc.DB.First(&run, 1001).Error)
 	assert.Equal(t, "build01", run.Cluster)
-	assert.Equal(t, jobID, run.ProwJobID)
+	assert.Equal(t, jobID, run.CIJobID)
 	assert.Equal(t, "https://prow/1001", run.URL)
 	assert.Equal(t, "origin-ci-test", run.GCSBucket)
 	assert.Equal(t, "S", string(run.OverallResult))
@@ -64,21 +64,21 @@ func TestJobRunsPersisted(t *testing.T) {
 
 func TestAnnotationsStored(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
 		Run: pgwriter.RunRow{
-			ID: 2001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts,
+			ID: 2001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts,
 		},
 		Annotations: []pgwriter.AnnotationRow{
-			{ProwJobRunID: 2001, Key: "risk", Value: "high", ProwJobRunRelease: "4.18", ProwJobRunTimestamp: ts},
-			{ProwJobRunID: 2001, Key: "team", Value: "trt", ProwJobRunRelease: "4.18", ProwJobRunTimestamp: ts},
+			{CIJobRunID: 2001, Key: "risk", Value: "high", CIJobRunRelease: "4.18", CIJobRunTimestamp: ts},
+			{CIJobRunID: 2001, Key: "team", Value: "trt", CIJobRunRelease: "4.18", CIJobRunTimestamp: ts},
 		},
 	}})
 
-	var anns []models.ProwJobRunAnnotation
-	require.NoError(t, dbc.DB.Where("prow_job_run_id = ?", 2001).Find(&anns).Error)
+	var anns []models.CIJobRunAnnotation
+	require.NoError(t, dbc.DB.Where("ci_job_run_id = ?", 2001).Find(&anns).Error)
 	assert.Len(t, anns, 2)
 
 	annMap := make(map[string]string)
@@ -91,18 +91,18 @@ func TestAnnotationsStored(t *testing.T) {
 
 func TestPullRequestsAssociated(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "pull-ci-e2e", "4.18")
+	jobID := seedCIJob(t, dbc, "pull-ci-e2e", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
 		Run: pgwriter.RunRow{
-			ID: 3001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts,
+			ID: 3001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts,
 		},
 		PullRequests: []pgwriter.PullRequestRow{
 			{Org: "openshift", Repo: "origin", Link: "https://github.com/openshift/origin/pull/100", SHA: "abc123", Author: "dev1", Title: "Fix thing", Number: 100},
 		},
 		PullRequestAssoc: []pgwriter.PullRequestAssocRow{
-			{ProwJobRunID: 3001, Link: "https://github.com/openshift/origin/pull/100", SHA: "abc123", ProwJobRunRelease: "4.18", ProwJobRunTimestamp: ts},
+			{CIJobRunID: 3001, Link: "https://github.com/openshift/origin/pull/100", SHA: "abc123", CIJobRunRelease: "4.18", CIJobRunTimestamp: ts},
 		},
 	}})
 
@@ -115,33 +115,33 @@ func TestPullRequestsAssociated(t *testing.T) {
 	assert.Equal(t, 100, pr.Number)
 
 	var assocCount int64
-	require.NoError(t, dbc.DB.Model(&models.ProwJobRunProwPullRequest{}).Where("prow_job_run_id = ?", 3001).Count(&assocCount).Error)
+	require.NoError(t, dbc.DB.Model(&models.CIJobRunProwPullRequest{}).Where("ci_job_run_id = ?", 3001).Count(&assocCount).Error)
 	assert.Equal(t, int64(1), assocCount)
 }
 
 func TestPullRequestMetadataPreservedOnReload(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "pull-ci-e2e", "4.18")
+	jobID := seedCIJob(t, dbc, "pull-ci-e2e", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 	mergedAt := time.Date(2026, 7, 14, 8, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 4001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 4001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		PullRequests: []pgwriter.PullRequestRow{
 			{Org: "openshift", Repo: "origin", Link: "https://github.com/openshift/origin/pull/200", SHA: "def456", Author: "dev1", Title: "Original title", Number: 200, MergedAt: &mergedAt},
 		},
 		PullRequestAssoc: []pgwriter.PullRequestAssocRow{
-			{ProwJobRunID: 4001, Link: "https://github.com/openshift/origin/pull/200", SHA: "def456", ProwJobRunRelease: "4.18", ProwJobRunTimestamp: ts},
+			{CIJobRunID: 4001, Link: "https://github.com/openshift/origin/pull/200", SHA: "def456", CIJobRunRelease: "4.18", CIJobRunTimestamp: ts},
 		},
 	}})
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 4002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 4002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		PullRequests: []pgwriter.PullRequestRow{
 			{Org: "openshift", Repo: "origin", Link: "https://github.com/openshift/origin/pull/200", SHA: "def456", Author: "", Title: "", Number: 200, MergedAt: nil},
 		},
 		PullRequestAssoc: []pgwriter.PullRequestAssocRow{
-			{ProwJobRunID: 4002, Link: "https://github.com/openshift/origin/pull/200", SHA: "def456", ProwJobRunRelease: "4.18", ProwJobRunTimestamp: ts},
+			{CIJobRunID: 4002, Link: "https://github.com/openshift/origin/pull/200", SHA: "def456", CIJobRunRelease: "4.18", CIJobRunTimestamp: ts},
 		},
 	}})
 
@@ -154,14 +154,14 @@ func TestPullRequestMetadataPreservedOnReload(t *testing.T) {
 
 func TestTestResultsPersisted(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 5001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 5001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 5001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "[sig-api] pods should start", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.5},
-			{ProwJobRunID: 5001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "[sig-network] services should work", SuiteName: "junit_e2e", Status: statusFailure, Duration: 3.2},
+			{CIJobRunID: 5001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "[sig-api] pods should start", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.5},
+			{CIJobRunID: 5001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "[sig-network] services should work", SuiteName: "junit_e2e", Status: statusFailure, Duration: 3.2},
 		},
 	}})
 
@@ -179,26 +179,26 @@ func TestTestResultsPersisted(t *testing.T) {
 	var suite models.Suite
 	require.NoError(t, dbc.DB.Where("name = ?", "junit_e2e").First(&suite).Error)
 
-	var jrt []models.ProwJobRunTest
-	require.NoError(t, dbc.DB.Where("prow_job_run_id = ?", 5001).Find(&jrt).Error)
+	var jrt []models.CIJobRunTest
+	require.NoError(t, dbc.DB.Where("ci_job_run_id = ?", 5001).Find(&jrt).Error)
 	assert.Len(t, jrt, 2)
 }
 
 func TestTestOutputsStoredWhenPresent(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 	failOutput := "expected 200, got 500"
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 6001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 6001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 6001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "test-with-output", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0, Output: &failOutput},
-			{ProwJobRunID: 6001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "test-without-output", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 0.5},
+			{CIJobRunID: 6001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "test-with-output", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0, Output: &failOutput},
+			{CIJobRunID: 6001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "test-without-output", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 0.5},
 		},
 	}})
 
-	var outputs []models.ProwJobRunTestOutput
+	var outputs []models.CIJobRunTestOutput
 	require.NoError(t, dbc.DB.Find(&outputs).Error)
 	assert.Len(t, outputs, 1)
 	assert.Equal(t, "expected 200, got 500", outputs[0].Output)
@@ -206,7 +206,7 @@ func TestTestOutputsStoredWhenPresent(t *testing.T) {
 
 func TestSoftDeletedTestsRestored(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	deletedAt := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
@@ -220,9 +220,9 @@ func TestSoftDeletedTestsRestored(t *testing.T) {
 	require.True(t, softDeleted.DeletedAt.Valid, "precondition: test should be soft-deleted")
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 7001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 7001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 7001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "deleted-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 7001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "deleted-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -233,15 +233,15 @@ func TestSoftDeletedTestsRestored(t *testing.T) {
 
 func TestDailyTotalsReflectCounts(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 8001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 8001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 8001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "count-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
-			{ProwJobRunID: 8001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "count-test-fail", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
-			{ProwJobRunID: 8001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "count-test-flake", SuiteName: "junit_e2e", Status: statusFlake, Duration: 3.0},
+			{CIJobRunID: 8001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "count-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 8001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "count-test-fail", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+			{CIJobRunID: 8001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "count-test-flake", SuiteName: "junit_e2e", Status: statusFlake, Duration: 3.0},
 		},
 	}})
 
@@ -249,7 +249,7 @@ func TestDailyTotalsReflectCounts(t *testing.T) {
 	require.NoError(t, dbc.DB.Where("name = ?", "count-test").First(&test).Error)
 
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
 	assert.Equal(t, int32(1), dt.Successes)
 	assert.Equal(t, int32(0), dt.Failures)
 	assert.Equal(t, int32(0), dt.Flakes)
@@ -258,7 +258,7 @@ func TestDailyTotalsReflectCounts(t *testing.T) {
 	var failTest models.Test
 	require.NoError(t, dbc.DB.Where("name = ?", "count-test-fail").First(&failTest).Error)
 	var dtFail models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ?", failTest.ID, jobID).First(&dtFail).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ?", failTest.ID, jobID).First(&dtFail).Error)
 	assert.Equal(t, int32(0), dtFail.Successes)
 	assert.Equal(t, int32(1), dtFail.Failures)
 	assert.Equal(t, int32(1), dtFail.Runs)
@@ -266,7 +266,7 @@ func TestDailyTotalsReflectCounts(t *testing.T) {
 	var flakeTest models.Test
 	require.NoError(t, dbc.DB.Where("name = ?", "count-test-flake").First(&flakeTest).Error)
 	var dtFlake models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ?", flakeTest.ID, jobID).First(&dtFlake).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ?", flakeTest.ID, jobID).First(&dtFlake).Error)
 	assert.Equal(t, int32(0), dtFlake.Successes)
 	assert.Equal(t, int32(0), dtFlake.Failures)
 	assert.Equal(t, int32(1), dtFlake.Flakes)
@@ -275,20 +275,20 @@ func TestDailyTotalsReflectCounts(t *testing.T) {
 
 func TestDailyTotalsAccumulateAcrossBatches(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 9001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 9001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 9001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "accum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 9001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "accum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 9002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 9002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 9002, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "accum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+			{CIJobRunID: 9002, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "accum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 		},
 	}})
 
@@ -296,7 +296,7 @@ func TestDailyTotalsAccumulateAcrossBatches(t *testing.T) {
 	require.NoError(t, dbc.DB.Where("name = ?", "accum-test").First(&test).Error)
 
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
 	assert.Equal(t, int32(1), dt.Successes)
 	assert.Equal(t, int32(1), dt.Failures)
 	assert.Equal(t, int32(2), dt.Runs)
@@ -304,21 +304,21 @@ func TestDailyTotalsAccumulateAcrossBatches(t *testing.T) {
 
 func TestDailyTotalsScopedByRelease(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID418 := seedProwJob(t, dbc, "periodic-e2e-aws-418", "4.18")
-	jobID417 := seedProwJob(t, dbc, "periodic-e2e-aws-417", "4.17")
+	jobID418 := seedCIJob(t, dbc, "periodic-e2e-aws-418", "4.18")
+	jobID417 := seedCIJob(t, dbc, "periodic-e2e-aws-417", "4.17")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 10001, ProwJobID: jobID418, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 10001, CIJobID: jobID418, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 10001, ProwJobID: jobID418, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "release-scoped-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 10001, CIJobID: jobID418, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "release-scoped-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 10002, ProwJobID: jobID417, ProwJobRelease: "4.17", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 10002, CIJobID: jobID417, CIJobRelease: "4.17", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 10002, ProwJobID: jobID417, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.17", TestName: "release-scoped-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 10002, CIJobID: jobID417, CIJobRunTimestamp: ts, CIJobRunRelease: "4.17", TestName: "release-scoped-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -342,16 +342,16 @@ func TestDailyTotalsScopedByRelease(t *testing.T) {
 
 func TestDailyTotalsScopedByLifecycle(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 35001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 35001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 35001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "lifecycle-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0, Lifecycle: "blocking"},
-			{ProwJobRunID: 35001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "lifecycle-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0, Lifecycle: "informing"},
+			{CIJobRunID: 35001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "lifecycle-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0, Lifecycle: "blocking"},
+			{CIJobRunID: 35001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "lifecycle-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0, Lifecycle: "informing"},
 		},
 	}})
 
@@ -374,16 +374,16 @@ func TestDailyTotalsScopedByLifecycle(t *testing.T) {
 
 func TestCumulativeSummariesScopedByLifecycle(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 36001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 36001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 36001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "lifecycle-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0, Lifecycle: "blocking"},
-			{ProwJobRunID: 36001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "lifecycle-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0, Lifecycle: "informing"},
+			{CIJobRunID: 36001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "lifecycle-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0, Lifecycle: "blocking"},
+			{CIJobRunID: 36001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "lifecycle-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0, Lifecycle: "informing"},
 		},
 	}})
 
@@ -407,16 +407,16 @@ func TestCumulativeSummariesScopedByLifecycle(t *testing.T) {
 
 func TestCarryForwardPreservesLifecycleSeparation(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 37001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 37001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 37001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "lifecycle-carry-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0, Lifecycle: "blocking"},
-			{ProwJobRunID: 37001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "lifecycle-carry-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0, Lifecycle: "informing"},
+			{CIJobRunID: 37001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "lifecycle-carry-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0, Lifecycle: "blocking"},
+			{CIJobRunID: 37001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "lifecycle-carry-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0, Lifecycle: "informing"},
 		},
 	}})
 
@@ -444,15 +444,15 @@ func TestCarryForwardPreservesLifecycleSeparation(t *testing.T) {
 
 func TestCumulativeSummariesCascadeThroughTomorrow(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 11001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 11001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 11001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "cascade-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 11001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "cascade-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -477,22 +477,22 @@ func TestCumulativeSummariesCascadeThroughTomorrow(t *testing.T) {
 
 func TestCumulativeSummariesAccumulateAcrossBatches(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 12001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 12001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 12001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "accum-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 12001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "accum-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 12002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 12002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 12002, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "accum-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+			{CIJobRunID: 12002, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "accum-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 		},
 	}})
 
@@ -508,7 +508,7 @@ func TestCumulativeSummariesAccumulateAcrossBatches(t *testing.T) {
 
 func TestMultiDateBatch(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	yesterday := today.AddDays(-1)
@@ -518,15 +518,15 @@ func TestMultiDateBatch(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 13001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsYesterday},
+			Run: pgwriter.RunRow{ID: 13001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsYesterday},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 13001, ProwJobID: jobID, ProwJobRunTimestamp: tsYesterday, ProwJobRunRelease: "4.18", TestName: "multi-date-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 13001, CIJobID: jobID, CIJobRunTimestamp: tsYesterday, CIJobRunRelease: "4.18", TestName: "multi-date-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 13002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsToday},
+			Run: pgwriter.RunRow{ID: 13002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsToday},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 13002, ProwJobID: jobID, ProwJobRunTimestamp: tsToday, ProwJobRunRelease: "4.18", TestName: "multi-date-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 13002, CIJobID: jobID, CIJobRunTimestamp: tsToday, CIJobRunRelease: "4.18", TestName: "multi-date-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -535,7 +535,7 @@ func TestMultiDateBatch(t *testing.T) {
 	require.NoError(t, dbc.DB.Where("name = ?", "multi-date-test").First(&test).Error)
 
 	var totals []models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ?", test.ID, jobID).Order("date").Find(&totals).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ?", test.ID, jobID).Order("date").Find(&totals).Error)
 	assert.Len(t, totals, 2, "should have separate daily totals for each date")
 
 	dateMap := make(map[civil.Date]models.TestDailyTotal)
@@ -555,7 +555,7 @@ func TestMultiDateBatch(t *testing.T) {
 
 func TestMultiDateBatchCumulativeSummariesAtEachDate(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	yesterday := today.AddDays(-1)
@@ -566,15 +566,15 @@ func TestMultiDateBatchCumulativeSummariesAtEachDate(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 22001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsYesterday},
+			Run: pgwriter.RunRow{ID: 22001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsYesterday},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 22001, ProwJobID: jobID, ProwJobRunTimestamp: tsYesterday, ProwJobRunRelease: "4.18", TestName: "multi-date-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 22001, CIJobID: jobID, CIJobRunTimestamp: tsYesterday, CIJobRunRelease: "4.18", TestName: "multi-date-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 22002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsToday},
+			Run: pgwriter.RunRow{ID: 22002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsToday},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 22002, ProwJobID: jobID, ProwJobRunTimestamp: tsToday, ProwJobRunRelease: "4.18", TestName: "multi-date-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 22002, CIJobID: jobID, CIJobRunTimestamp: tsToday, CIJobRunRelease: "4.18", TestName: "multi-date-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -604,8 +604,8 @@ func TestMultiDateBatchCumulativeSummariesAtEachDate(t *testing.T) {
 
 func TestCumulativeSummariesScopedByRelease(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID418 := seedProwJob(t, dbc, "periodic-e2e-aws-418", "4.18")
-	jobID417 := seedProwJob(t, dbc, "periodic-e2e-aws-417", "4.17")
+	jobID418 := seedCIJob(t, dbc, "periodic-e2e-aws-418", "4.18")
+	jobID417 := seedCIJob(t, dbc, "periodic-e2e-aws-417", "4.17")
 
 	today := testDate
 	tomorrow := today.AddDays(1)
@@ -613,15 +613,15 @@ func TestCumulativeSummariesScopedByRelease(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 23001, ProwJobID: jobID418, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 23001, CIJobID: jobID418, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 23001, ProwJobID: jobID418, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "release-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 23001, CIJobID: jobID418, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "release-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 23002, ProwJobID: jobID417, ProwJobRelease: "4.17", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 23002, CIJobID: jobID417, CIJobRelease: "4.17", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 23002, ProwJobID: jobID417, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.17", TestName: "release-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 23002, CIJobID: jobID417, CIJobRunTimestamp: ts, CIJobRunRelease: "4.17", TestName: "release-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -644,15 +644,15 @@ func TestCumulativeSummariesScopedByRelease(t *testing.T) {
 
 func TestCarryForwardCopiesTodayToTomorrow(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 14001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 14001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 14001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "carry-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 14001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "carry-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -672,15 +672,15 @@ func TestCarryForwardCopiesTodayToTomorrow(t *testing.T) {
 
 func TestCarryForwardIsIdempotent(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 15001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 15001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 15001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "idempotent-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 15001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "idempotent-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -700,23 +700,23 @@ func TestCarryForwardIsIdempotent(t *testing.T) {
 
 func TestCarryForwardIsReleaseScoped(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID418 := seedProwJob(t, dbc, "periodic-e2e-aws-418", "4.18")
-	jobID417 := seedProwJob(t, dbc, "periodic-e2e-aws-417", "4.17")
+	jobID418 := seedCIJob(t, dbc, "periodic-e2e-aws-418", "4.18")
+	jobID417 := seedCIJob(t, dbc, "periodic-e2e-aws-417", "4.17")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 16001, ProwJobID: jobID418, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 16001, CIJobID: jobID418, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 16001, ProwJobID: jobID418, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "scoped-carry-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 16001, CIJobID: jobID418, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "scoped-carry-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 16002, ProwJobID: jobID417, ProwJobRelease: "4.17", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 16002, CIJobID: jobID417, CIJobRelease: "4.17", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 16002, ProwJobID: jobID417, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.17", TestName: "scoped-carry-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 16002, CIJobID: jobID417, CIJobRunTimestamp: ts, CIJobRunRelease: "4.17", TestName: "scoped-carry-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -740,23 +740,23 @@ func TestCarryForwardIsReleaseScoped(t *testing.T) {
 
 func TestCarryForwardMultipleReleasesInParallel(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID418 := seedProwJob(t, dbc, "periodic-e2e-aws-418", "4.18")
-	jobID417 := seedProwJob(t, dbc, "periodic-e2e-aws-417", "4.17")
+	jobID418 := seedCIJob(t, dbc, "periodic-e2e-aws-418", "4.18")
+	jobID417 := seedCIJob(t, dbc, "periodic-e2e-aws-417", "4.17")
 
 	today := testDate
 	ts := time.Date(today.Year, today.Month, today.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 34001, ProwJobID: jobID418, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 34001, CIJobID: jobID418, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 34001, ProwJobID: jobID418, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "parallel-carry-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 34001, CIJobID: jobID418, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "parallel-carry-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 34002, ProwJobID: jobID417, ProwJobRelease: "4.17", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 34002, CIJobID: jobID417, CIJobRelease: "4.17", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 34002, ProwJobID: jobID417, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.17", TestName: "parallel-carry-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 34002, CIJobID: jobID417, CIJobRunTimestamp: ts, CIJobRunRelease: "4.17", TestName: "parallel-carry-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -782,15 +782,15 @@ func TestCarryForwardMultipleReleasesInParallel(t *testing.T) {
 
 func TestCarryForwardCatchesUpMultipleMissedDays(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	seedDate := civil.Date{Year: 2026, Month: 7, Day: 13}
 	ts := time.Date(seedDate.Year, seedDate.Month, seedDate.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, seedDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 20001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 20001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 20001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "catchup-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 20001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "catchup-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -821,14 +821,14 @@ func TestCarryForwardErrorsWhenNoDataWithinLookback(t *testing.T) {
 	err := pgwriter.CarryForwardCumulativeSummaries(context.Background(), dbc, testDate, []string{"4.18"})
 	assert.NoError(t, err, "should be a no-op when no data exists at all")
 
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	oldDate := civil.Date{Year: 2026, Month: 5, Day: 1}
 	ts := time.Date(oldDate.Year, oldDate.Month, oldDate.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, oldDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 21001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 21001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 21001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "old-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 21001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "old-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -840,22 +840,22 @@ func TestCarryForwardErrorsWhenNoDataWithinLookback(t *testing.T) {
 
 func TestBatchWithNoTestResults(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
 		Run: pgwriter.RunRow{
-			ID: 17001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts,
+			ID: 17001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts,
 			OverallResult: "S", Succeeded: true,
 		},
 	}})
 
-	var run models.ProwJobRun
+	var run models.CIJobRun
 	require.NoError(t, dbc.DB.First(&run, 17001).Error)
 	assert.True(t, run.Succeeded)
 
 	var testCount int64
-	require.NoError(t, dbc.DB.Model(&models.ProwJobRunTest{}).Where("prow_job_run_id = ?", 17001).Count(&testCount).Error)
+	require.NoError(t, dbc.DB.Model(&models.CIJobRunTest{}).Where("ci_job_run_id = ?", 17001).Count(&testCount).Error)
 	assert.Equal(t, int64(0), testCount)
 
 	var dtCount int64
@@ -865,13 +865,13 @@ func TestBatchWithNoTestResults(t *testing.T) {
 
 func TestEmptySuiteNameGetsSuiteIDZero(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 18001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 18001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 18001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "no-suite-test", SuiteName: "", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 18001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "no-suite-test", SuiteName: "", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -890,35 +890,35 @@ func TestEmptyBatchIsNoOp(t *testing.T) {
 	assert.NoError(t, err)
 
 	var runCount int64
-	require.NoError(t, dbc.DB.Model(&models.ProwJobRun{}).Count(&runCount).Error)
+	require.NoError(t, dbc.DB.Model(&models.CIJobRun{}).Count(&runCount).Error)
 	assert.Equal(t, int64(0), runCount)
 }
 
 func TestDuplicateJobRunIDFailsBatch(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 19001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 19001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 	}})
 
 	err := pgwriter.Write(context.Background(), dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 19001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 19001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 	}})
 	assert.Error(t, err, "inserting a duplicate job run ID should fail")
 }
 
 func TestFutureDatedTestResultsRejectBatch(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	futureTS := time.Date(2026, 7, 17, 10, 0, 0, 0, time.UTC)
 
 	err := pgwriter.Write(context.Background(), dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 38001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: futureTS},
+		Run: pgwriter.RunRow{ID: 38001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: futureTS},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 38001, ProwJobID: jobID, ProwJobRunTimestamp: futureTS, ProwJobRunRelease: "4.18", TestName: "future-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 38001, CIJobID: jobID, CIJobRunTimestamp: futureTS, CIJobRunRelease: "4.18", TestName: "future-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 	require.Error(t, err)
@@ -929,32 +929,32 @@ func TestFutureDatedTestResultsRejectBatch(t *testing.T) {
 	assert.Equal(t, int64(0), dtCount, "transaction should have rolled back, no daily totals written")
 
 	var runCount int64
-	require.NoError(t, dbc.DB.Model(&models.ProwJobRun{}).Count(&runCount).Error)
+	require.NoError(t, dbc.DB.Model(&models.CIJobRun{}).Count(&runCount).Error)
 	assert.Equal(t, int64(0), runCount, "transaction should have rolled back, no job runs written")
 
 	var testResultCount int64
-	require.NoError(t, dbc.DB.Model(&models.ProwJobRunTest{}).Count(&testResultCount).Error)
+	require.NoError(t, dbc.DB.Model(&models.CIJobRunTest{}).Count(&testResultCount).Error)
 	assert.Equal(t, int64(0), testResultCount, "transaction should have rolled back, no test results written")
 }
 
 func TestDailyTotalsTrackFirstAndLastTimestamps(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	earlyTS := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
 	lateTS := time.Date(2026, 7, 15, 16, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 30001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: earlyTS},
+			Run: pgwriter.RunRow{ID: 30001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: earlyTS},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 30001, ProwJobID: jobID, ProwJobRunTimestamp: earlyTS, ProwJobRunRelease: "4.18", TestName: "ts-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
+				{CIJobRunID: 30001, CIJobID: jobID, CIJobRunTimestamp: earlyTS, CIJobRunRelease: "4.18", TestName: "ts-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 30002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: lateTS},
+			Run: pgwriter.RunRow{ID: 30002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: lateTS},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 30002, ProwJobID: jobID, ProwJobRunTimestamp: lateTS, ProwJobRunRelease: "4.18", TestName: "ts-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 30002, CIJobID: jobID, CIJobRunTimestamp: lateTS, CIJobRunRelease: "4.18", TestName: "ts-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 	})
@@ -963,7 +963,7 @@ func TestDailyTotalsTrackFirstAndLastTimestamps(t *testing.T) {
 	require.NoError(t, dbc.DB.Where("name = ?", "ts-test").First(&test).Error)
 
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
 
 	require.NotNil(t, dt.FirstFailureTimestamp, "first failure timestamp should be set")
 	assert.Equal(t, earlyTS, *dt.FirstFailureTimestamp, "first failure should be the early timestamp")
@@ -981,20 +981,20 @@ func TestDailyTotalsTrackFirstAndLastTimestamps(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 30003, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: earlierSuccessTS},
+			Run: pgwriter.RunRow{ID: 30003, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: earlierSuccessTS},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 30003, ProwJobID: jobID, ProwJobRunTimestamp: earlierSuccessTS, ProwJobRunRelease: "4.18", TestName: "ts-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 30003, CIJobID: jobID, CIJobRunTimestamp: earlierSuccessTS, CIJobRunRelease: "4.18", TestName: "ts-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 30004, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: laterFailureTS},
+			Run: pgwriter.RunRow{ID: 30004, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: laterFailureTS},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 30004, ProwJobID: jobID, ProwJobRunTimestamp: laterFailureTS, ProwJobRunRelease: "4.18", TestName: "ts-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
+				{CIJobRunID: 30004, CIJobID: jobID, CIJobRunTimestamp: laterFailureTS, CIJobRunRelease: "4.18", TestName: "ts-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
 			},
 		},
 	})
 
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
 
 	require.NotNil(t, dt.FirstFailureTimestamp)
 	assert.Equal(t, earlyTS, *dt.FirstFailureTimestamp, "first failure should remain the earlier one")
@@ -1009,21 +1009,21 @@ func TestDailyTotalsTrackFirstAndLastTimestamps(t *testing.T) {
 
 func TestAllPassingBatchPreservesExistingFailureTimestamps(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	failTS := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 31001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: failTS},
+		Run: pgwriter.RunRow{ID: 31001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: failTS},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 31001, ProwJobID: jobID, ProwJobRunTimestamp: failTS, ProwJobRunRelease: "4.18", TestName: "pass-preserve-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
+			{CIJobRunID: 31001, CIJobID: jobID, CIJobRunTimestamp: failTS, CIJobRunRelease: "4.18", TestName: "pass-preserve-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
 		},
 	}})
 
 	passTS := time.Date(2026, 7, 15, 14, 0, 0, 0, time.UTC)
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 31002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: passTS},
+		Run: pgwriter.RunRow{ID: 31002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: passTS},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 31002, ProwJobID: jobID, ProwJobRunTimestamp: passTS, ProwJobRunRelease: "4.18", TestName: "pass-preserve-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 31002, CIJobID: jobID, CIJobRunTimestamp: passTS, CIJobRunRelease: "4.18", TestName: "pass-preserve-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -1031,7 +1031,7 @@ func TestAllPassingBatchPreservesExistingFailureTimestamps(t *testing.T) {
 	require.NoError(t, dbc.DB.Where("name = ?", "pass-preserve-test").First(&test).Error)
 
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
 
 	require.NotNil(t, dt.FirstFailureTimestamp, "failure timestamp should be preserved after all-passing batch")
 	assert.Equal(t, failTS, *dt.FirstFailureTimestamp)
@@ -1044,7 +1044,7 @@ func TestAllPassingBatchPreservesExistingFailureTimestamps(t *testing.T) {
 
 func TestCumulativeSummariesTrackLatestTimestamps(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	tomorrow := today.AddDays(1)
@@ -1053,15 +1053,15 @@ func TestCumulativeSummariesTrackLatestTimestamps(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 32001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: failTS},
+			Run: pgwriter.RunRow{ID: 32001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: failTS},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 32001, ProwJobID: jobID, ProwJobRunTimestamp: failTS, ProwJobRunRelease: "4.18", TestName: "cum-ts-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
+				{CIJobRunID: 32001, CIJobID: jobID, CIJobRunTimestamp: failTS, CIJobRunRelease: "4.18", TestName: "cum-ts-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 32002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: successTS},
+			Run: pgwriter.RunRow{ID: 32002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: successTS},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 32002, ProwJobID: jobID, ProwJobRunTimestamp: successTS, ProwJobRunRelease: "4.18", TestName: "cum-ts-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 32002, CIJobID: jobID, CIJobRunTimestamp: successTS, CIJobRunRelease: "4.18", TestName: "cum-ts-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 	})
@@ -1080,7 +1080,7 @@ func TestCumulativeSummariesTrackLatestTimestamps(t *testing.T) {
 
 func TestCarryForwardPreservesTimestamps(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	seedDate := civil.Date{Year: 2026, Month: 7, Day: 13}
 	failTS := time.Date(2026, 7, 13, 10, 0, 0, 0, time.UTC)
@@ -1088,15 +1088,15 @@ func TestCarryForwardPreservesTimestamps(t *testing.T) {
 
 	writeBatch(t, dbc, seedDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 33001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: failTS},
+			Run: pgwriter.RunRow{ID: 33001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: failTS},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 33001, ProwJobID: jobID, ProwJobRunTimestamp: failTS, ProwJobRunRelease: "4.18", TestName: "carry-ts-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
+				{CIJobRunID: 33001, CIJobID: jobID, CIJobRunTimestamp: failTS, CIJobRunRelease: "4.18", TestName: "carry-ts-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 33002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: successTS},
+			Run: pgwriter.RunRow{ID: 33002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: successTS},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 33002, ProwJobID: jobID, ProwJobRunTimestamp: successTS, ProwJobRunRelease: "4.18", TestName: "carry-ts-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 33002, CIJobID: jobID, CIJobRunTimestamp: successTS, CIJobRunRelease: "4.18", TestName: "carry-ts-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 	})
@@ -1119,7 +1119,7 @@ func TestCarryForwardPreservesTimestamps(t *testing.T) {
 
 func TestMultipleRunsForSameTestInOneBatchAggregateCounts(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	ts1 := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
 	ts2 := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
@@ -1127,21 +1127,21 @@ func TestMultipleRunsForSameTestInOneBatchAggregateCounts(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 34001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts1},
+			Run: pgwriter.RunRow{ID: 34001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts1},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 34001, ProwJobID: jobID, ProwJobRunTimestamp: ts1, ProwJobRunRelease: "4.18", TestName: "multi-run-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 34001, CIJobID: jobID, CIJobRunTimestamp: ts1, CIJobRunRelease: "4.18", TestName: "multi-run-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 34002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts2},
+			Run: pgwriter.RunRow{ID: 34002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts2},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 34002, ProwJobID: jobID, ProwJobRunTimestamp: ts2, ProwJobRunRelease: "4.18", TestName: "multi-run-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 34002, CIJobID: jobID, CIJobRunTimestamp: ts2, CIJobRunRelease: "4.18", TestName: "multi-run-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 34003, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts3},
+			Run: pgwriter.RunRow{ID: 34003, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts3},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 34003, ProwJobID: jobID, ProwJobRunTimestamp: ts3, ProwJobRunRelease: "4.18", TestName: "multi-run-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 3.0},
+				{CIJobRunID: 34003, CIJobID: jobID, CIJobRunTimestamp: ts3, CIJobRunRelease: "4.18", TestName: "multi-run-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 3.0},
 			},
 		},
 	})
@@ -1150,7 +1150,7 @@ func TestMultipleRunsForSameTestInOneBatchAggregateCounts(t *testing.T) {
 	require.NoError(t, dbc.DB.Where("name = ?", "multi-run-test").First(&test).Error)
 
 	var dt models.TestDailyTotal
-	require.NoError(t, dbc.DB.Where("test_id = ? AND prow_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
+	require.NoError(t, dbc.DB.Where("test_id = ? AND ci_job_id = ? AND release = ?", test.ID, jobID, "4.18").First(&dt).Error)
 	assert.Equal(t, int32(1), dt.Successes, "one success across three runs")
 	assert.Equal(t, int32(1), dt.Failures, "one failure across three runs")
 	assert.Equal(t, int32(1), dt.Flakes, "one flake across three runs")
@@ -1159,16 +1159,16 @@ func TestMultipleRunsForSameTestInOneBatchAggregateCounts(t *testing.T) {
 
 func TestPullRequestMetadataPopulatedOnSecondLoad(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "pull-ci-e2e", "4.18")
+	jobID := seedCIJob(t, dbc, "pull-ci-e2e", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 35001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 35001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		PullRequests: []pgwriter.PullRequestRow{
 			{Org: "openshift", Repo: "origin", Link: "https://github.com/openshift/origin/pull/300", SHA: "aaa111", Author: "", Title: "", Number: 300},
 		},
 		PullRequestAssoc: []pgwriter.PullRequestAssocRow{
-			{ProwJobRunID: 35001, Link: "https://github.com/openshift/origin/pull/300", SHA: "aaa111", ProwJobRunRelease: "4.18", ProwJobRunTimestamp: ts},
+			{CIJobRunID: 35001, Link: "https://github.com/openshift/origin/pull/300", SHA: "aaa111", CIJobRunRelease: "4.18", CIJobRunTimestamp: ts},
 		},
 	}})
 
@@ -1178,12 +1178,12 @@ func TestPullRequestMetadataPopulatedOnSecondLoad(t *testing.T) {
 	assert.Empty(t, prBefore.Title)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 35002, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 35002, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		PullRequests: []pgwriter.PullRequestRow{
 			{Org: "openshift", Repo: "origin", Link: "https://github.com/openshift/origin/pull/300", SHA: "aaa111", Author: "contributor", Title: "Add feature X", Number: 300},
 		},
 		PullRequestAssoc: []pgwriter.PullRequestAssocRow{
-			{ProwJobRunID: 35002, Link: "https://github.com/openshift/origin/pull/300", SHA: "aaa111", ProwJobRunRelease: "4.18", ProwJobRunTimestamp: ts},
+			{CIJobRunID: 35002, Link: "https://github.com/openshift/origin/pull/300", SHA: "aaa111", CIJobRunRelease: "4.18", CIJobRunTimestamp: ts},
 		},
 	}})
 
@@ -1195,7 +1195,7 @@ func TestPullRequestMetadataPopulatedOnSecondLoad(t *testing.T) {
 
 func TestSoftDeletedSuiteRestoredWhenTestReappears(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	deletedAt := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
@@ -1209,9 +1209,9 @@ func TestSoftDeletedSuiteRestoredWhenTestReappears(t *testing.T) {
 	require.True(t, softDeleted.DeletedAt.Valid, "precondition: suite should be soft-deleted")
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 36001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 36001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 36001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "suite-restore-test", SuiteName: "deleted-suite", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 36001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "suite-restore-test", SuiteName: "deleted-suite", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -1222,20 +1222,20 @@ func TestSoftDeletedSuiteRestoredWhenTestReappears(t *testing.T) {
 
 func TestDuplicatePullRequestsInSameBatchDeduplicated(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "pull-ci-e2e", "4.18")
+	jobID := seedCIJob(t, dbc, "pull-ci-e2e", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	mergedEarly := time.Date(2026, 7, 14, 8, 0, 0, 0, time.UTC)
 	mergedLate := time.Date(2026, 7, 14, 16, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 37001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 37001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		PullRequests: []pgwriter.PullRequestRow{
 			{Org: "openshift", Repo: "origin", Link: "https://github.com/openshift/origin/pull/400", SHA: "bbb222", Author: "dev-early", Title: "Early title", Number: 400, MergedAt: &mergedEarly},
 			{Org: "openshift", Repo: "origin", Link: "https://github.com/openshift/origin/pull/400", SHA: "bbb222", Author: "dev-late", Title: "Late title", Number: 400, MergedAt: &mergedLate},
 		},
 		PullRequestAssoc: []pgwriter.PullRequestAssocRow{
-			{ProwJobRunID: 37001, Link: "https://github.com/openshift/origin/pull/400", SHA: "bbb222", ProwJobRunRelease: "4.18", ProwJobRunTimestamp: ts},
+			{CIJobRunID: 37001, Link: "https://github.com/openshift/origin/pull/400", SHA: "bbb222", CIJobRunRelease: "4.18", CIJobRunTimestamp: ts},
 		},
 	}})
 
@@ -1250,14 +1250,14 @@ func TestDuplicatePullRequestsInSameBatchDeduplicated(t *testing.T) {
 
 func TestDailyTotalsScopedBySuite(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 39001, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 39001, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 39001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "suite-scoped-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
-			{ProwJobRunID: 39001, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "suite-scoped-test", SuiteName: "junit_serial", Status: statusFailure, Duration: 2.0},
+			{CIJobRunID: 39001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "suite-scoped-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 39001, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "suite-scoped-test", SuiteName: "junit_serial", Status: statusFailure, Duration: 2.0},
 		},
 	}})
 
@@ -1285,15 +1285,15 @@ func TestDailyTotalsScopedBySuite(t *testing.T) {
 
 func TestCumulativeSummariesScopedBySuite(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 	tomorrow := testDate.AddDays(1)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 39101, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 39101, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 39101, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "suite-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
-			{ProwJobRunID: 39101, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "suite-cum-test", SuiteName: "junit_serial", Status: statusFailure, Duration: 2.0},
+			{CIJobRunID: 39101, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "suite-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 39101, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "suite-cum-test", SuiteName: "junit_serial", Status: statusFailure, Duration: 2.0},
 		},
 	}})
 
@@ -1321,14 +1321,14 @@ func TestCumulativeSummariesScopedBySuite(t *testing.T) {
 
 func TestEmptySuiteNameGetsSuiteIDZeroInCumulativeSummaries(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 	tomorrow := testDate.AddDays(1)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 39201, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: ts},
+		Run: pgwriter.RunRow{ID: 39201, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: ts},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 39201, ProwJobID: jobID, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "no-suite-cum-test", SuiteName: "", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 39201, CIJobID: jobID, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "no-suite-cum-test", SuiteName: "", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -1340,23 +1340,23 @@ func TestEmptySuiteNameGetsSuiteIDZeroInCumulativeSummaries(t *testing.T) {
 	assert.Equal(t, uint(0), summary.SuiteID, "empty suite name should map to suite_id=0 in cumulative summaries")
 }
 
-func TestDailyTotalsScopedByProwJob(t *testing.T) {
+func TestDailyTotalsScopedByCIJob(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobA := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
-	jobB := seedProwJob(t, dbc, "periodic-e2e-gcp", "4.18")
+	jobA := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobB := seedCIJob(t, dbc, "periodic-e2e-gcp", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 39301, ProwJobID: jobA, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 39301, CIJobID: jobA, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 39301, ProwJobID: jobA, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "job-scoped-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 39301, CIJobID: jobA, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "job-scoped-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 39302, ProwJobID: jobB, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 39302, CIJobID: jobB, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 39302, ProwJobID: jobB, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "job-scoped-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 39302, CIJobID: jobB, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "job-scoped-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -1370,7 +1370,7 @@ func TestDailyTotalsScopedByProwJob(t *testing.T) {
 
 	byJob := make(map[uint]models.TestDailyTotal)
 	for _, dt := range totals {
-		byJob[dt.ProwJobID] = dt
+		byJob[dt.CIJobID] = dt
 	}
 	assert.Equal(t, int32(1), byJob[jobA].Successes)
 	assert.Equal(t, int32(0), byJob[jobA].Failures)
@@ -1378,24 +1378,24 @@ func TestDailyTotalsScopedByProwJob(t *testing.T) {
 	assert.Equal(t, int32(1), byJob[jobB].Failures)
 }
 
-func TestCumulativeSummariesScopedByProwJob(t *testing.T) {
+func TestCumulativeSummariesScopedByCIJob(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobA := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
-	jobB := seedProwJob(t, dbc, "periodic-e2e-gcp", "4.18")
+	jobA := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobB := seedCIJob(t, dbc, "periodic-e2e-gcp", "4.18")
 	ts := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
 	tomorrow := testDate.AddDays(1)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 39401, ProwJobID: jobA, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 39401, CIJobID: jobA, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 39401, ProwJobID: jobA, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "job-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+				{CIJobRunID: 39401, CIJobID: jobA, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "job-cum-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 39402, ProwJobID: jobB, ProwJobRelease: "4.18", Timestamp: ts},
+			Run: pgwriter.RunRow{ID: 39402, CIJobID: jobB, CIJobRelease: "4.18", Timestamp: ts},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 39402, ProwJobID: jobB, ProwJobRunTimestamp: ts, ProwJobRunRelease: "4.18", TestName: "job-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+				{CIJobRunID: 39402, CIJobID: jobB, CIJobRunTimestamp: ts, CIJobRunRelease: "4.18", TestName: "job-cum-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 			},
 		},
 	})
@@ -1409,7 +1409,7 @@ func TestCumulativeSummariesScopedByProwJob(t *testing.T) {
 
 	byJob := make(map[uint]models.TestCumulativeSummary)
 	for _, cs := range summaries {
-		byJob[cs.ProwJobID] = cs
+		byJob[cs.CIJobID] = cs
 	}
 	assert.Equal(t, int64(1), byJob[jobA].PrefixSumSuccesses)
 	assert.Equal(t, int64(0), byJob[jobA].PrefixSumFailures)
@@ -1419,7 +1419,7 @@ func TestCumulativeSummariesScopedByProwJob(t *testing.T) {
 
 func TestCumulativeSummariesPropagateFlakes(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	today := testDate
 	yesterday := today.AddDays(-1)
@@ -1430,15 +1430,15 @@ func TestCumulativeSummariesPropagateFlakes(t *testing.T) {
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{
 		{
-			Run: pgwriter.RunRow{ID: 39501, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsYesterday},
+			Run: pgwriter.RunRow{ID: 39501, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsYesterday},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 39501, ProwJobID: jobID, ProwJobRunTimestamp: tsYesterday, ProwJobRunRelease: "4.18", TestName: "flake-cum-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 1.0},
+				{CIJobRunID: 39501, CIJobID: jobID, CIJobRunTimestamp: tsYesterday, CIJobRunRelease: "4.18", TestName: "flake-cum-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 1.0},
 			},
 		},
 		{
-			Run: pgwriter.RunRow{ID: 39502, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsToday},
+			Run: pgwriter.RunRow{ID: 39502, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsToday},
 			Tests: []pgwriter.TestRow{
-				{ProwJobRunID: 39502, ProwJobID: jobID, ProwJobRunTimestamp: tsToday, ProwJobRunRelease: "4.18", TestName: "flake-cum-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 2.0},
+				{CIJobRunID: 39502, CIJobID: jobID, CIJobRunTimestamp: tsToday, CIJobRunRelease: "4.18", TestName: "flake-cum-test", SuiteName: "junit_e2e", Status: statusFlake, Duration: 2.0},
 			},
 		},
 	})
@@ -1463,7 +1463,7 @@ func TestCumulativeSummariesPropagateFlakes(t *testing.T) {
 
 func TestLaterBatchDoesNotCorruptEarlierCumulativeRow(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	dayD := testDate.AddDays(-2)
 	dayD2 := testDate
@@ -1472,9 +1472,9 @@ func TestLaterBatchDoesNotCorruptEarlierCumulativeRow(t *testing.T) {
 	tsD2 := time.Date(dayD2.Year, dayD2.Month, dayD2.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 39601, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsD},
+		Run: pgwriter.RunRow{ID: 39601, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsD},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 39601, ProwJobID: jobID, ProwJobRunTimestamp: tsD, ProwJobRunRelease: "4.18", TestName: "no-corrupt-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 39601, CIJobID: jobID, CIJobRunTimestamp: tsD, CIJobRunRelease: "4.18", TestName: "no-corrupt-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -1488,9 +1488,9 @@ func TestLaterBatchDoesNotCorruptEarlierCumulativeRow(t *testing.T) {
 	assert.Equal(t, int64(1), beforeSummary.PrefixSumRuns)
 
 	writeBatch(t, dbc, testDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 39602, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsD2},
+		Run: pgwriter.RunRow{ID: 39602, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsD2},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 39602, ProwJobID: jobID, ProwJobRunTimestamp: tsD2, ProwJobRunRelease: "4.18", TestName: "no-corrupt-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+			{CIJobRunID: 39602, CIJobID: jobID, CIJobRunTimestamp: tsD2, CIJobRunRelease: "4.18", TestName: "no-corrupt-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 		},
 	}})
 
@@ -1510,16 +1510,16 @@ func TestLaterBatchDoesNotCorruptEarlierCumulativeRow(t *testing.T) {
 
 func TestCarryForwardThenWriteNewDataAccumulates(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
-	jobID := seedProwJob(t, dbc, "periodic-e2e-aws", "4.18")
+	jobID := seedCIJob(t, dbc, "periodic-e2e-aws", "4.18")
 
 	seedDate := civil.Date{Year: 2026, Month: 7, Day: 13}
 	gapDate := civil.Date{Year: 2026, Month: 7, Day: 15}
 	tsSeed := time.Date(seedDate.Year, seedDate.Month, seedDate.Day, 10, 0, 0, 0, time.UTC)
 
 	writeBatch(t, dbc, seedDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 39701, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsSeed},
+		Run: pgwriter.RunRow{ID: 39701, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsSeed},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 39701, ProwJobID: jobID, ProwJobRunTimestamp: tsSeed, ProwJobRunRelease: "4.18", TestName: "carry-then-write-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
+			{CIJobRunID: 39701, CIJobID: jobID, CIJobRunTimestamp: tsSeed, CIJobRunRelease: "4.18", TestName: "carry-then-write-test", SuiteName: "junit_e2e", Status: statusSuccess, Duration: 1.0},
 		},
 	}})
 
@@ -1535,9 +1535,9 @@ func TestCarryForwardThenWriteNewDataAccumulates(t *testing.T) {
 
 	tsGap := time.Date(gapDate.Year, gapDate.Month, gapDate.Day, 10, 0, 0, 0, time.UTC)
 	writeBatch(t, dbc, gapDate, []pgwriter.JobRunResult{{
-		Run: pgwriter.RunRow{ID: 39702, ProwJobID: jobID, ProwJobRelease: "4.18", Timestamp: tsGap},
+		Run: pgwriter.RunRow{ID: 39702, CIJobID: jobID, CIJobRelease: "4.18", Timestamp: tsGap},
 		Tests: []pgwriter.TestRow{
-			{ProwJobRunID: 39702, ProwJobID: jobID, ProwJobRunTimestamp: tsGap, ProwJobRunRelease: "4.18", TestName: "carry-then-write-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
+			{CIJobRunID: 39702, CIJobID: jobID, CIJobRunTimestamp: tsGap, CIJobRunRelease: "4.18", TestName: "carry-then-write-test", SuiteName: "junit_e2e", Status: statusFailure, Duration: 2.0},
 		},
 	}})
 

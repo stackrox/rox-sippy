@@ -51,7 +51,7 @@ func withDailyLastSuccess(ts time.Time) dailyTotalOption {
 // createDailyTotal seeds a test_daily_totals row directly, bypassing
 // dailysummary.Backfill, so cumulative-summary tests can be scoped to just
 // that package's behavior.
-func createDailyTotal(t *testing.T, dbc *db.DB, date civil.Date, release string, testID, prowJobID uint, successes, failures, flakes, runs int32, options ...dailyTotalOption) {
+func createDailyTotal(t *testing.T, dbc *db.DB, date civil.Date, release string, testID, ciJobID uint, successes, failures, flakes, runs int32, options ...dailyTotalOption) {
 	t.Helper()
 	o := dailyTotalOpts{lifecycle: "blocking"}
 	for _, fn := range options {
@@ -59,7 +59,7 @@ func createDailyTotal(t *testing.T, dbc *db.DB, date civil.Date, release string,
 	}
 	dt := models.TestDailyTotal{
 		TestID:               testID,
-		ProwJobID:            prowJobID,
+		CIJobID:            ciJobID,
 		Release:              release,
 		Date:                 date,
 		Lifecycle:            o.lifecycle,
@@ -81,16 +81,16 @@ func createDailyTotal(t *testing.T, dbc *db.DB, date civil.Date, release string,
 func TestDailyTotalsBackfill_AggregatesCountsFromRawResults(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	ts := time.Date(2026, 7, 20, 10, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", ts, true, v1.JobSucceeded)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", ts, true, v1.JobSucceeded)
 
 	passTest := intutil.CreateTest(t, dbc, "backfill-count-pass")
 	failTest := intutil.CreateTest(t, dbc, "backfill-count-fail")
 	flakeTest := intutil.CreateTest(t, dbc, "backfill-count-flake")
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, passTest.ID, "4.18", ts, statusSuccess)
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, failTest.ID, "4.18", ts, statusFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, flakeTest.ID, "4.18", ts, statusFlake)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, passTest.ID, "4.18", ts, statusSuccess)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, failTest.ID, "4.18", ts, statusFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, flakeTest.ID, "4.18", ts, statusFlake)
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -120,15 +120,15 @@ func TestDailyTotalsBackfill_AggregatesCountsFromRawResults(t *testing.T) {
 func TestDailyTotalsBackfill_UnrecognizedStatusCountsTowardRunsOnly(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	ts := time.Date(2026, 7, 20, 10, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", ts, true, v1.JobSucceeded)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", ts, true, v1.JobSucceeded)
 	test := intutil.CreateTest(t, dbc, "unrecognized-status-test")
 
 	// A result outside {Success, Failure, Flake} (e.g. captured mid-run)
 	// should still be counted as a run so pass-rate denominators stay
 	// accurate, without being miscategorized into any outcome bucket.
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusRunning)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusRunning)
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -144,18 +144,18 @@ func TestDailyTotalsBackfill_UnrecognizedStatusCountsTowardRunsOnly(t *testing.T
 func TestDailyTotalsBackfill_ScopedBySuite(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	suiteA := intutil.CreateSuite(t, dbc, "suite-a")
 	suiteB := intutil.CreateSuite(t, dbc, "suite-b")
 	test := intutil.CreateTest(t, dbc, "suite-scoped-test")
 	ts := time.Date(2026, 7, 20, 10, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", ts, true, v1.JobSucceeded)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", ts, true, v1.JobSucceeded)
 
 	// The same test, job, release, and day, but run as part of two
 	// different suites - each suite should get its own daily total row
 	// rather than being merged into one.
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusSuccess, intutil.WithSuiteID(suiteA.ID))
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusFailure, intutil.WithSuiteID(suiteB.ID))
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusSuccess, intutil.WithSuiteID(suiteA.ID))
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusFailure, intutil.WithSuiteID(suiteB.ID))
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -177,15 +177,15 @@ func TestDailyTotalsBackfill_ScopedBySuite(t *testing.T) {
 func TestDailyTotalsBackfill_ScopedByLifecycle(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "lifecycle-scoped-test")
 	ts := time.Date(2026, 7, 20, 10, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", ts, true, v1.JobSucceeded)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", ts, true, v1.JobSucceeded)
 
 	// The same test, job, release, and day, but one run tagged blocking
 	// and the other informing - they must not be aggregated together.
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusSuccess, intutil.WithLifecycle("blocking"))
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusFailure, intutil.WithLifecycle("informing"))
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusSuccess, intutil.WithLifecycle("blocking"))
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusFailure, intutil.WithLifecycle("informing"))
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -208,15 +208,15 @@ func TestDailyTotalsBackfill_ScopedByRelease(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
 	intutil.CreateReleaseDefinition(t, dbc, "4.17", 4, 17)
-	job18 := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws-418", "4.18", nil)
-	job17 := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws-417", "4.17", nil)
+	job18 := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws-418", "4.18", nil)
+	job17 := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws-417", "4.17", nil)
 	ts := time.Date(2026, 7, 20, 10, 0, 0, 0, time.UTC)
-	run18 := intutil.CreateProwJobRun(t, dbc, job18.ID, "4.18", ts, true, v1.JobSucceeded)
-	run17 := intutil.CreateProwJobRun(t, dbc, job17.ID, "4.17", ts, false, v1.JobTestFailure)
+	run18 := intutil.CreateCIJobRun(t, dbc, job18.ID, "4.18", ts, true, v1.JobSucceeded)
+	run17 := intutil.CreateCIJobRun(t, dbc, job17.ID, "4.17", ts, false, v1.JobTestFailure)
 	test := intutil.CreateTest(t, dbc, "release-scoped-test")
 
-	intutil.CreateProwJobRunTest(t, dbc, run18.ID, job18.ID, test.ID, "4.18", ts, statusSuccess)
-	intutil.CreateProwJobRunTest(t, dbc, run17.ID, job17.ID, test.ID, "4.17", ts, statusFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run18.ID, job18.ID, test.ID, "4.18", ts, statusSuccess)
+	intutil.CreateCIJobRunTest(t, dbc, run17.ID, job17.ID, test.ID, "4.17", ts, statusFailure)
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -238,15 +238,15 @@ func TestDailyTotalsBackfill_ScopedByRelease(t *testing.T) {
 func TestDailyTotalsBackfill_MultiDayRangeProducesOneRowPerDay(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "multi-day-test")
 
 	day1Ts := time.Date(2026, 7, 20, 10, 0, 0, 0, time.UTC)
 	day2Ts := time.Date(2026, 7, 21, 10, 0, 0, 0, time.UTC)
-	run1 := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", day1Ts, true, v1.JobSucceeded)
-	run2 := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", day2Ts, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job.ID, test.ID, "4.18", day1Ts, statusSuccess)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, test.ID, "4.18", day2Ts, statusFailure)
+	run1 := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", day1Ts, true, v1.JobSucceeded)
+	run2 := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", day2Ts, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job.ID, test.ID, "4.18", day1Ts, statusSuccess)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, test.ID, "4.18", day2Ts, statusFailure)
 
 	start := civil.Date{Year: 2026, Month: 7, Day: 20}
 	end := civil.Date{Year: 2026, Month: 7, Day: 21}
@@ -264,15 +264,15 @@ func TestDailyTotalsBackfill_MultiDayRangeProducesOneRowPerDay(t *testing.T) {
 func TestDailyTotalsBackfill_TracksFirstAndLastFailureTimestamps(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "failure-timestamp-test")
 
 	early := time.Date(2026, 7, 20, 6, 0, 0, 0, time.UTC)
 	late := time.Date(2026, 7, 20, 18, 0, 0, 0, time.UTC)
-	run1 := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", early, false, v1.JobTestFailure)
-	run2 := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", late, false, v1.JobTestFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job.ID, test.ID, "4.18", early, statusFailure)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, test.ID, "4.18", late, statusFailure)
+	run1 := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", early, false, v1.JobTestFailure)
+	run2 := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", late, false, v1.JobTestFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job.ID, test.ID, "4.18", early, statusFailure)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, test.ID, "4.18", late, statusFailure)
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -288,15 +288,15 @@ func TestDailyTotalsBackfill_TracksFirstAndLastFailureTimestamps(t *testing.T) {
 func TestDailyTotalsBackfill_TracksFirstAndLastSuccessTimestamps(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "success-timestamp-test")
 
 	early := time.Date(2026, 7, 20, 6, 0, 0, 0, time.UTC)
 	late := time.Date(2026, 7, 20, 18, 0, 0, 0, time.UTC)
-	run1 := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", early, true, v1.JobSucceeded)
-	run2 := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", late, true, v1.JobSucceeded)
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job.ID, test.ID, "4.18", early, statusSuccess)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, test.ID, "4.18", late, statusSuccess)
+	run1 := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", early, true, v1.JobSucceeded)
+	run2 := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", late, true, v1.JobSucceeded)
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job.ID, test.ID, "4.18", early, statusSuccess)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, test.ID, "4.18", late, statusSuccess)
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -312,11 +312,11 @@ func TestDailyTotalsBackfill_TracksFirstAndLastSuccessTimestamps(t *testing.T) {
 func TestDailyTotalsBackfill_RerunAfterRawDataRemovedDropsStaleRow(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	ts := time.Date(2026, 7, 20, 10, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", ts, false, v1.JobTestFailure)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", ts, false, v1.JobTestFailure)
 	test := intutil.CreateTest(t, dbc, "reprocessed-away-test")
-	pjrt := intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusFailure)
+	pjrt := intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusFailure)
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -341,11 +341,11 @@ func TestDailyTotalsBackfill_RerunAfterRawDataRemovedDropsStaleRow(t *testing.T)
 func TestDailyTotalsBackfill_RerunAfterLifecycleReclassificationMovesRowToNewKey(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	ts := time.Date(2026, 7, 20, 10, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.18", ts, false, v1.JobTestFailure)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.18", ts, false, v1.JobTestFailure)
 	test := intutil.CreateTest(t, dbc, "reclassified-test")
-	pjrt := intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusFailure, intutil.WithLifecycle("blocking"))
+	pjrt := intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test.ID, "4.18", ts, statusFailure, intutil.WithLifecycle("blocking"))
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
 	require.NoError(t, dailysummary.Backfill(dbc, day, day))
@@ -375,7 +375,7 @@ func TestDailyTotalsBackfill_RerunAfterLifecycleReclassificationMovesRowToNewKey
 func TestCumulativeSummariesBackfill_FirstDayEqualsThatDaysTotals(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "first-day-cumulative-test")
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
@@ -393,7 +393,7 @@ func TestCumulativeSummariesBackfill_FirstDayEqualsThatDaysTotals(t *testing.T) 
 func TestCumulativeSummariesBackfill_AccumulatesOnTopOfPreviousDay(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "accumulate-test")
 
 	yesterday := civil.Date{Year: 2026, Month: 7, Day: 19}
@@ -414,7 +414,7 @@ func TestCumulativeSummariesBackfill_AccumulatesOnTopOfPreviousDay(t *testing.T)
 func TestCumulativeSummariesBackfill_CarriesForwardWhenNoNewDataToday(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "carry-forward-test")
 
 	yesterday := civil.Date{Year: 2026, Month: 7, Day: 19}
@@ -439,7 +439,7 @@ func TestCumulativeSummariesBackfill_CarriesForwardWhenNoNewDataToday(t *testing
 func TestCumulativeSummariesBackfill_NewTestAppearsAlongsideExistingAccumulation(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	existing := intutil.CreateTest(t, dbc, "already-running-test")
 	newTest := intutil.CreateTest(t, dbc, "newly-added-test")
 
@@ -470,8 +470,8 @@ func TestCumulativeSummariesBackfill_ScopedByRelease(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
 	intutil.CreateReleaseDefinition(t, dbc, "4.17", 4, 17)
-	job18 := intutil.CreateProwJob(t, dbc, "job-418", "4.18", nil)
-	job17 := intutil.CreateProwJob(t, dbc, "job-417", "4.17", nil)
+	job18 := intutil.CreateCIJob(t, dbc, "job-418", "4.18", nil)
+	job17 := intutil.CreateCIJob(t, dbc, "job-417", "4.17", nil)
 	test := intutil.CreateTest(t, dbc, "release-scoped-cumulative-test")
 
 	day := civil.Date{Year: 2026, Month: 7, Day: 20}
@@ -496,7 +496,7 @@ func TestCumulativeSummariesBackfill_ScopedByRelease(t *testing.T) {
 func TestCumulativeSummariesBackfill_MultiDayRangeAccumulatesInSequence(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "multi-day-cumulative-test")
 
 	day1 := civil.Date{Year: 2026, Month: 7, Day: 20}
@@ -520,7 +520,7 @@ func TestCumulativeSummariesBackfill_MultiDayRangeAccumulatesInSequence(t *testi
 func TestCumulativeSummariesBackfill_TracksLatestFailureTimestamp(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "cumulative-timestamp-test")
 
 	yesterday := civil.Date{Year: 2026, Month: 7, Day: 19}
@@ -542,7 +542,7 @@ func TestCumulativeSummariesBackfill_TracksLatestFailureTimestamp(t *testing.T) 
 func TestCumulativeSummariesBackfill_TracksLatestSuccessTimestamp(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "cumulative-success-timestamp-test")
 
 	yesterday := civil.Date{Year: 2026, Month: 7, Day: 19}
@@ -564,7 +564,7 @@ func TestCumulativeSummariesBackfill_TracksLatestSuccessTimestamp(t *testing.T) 
 func TestCumulativeSummariesBackfill_SuiteChangeStartsAnIndependentChain(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	test := intutil.CreateTest(t, dbc, "suite-change-test")
 	suiteA := intutil.CreateSuite(t, dbc, "suite-a-cumulative")
 	suiteB := intutil.CreateSuite(t, dbc, "suite-b-cumulative")
@@ -608,7 +608,7 @@ func TestCumulativeSummariesBackfill_SuiteChangeStartsAnIndependentChain(t *test
 func TestCumulativeSummariesBackfill_LifecycleReclassificationDropsOrphanedRow(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", nil)
 	testA := intutil.CreateTest(t, dbc, "cumulative-lifecycle-a")
 	testB := intutil.CreateTest(t, dbc, "cumulative-lifecycle-b")
 

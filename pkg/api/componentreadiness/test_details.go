@@ -461,7 +461,7 @@ func (c *ComponentReportGenerator) summarizeRecordedTestStats(
 		jobStats := testdetails.JobStats{}
 		if sampleSummaries, ok := sampleStatus[job]; ok {
 			for _, summary := range sampleSummaries {
-				jobStats.SampleJobName = summary.ProwJob
+				jobStats.SampleJobName = summary.CIJob
 				jobStats.SampleStats = jobStats.SampleStats.Add(summary.Stats, faf)
 				c.extractMetadata(summary, &result)
 				for _, run := range summary.JobRuns {
@@ -476,7 +476,7 @@ func (c *ComponentReportGenerator) summarizeRecordedTestStats(
 		}
 		if baseSummaries, ok := baseStatus[job]; ok {
 			for _, summary := range baseSummaries {
-				jobStats.BaseJobName = summary.ProwJob
+				jobStats.BaseJobName = summary.CIJob
 				jobStats.BaseStats = jobStats.BaseStats.Add(summary.Stats, faf)
 				c.extractMetadata(summary, &result)
 				for _, run := range summary.JobRuns {
@@ -522,8 +522,8 @@ func (c *ComponentReportGenerator) toJobRunStats(run crstatus.JobRunDetail) test
 			run.FlakeCount,
 			c.ReqOptions.AdvancedOption.FlakeAsFailure,
 		),
-		JobURL:       run.ProwJobURL,
-		JobRunID:     run.ProwJobRunID,
+		JobURL:       run.CIJobURL,
+		JobRunID:     run.CIJobRunID,
 		StartTime:    run.StartTime,
 		JobLabels:    run.JobLabels,
 		JobSymptoms:  run.JobSymptoms,

@@ -120,7 +120,7 @@ func TestTestReportQueryCollapsed_AggregatesCurrentAndPreviousPeriods(t *testing
 	sample, base, start, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws-ovn", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws-ovn", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network test-a")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
@@ -168,13 +168,13 @@ func TestTestReportQueryCollapsed_CollapsesAcrossVariantCombinations(t *testing.
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
 	vcAWS := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	jobAWS := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcAWS))
+	jobAWS := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcAWS))
 	// current = 9-5 = 4
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobAWS.ID, suite.ID, 5, 5, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobAWS.ID, suite.ID, 9, 9, 0)
 
 	vcGCP := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp"})
-	jobGCP := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcGCP))
+	jobGCP := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcGCP))
 	// current = 8-3 = 5
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobGCP.ID, suite.ID, 3, 3, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobGCP.ID, suite.ID, 8, 8, 0)
@@ -194,7 +194,7 @@ func TestTestReportQueryCollapsed_KeepsDifferentSuitesSeparate(t *testing.T) {
 	sample, base, _, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network shared-test-name")
 
 	suiteX := intutil.CreateSuite(t, dbc, "suite-x")
@@ -221,7 +221,7 @@ func TestTestReportQueryCollapsed_FiltersByName(t *testing.T) {
 	sample, base, _, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
 	testNetwork := intutil.CreateTest(t, dbc, "sig-network aws connectivity test")
@@ -282,12 +282,12 @@ func TestTestReportQueryCollapsed_FiltersByVariant(t *testing.T) {
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
 	vcAWS := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws", "Network:ovn"})
-	jobAWS := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws-ovn", release, nil, intutil.WithVariantCombination(vcAWS))
+	jobAWS := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws-ovn", release, nil, intutil.WithVariantCombination(vcAWS))
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobAWS.ID, suite.ID, 0, 0, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobAWS.ID, suite.ID, 4, 4, 0)
 
 	vcGCP := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp", "Network:ovn"})
-	jobGCP := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp-ovn", release, nil, intutil.WithVariantCombination(vcGCP))
+	jobGCP := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp-ovn", release, nil, intutil.WithVariantCombination(vcGCP))
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobGCP.ID, suite.ID, 0, 0, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobGCP.ID, suite.ID, 6, 6, 0)
 
@@ -328,7 +328,7 @@ func TestTestReportQueryCollapsed_LifecycleFilter(t *testing.T) {
 	sample, base, _, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network lifecycle-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
@@ -430,7 +430,7 @@ func TestTestReportQueryCollapsed_NeverStableVariantRequiresExplicitFilter(t *te
 	sample, base, _, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws", "never-stable"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws-never-stable", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws-never-stable", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network never-stable-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
@@ -459,8 +459,8 @@ func TestTestReportQueryCollapsed_ExcludesJobsWithNilVariantCombinationID(t *tes
 	release := "4.16"
 	sample, base, _, boundary, end := testsReportPeriods()
 
-	// A plain ProwJob has no VariantCombinationID set.
-	job := intutil.CreateProwJob(t, dbc, "periodic-e2e-unclassified", release, nil)
+	// A plain CIJob has no VariantCombinationID set.
+	job := intutil.CreateCIJob(t, dbc, "periodic-e2e-unclassified", release, nil)
 	test := intutil.CreateTest(t, dbc, "sig-network unclassified-job-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
@@ -478,7 +478,7 @@ func TestTestReportQueryCollapsed_OpenBugsCountsDistinctOpenExcludesClosedCaseIn
 	sample, base, _, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network bugged-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, job.ID, suite.ID, 0, 0, 0)
@@ -501,7 +501,7 @@ func TestTestReportQueryCollapsed_ResolvesJiraComponentViaTestOwnershipAndSuite(
 	sample, base, _, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network owned-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, job.ID, suite.ID, 0, 0, 0)
@@ -524,7 +524,7 @@ func TestTestReportQueryCollapsed_NewTestWithNoPriorHistoryReportsZeroPrevious(t
 	sample, base, _, _, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network brand-new-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
@@ -547,14 +547,14 @@ func TestTestReportQueryCollapsed_LifecyclesFieldReflectsDistinctLifecycles(t *t
 
 	// blockingOnly: one variant combination with only blocking data.
 	vcA := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	jobA := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcA))
+	jobA := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcA))
 	blockingOnly := intutil.CreateTest(t, dbc, "sig-network blocking-only-test")
 	intutil.CreateCumulativeSummary(t, dbc, end, release, blockingOnly.ID, jobA.ID, suite.ID, 10, 10, 0)
 
 	// mixed: two variant combinations, one blocking and one informing, that collapse into
 	// a single row with both lifecycles.
 	vcB := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp"})
-	jobB := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcB))
+	jobB := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcB))
 	mixed := intutil.CreateTest(t, dbc, "sig-network mixed-lifecycle-test")
 	intutil.CreateCumulativeSummary(t, dbc, end, release, mixed.ID, jobA.ID, suite.ID, 10, 10, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, mixed.ID, jobB.ID, suite.ID, 5, 5, 0, intutil.WithCumulativeSummaryLifecycle("informing"))
@@ -604,12 +604,12 @@ func TestUncollapsedTestReportWithStats_OneRowPerVariantCombination(t *testing.T
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
 	vcAWS := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	jobAWS := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcAWS))
+	jobAWS := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcAWS))
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobAWS.ID, suite.ID, 0, 0, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobAWS.ID, suite.ID, 4, 4, 0)
 
 	vcGCP := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp"})
-	jobGCP := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcGCP))
+	jobGCP := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcGCP))
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobGCP.ID, suite.ID, 0, 0, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobGCP.ID, suite.ID, 6, 6, 0)
 
@@ -646,7 +646,7 @@ func TestUncollapsedTestReportWithStats_ComputesCrossVariantStatsAndDeltas(t *te
 	}
 	for _, c := range combos {
 		vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:" + c.platform})
-		job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-"+c.platform, release, nil, intutil.WithVariantCombination(vc))
+		job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-"+c.platform, release, nil, intutil.WithVariantCombination(vc))
 		intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, job.ID, suite.ID, 0, 0, 0)
 		intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, job.ID, suite.ID, c.runs, c.successes, 0)
 	}
@@ -683,12 +683,12 @@ func TestUncollapsedTestReportWithStats_LifecycleFilterAppliesToStatsToo(t *test
 	// (blocking+informing) rate of 50%/30%, averaging to 40 -- giving deltas of +50/+10
 	// instead, even though the filtered rows themselves correctly show 90%/50%.
 	vcA := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	jobA := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcA))
+	jobA := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcA))
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobA.ID, suite.ID, 10, 9, 0, intutil.WithCumulativeSummaryLifecycle("blocking"), intutil.WithCumulativeSummaryFailures(1))
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobA.ID, suite.ID, 10, 1, 0, intutil.WithCumulativeSummaryLifecycle("informing"), intutil.WithCumulativeSummaryFailures(9))
 
 	vcB := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp"})
-	jobB := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcB))
+	jobB := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcB))
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobB.ID, suite.ID, 10, 5, 0, intutil.WithCumulativeSummaryLifecycle("blocking"), intutil.WithCumulativeSummaryFailures(5))
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobB.ID, suite.ID, 10, 1, 0, intutil.WithCumulativeSummaryLifecycle("informing"), intutil.WithCumulativeSummaryFailures(9))
 
@@ -718,7 +718,7 @@ func TestUncollapsedTestReportWithStats_LifecycleFilterEqualsAndNotEquals(t *tes
 	sample, base, _, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network uncollapsed-lifecycle-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
@@ -781,9 +781,9 @@ func TestUncollapsedTestReportWithStats_FiltersByNameAndVariant(t *testing.T) {
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
 	vcAWS := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	jobAWS := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcAWS))
+	jobAWS := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcAWS))
 	vcGCP := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp"})
-	jobGCP := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcGCP))
+	jobGCP := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcGCP))
 
 	testNetwork := intutil.CreateTest(t, dbc, "sig-network uncollapsed-name-test")
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, testNetwork.ID, jobAWS.ID, suite.ID, 0, 0, 0)
@@ -820,12 +820,12 @@ func TestUncollapsedTestReportWithStats_ExcludesNeverStableVariantFromResultsAnd
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
 	vcStable := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	jobStable := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcStable))
+	jobStable := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcStable))
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobStable.ID, suite.ID, 0, 0, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobStable.ID, suite.ID, 10, 9, 0, intutil.WithCumulativeSummaryFailures(1))
 
 	vcNeverStable := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp", "never-stable"})
-	jobNeverStable := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp-never-stable", release, nil, intutil.WithVariantCombination(vcNeverStable))
+	jobNeverStable := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp-never-stable", release, nil, intutil.WithVariantCombination(vcNeverStable))
 	// If this leaked into the stats average, working_average would be pulled toward 10%.
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobNeverStable.ID, suite.ID, 0, 0, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobNeverStable.ID, suite.ID, 10, 1, 0, intutil.WithCumulativeSummaryFailures(9))
@@ -849,12 +849,12 @@ func TestUncollapsedTestReportWithStats_ProcessedFilterPushesDownAndReturnsRemai
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
 	vcLowRuns := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	jobLowRuns := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcLowRuns))
+	jobLowRuns := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcLowRuns))
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobLowRuns.ID, suite.ID, 0, 0, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobLowRuns.ID, suite.ID, 3, 3, 0)
 
 	vcHighRuns := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp"})
-	jobHighRuns := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcHighRuns))
+	jobHighRuns := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp", release, nil, intutil.WithVariantCombination(vcHighRuns))
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, jobHighRuns.ID, suite.ID, 0, 0, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobHighRuns.ID, suite.ID, 10, 10, 0)
 
@@ -881,7 +881,7 @@ func TestUncollapsedTestReportWithStats_OpenBugsAndJiraComponent(t *testing.T) {
 	sample, base, _, boundary, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network uncollapsed-bugged-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 	intutil.CreateCumulativeSummary(t, dbc, boundary, release, test.ID, job.ID, suite.ID, 0, 0, 0)
@@ -907,7 +907,7 @@ func TestUncollapsedTestReportWithStats_NewVariantWithNoPriorHistoryReportsZeroP
 	sample, base, _, _, end := testsReportPeriods()
 
 	vc := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	job := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
+	job := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vc))
 	test := intutil.CreateTest(t, dbc, "sig-network uncollapsed-brand-new-test")
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
@@ -930,13 +930,13 @@ func TestUncollapsedTestReportWithStats_LifecyclesFieldReflectsDistinctLifecycle
 
 	// VC-A: only blocking data.
 	vcA := intutil.CreateVariantCombination(t, dbc, []string{"Platform:aws"})
-	jobA := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcA))
+	jobA := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-aws", release, nil, intutil.WithVariantCombination(vcA))
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobA.ID, suite.ID, 10, 10, 0)
 
 	// VC-B: both blocking and informing data (two prow jobs sharing a variant combination).
 	vcB := intutil.CreateVariantCombination(t, dbc, []string{"Platform:gcp"})
-	jobB1 := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp-blocking", release, nil, intutil.WithVariantCombination(vcB))
-	jobB2 := intutil.CreateProwJobWithOptions(t, dbc, "periodic-e2e-gcp-informing", release, nil, intutil.WithVariantCombination(vcB))
+	jobB1 := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp-blocking", release, nil, intutil.WithVariantCombination(vcB))
+	jobB2 := intutil.CreateCIJobWithOptions(t, dbc, "periodic-e2e-gcp-informing", release, nil, intutil.WithVariantCombination(vcB))
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobB1.ID, suite.ID, 10, 10, 0)
 	intutil.CreateCumulativeSummary(t, dbc, end, release, test.ID, jobB2.ID, suite.ID, 5, 5, 0, intutil.WithCumulativeSummaryLifecycle("informing"))
 

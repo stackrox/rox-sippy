@@ -1,7 +1,7 @@
 -- TRT-2676: Create test_daily_summaries table
 --
--- Pre-aggregates prow_job_run_tests data into daily buckets per
--- (test_id, prow_job_id, suite_id, release, date). The test report
+-- Pre-aggregates ci_job_run_tests data into daily buckets per
+-- (test_id, ci_job_id, suite_id, release, date). The test report
 -- matviews read from this table instead of scanning 100M+ raw rows,
 -- reducing refresh time from ~30 minutes to ~5.5 minutes.
 --
@@ -10,7 +10,7 @@
 
 CREATE TABLE IF NOT EXISTS test_daily_summaries (
     test_id BIGINT NOT NULL,
-    prow_job_id BIGINT NOT NULL,
+    ci_job_id BIGINT NOT NULL,
     suite_id BIGINT NOT NULL DEFAULT 0,
     release TEXT NOT NULL,
     summary_date DATE NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS test_daily_summaries (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_test_daily_summaries_unique
-    ON test_daily_summaries (test_id, prow_job_id, suite_id, release, summary_date);
+    ON test_daily_summaries (test_id, ci_job_id, suite_id, release, summary_date);
 
 CREATE INDEX IF NOT EXISTS idx_test_daily_summaries_date
     ON test_daily_summaries (summary_date);

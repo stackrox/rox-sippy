@@ -14,8 +14,8 @@ import (
 // functions needed by API query methods. It intentionally skips
 // materialized views, partitioning, triggers, and GIN indexes.
 func SetupIntegrationSchema(dbc *db.DB) error {
-	if err := dbc.DB.SetupJoinTable(&models.ProwJobRun{}, "PullRequests", &models.ProwJobRunProwPullRequest{}); err != nil {
-		return fmt.Errorf("setup join table ProwJobRun.PullRequests: %w", err)
+	if err := dbc.DB.SetupJoinTable(&models.CIJobRun{}, "PullRequests", &models.CIJobRunProwPullRequest{}); err != nil {
+		return fmt.Errorf("setup join table CIJobRun.PullRequests: %w", err)
 	}
 
 	allModels := []any{
@@ -27,15 +27,15 @@ func SetupIntegrationSchema(dbc *db.DB) error {
 		&models.ReleaseJobRun{},
 		&models.ProwGARawTestDatum{},
 		&models.VariantCombination{},
-		&models.ProwJob{},
-		&models.ProwJobRun{},
-		&models.ProwJobRunAnnotation{},
+		&models.CIJob{},
+		&models.CIJobRun{},
+		&models.CIJobRunAnnotation{},
 		&models.Test{},
 		&models.Suite{},
 		&models.APISnapshot{},
 		&models.Bug{},
 		&models.ProwPullRequest{},
-		&models.ProwJobRunProwPullRequest{},
+		&models.CIJobRunProwPullRequest{},
 		&models.SchemaHash{},
 		&models.PullRequestComment{},
 		&models.JiraIncident{},
@@ -55,8 +55,8 @@ func SetupIntegrationSchema(dbc *db.DB) error {
 
 		// Models normally managed by migrations (partitioned tables).
 		// Created here as regular tables for integration testing.
-		&models.ProwJobRunTest{},
-		&models.ProwJobRunTestOutput{},
+		&models.CIJobRunTest{},
+		&models.CIJobRunTestOutput{},
 		&models.TestDailyTotal{},
 		&models.TestCumulativeSummary{},
 	}

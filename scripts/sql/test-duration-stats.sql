@@ -26,9 +26,9 @@ BEGIN
             percentile_99,
             percentile_100
         FROM
-            prow_job_run_tests pjt
-            INNER JOIN prow_job_runs pjr ON pjr.id = pjt.prow_job_run_id
-            INNER JOIN prow_jobs pj ON pj.id = pjr.prow_job_id
+            ci_job_run_tests pjt
+            INNER JOIN ci_job_runs pjr ON pjr.id = pjt.ci_job_run_id
+            INNER JOIN ci_jobs pj ON pj.id = pjr.ci_job_id
         WHERE
             pjt.status = 1
             AND pjr.timestamp > current_date - interval '30' day

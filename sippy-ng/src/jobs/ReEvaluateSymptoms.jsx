@@ -26,7 +26,7 @@ async function reEvaluateOne(buildID) {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prow_job_build_ids: [buildID] }),
+        body: JSON.stringify({ ci_job_build_ids: [buildID] }),
         signal: controller.signal,
       }
     )
@@ -40,7 +40,7 @@ async function reEvaluateOne(buildID) {
         // fall back to status text if response isn't JSON
       }
       return {
-        prow_job_build_id: buildID,
+        ci_job_build_id: buildID,
         status: 'eval_error',
         error: errorMsg,
       }
@@ -48,11 +48,11 @@ async function reEvaluateOne(buildID) {
 
     const data = await response.json()
     return (
-      data.results?.[0] ?? { prow_job_build_id: buildID, status: 'eval_error' }
+      data.results?.[0] ?? { ci_job_build_id: buildID, status: 'eval_error' }
     )
   } catch (err) {
     return {
-      prow_job_build_id: buildID,
+      ci_job_build_id: buildID,
       status: 'eval_error',
       error:
         err.name === 'AbortError'
@@ -141,7 +141,7 @@ export default function ReEvaluateButton({
         const kept = results.filter(
           (r) => r.status !== 'eval_error' && r.status !== 'rewrite_error'
         )
-        const retryIDs = retryable.map((r) => r.prow_job_build_id)
+        const retryIDs = retryable.map((r) => r.ci_job_build_id)
         const retryResults = await runPool(retryIDs, (partial) =>
           setProgress({ total, results: [...kept, ...partial] })
         )

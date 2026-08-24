@@ -56,7 +56,7 @@ func (w log2LogrusWriter) Printf(msg string, args ...interface{}) {
 }
 
 // testNameWithoutSuite removes test suite prefixes from tests in the database
-// and assigns the suite to all the prow_job_run_tests. When the test can't be
+// and assigns the suite to all the ci_job_run_tests. When the test can't be
 // renamed because the unprefixed version exists in the DB, use that one and remove
 // the prefixed version.
 func testNameWithoutSuite(dbc *gorm.DB) error {
@@ -93,10 +93,10 @@ func testNameWithoutSuite(dbc *gorm.DB) error {
 							return err
 						}
 
-						// Update rows in the prow_job_run_tests table to include the suite
-						res := tx.Model(&models.ProwJobRunTest{}).Where("test_id = ?", oldTest.ID).Updates(models.ProwJobRunTest{SuiteID: &suiteID})
+						// Update rows in the ci_job_run_tests table to include the suite
+						res := tx.Model(&models.CIJobRunTest{}).Where("test_id = ?", oldTest.ID).Updates(models.CIJobRunTest{SuiteID: &suiteID})
 						if res.Error != nil {
-							log.WithError(res.Error).Warningf("Error updating prow_job_run_tests for oldTest ID %d", oldTest.ID)
+							log.WithError(res.Error).Warningf("Error updating ci_job_run_tests for oldTest ID %d", oldTest.ID)
 							return res.Error
 						}
 						log.WithFields(map[string]interface{}{
@@ -119,10 +119,10 @@ func testNameWithoutSuite(dbc *gorm.DB) error {
 			} else { //nolint
 				log.Infof("existing test found, making it the default and removing the old one...")
 				err := dbc.Transaction(func(tx *gorm.DB) error {
-					// Update rows in the prow_job_run_tests table and then delete the old oldTest row.
-					res := tx.Model(&models.ProwJobRunTest{}).Where("test_id = ?", oldTest.ID).Updates(models.ProwJobRunTest{TestID: newTest.ID, SuiteID: &suiteID})
+					// Update rows in the ci_job_run_tests table and then delete the old oldTest row.
+					res := tx.Model(&models.CIJobRunTest{}).Where("test_id = ?", oldTest.ID).Updates(models.CIJobRunTest{TestID: newTest.ID, SuiteID: &suiteID})
 					if res.Error != nil {
-						log.WithError(res.Error).Warningf("error updating prow_job_run_tests for oldTest ID %d", oldTest.ID)
+						log.WithError(res.Error).Warningf("error updating ci_job_run_tests for oldTest ID %d", oldTest.ID)
 						return res.Error
 					}
 					log.WithFields(map[string]interface{}{

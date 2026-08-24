@@ -1228,8 +1228,8 @@ func TestGenerateComponentReport(t *testing.T) {
 }
 
 func TestGenerateComponentTestDetailsReport(t *testing.T) {
-	prowJob1 := "ProwJob1"
-	prowJob2 := "ProwJob2"
+	ciJob1 := "CIJob1"
+	ciJob2 := "CIJob2"
 	type testStats struct {
 		Success int
 		Failure int
@@ -1365,13 +1365,13 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 			generator: testDetailsGenerator,
 			baseRequiredJobStats: []requiredJobStats{
 				{
-					job:       prowJob1,
+					job:       ciJob1,
 					testStats: baseHighSuccessStats,
 				},
 			},
 			sampleRequiredJobStats: []requiredJobStats{
 				{
-					job:       prowJob1,
+					job:       ciJob1,
 					testStats: sampleHighSuccessStats,
 				},
 			},
@@ -1391,7 +1391,7 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 						},
 						JobStats: []testdetails.JobStats{
 							{
-								SampleJobName: prowJob1,
+								SampleJobName: ciJob1,
 								SampleStats:   sampleTestStatsHigh,
 								BaseStats:     baseTestStatsHigh,
 								Significant:   false,
@@ -1401,10 +1401,10 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 				},
 			},
 			expectedSampleJobRunLen: map[string]int{
-				prowJob1: 113,
+				ciJob1: 113,
 			},
 			expectedBaseJobRunLen: map[string]int{
-				prowJob1: 1150,
+				ciJob1: 1150,
 			},
 		},
 		{
@@ -1412,13 +1412,13 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 			generator: testDetailsGenerator,
 			baseRequiredJobStats: []requiredJobStats{
 				{
-					job:       prowJob1,
+					job:       ciJob1,
 					testStats: baseHighSuccessStats,
 				},
 			},
 			sampleRequiredJobStats: []requiredJobStats{
 				{
-					job:       prowJob1,
+					job:       ciJob1,
 					testStats: sampleLowSuccessStats,
 				},
 			},
@@ -1438,8 +1438,8 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 						},
 						JobStats: []testdetails.JobStats{
 							{
-								SampleJobName: prowJob1,
-								BaseJobName:   prowJob2,
+								SampleJobName: ciJob1,
+								BaseJobName:   ciJob2,
 								SampleStats:   sampleTestStatsLow,
 								BaseStats:     baseTestStatsHigh,
 								Significant:   true,
@@ -1449,10 +1449,10 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 				},
 			},
 			expectedSampleJobRunLen: map[string]int{
-				prowJob1: 113,
+				ciJob1: 113,
 			},
 			expectedBaseJobRunLen: map[string]int{
-				prowJob1: 1150,
+				ciJob1: 1150,
 			},
 		},
 		{
@@ -1460,13 +1460,13 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 			generator: testDetailsGenerator,
 			baseRequiredJobStats: []requiredJobStats{
 				{
-					job:       prowJob1,
+					job:       ciJob1,
 					testStats: baseLowSuccessStats,
 				},
 			},
 			sampleRequiredJobStats: []requiredJobStats{
 				{
-					job:       prowJob1,
+					job:       ciJob1,
 					testStats: sampleHighSuccessStats,
 				},
 			},
@@ -1486,8 +1486,8 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 						},
 						JobStats: []testdetails.JobStats{
 							{
-								SampleJobName: prowJob1,
-								BaseJobName:   prowJob2,
+								SampleJobName: ciJob1,
+								BaseJobName:   ciJob2,
 								SampleStats:   sampleTestStatsHigh,
 								BaseStats:     baseTestStatsLow,
 								Significant:   false,
@@ -1497,10 +1497,10 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 				},
 			},
 			expectedSampleJobRunLen: map[string]int{
-				prowJob1: 113,
+				ciJob1: 113,
 			},
 			expectedBaseJobRunLen: map[string]int{
-				prowJob1: 1150,
+				ciJob1: 1150,
 			},
 		},
 		{
@@ -1508,21 +1508,21 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 			generator: testDetailsGenerator,
 			baseRequiredJobStats: []requiredJobStats{
 				{
-					job:       prowJob1,
+					job:       ciJob1,
 					testStats: baseHighSuccessStats,
 				},
 				{
-					job:       prowJob2,
+					job:       ciJob2,
 					testStats: baseHighSuccessStats,
 				},
 			},
 			sampleRequiredJobStats: []requiredJobStats{
 				{
-					job:       prowJob1,
+					job:       ciJob1,
 					testStats: sampleHighSuccessStats,
 				},
 				{
-					job:       prowJob2,
+					job:       ciJob2,
 					testStats: sampleHighSuccessStats,
 				},
 			},
@@ -1542,13 +1542,13 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 						},
 						JobStats: []testdetails.JobStats{
 							{
-								SampleJobName: prowJob1,
+								SampleJobName: ciJob1,
 								SampleStats:   sampleTestStatsHigh,
 								BaseStats:     baseTestStatsHigh,
 								Significant:   false,
 							},
 							{
-								SampleJobName: prowJob2,
+								SampleJobName: ciJob2,
 								SampleStats:   sampleTestStatsHigh,
 								BaseStats:     baseTestStatsHigh,
 								Significant:   false,
@@ -1558,12 +1558,12 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 				},
 			},
 			expectedSampleJobRunLen: map[string]int{
-				prowJob1: 113,
-				prowJob2: 113,
+				ciJob1: 113,
+				ciJob2: 113,
 			},
 			expectedBaseJobRunLen: map[string]int{
-				prowJob1: 1150,
-				prowJob2: 1150,
+				ciJob1: 1150,
+				ciJob2: 1150,
 			},
 		},
 	}
@@ -1574,8 +1574,8 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 		for _, testStats := range tc.baseRequiredJobStats {
 			for i := 0; i < testStats.Success; i++ {
 				rawBaseStats[testStats.job] = append(rawBaseStats[testStats.job], crstatus.TestJobRunRows{
-					ProwJob:      testStats.job,
-					ProwJobRunID: fmt.Sprintf("base-%s-s-%d", testStats.job, i),
+					CIJob:      testStats.job,
+					CIJobRunID: fmt.Sprintf("base-%s-s-%d", testStats.job, i),
 					Count: crtest.Count{
 						TotalCount:   1,
 						SuccessCount: 1,
@@ -1584,15 +1584,15 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 			}
 			for i := 0; i < testStats.Failure; i++ {
 				rawBaseStats[testStats.job] = append(rawBaseStats[testStats.job], crstatus.TestJobRunRows{
-					ProwJob:      testStats.job,
-					ProwJobRunID: fmt.Sprintf("base-%s-f-%d", testStats.job, i),
+					CIJob:      testStats.job,
+					CIJobRunID: fmt.Sprintf("base-%s-f-%d", testStats.job, i),
 					Count:        crtest.Count{TotalCount: 1},
 				})
 			}
 			for i := 0; i < testStats.Flake; i++ {
 				rawBaseStats[testStats.job] = append(rawBaseStats[testStats.job], crstatus.TestJobRunRows{
-					ProwJob:      testStats.job,
-					ProwJobRunID: fmt.Sprintf("base-%s-fl-%d", testStats.job, i),
+					CIJob:      testStats.job,
+					CIJobRunID: fmt.Sprintf("base-%s-fl-%d", testStats.job, i),
 					Count: crtest.Count{
 						TotalCount: 1,
 						FlakeCount: 1,
@@ -1603,8 +1603,8 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 		for _, testStats := range tc.sampleRequiredJobStats {
 			for i := 0; i < testStats.Success; i++ {
 				rawSampleStats[testStats.job] = append(rawSampleStats[testStats.job], crstatus.TestJobRunRows{
-					ProwJob:      testStats.job,
-					ProwJobRunID: fmt.Sprintf("sample-%s-s-%d", testStats.job, i),
+					CIJob:      testStats.job,
+					CIJobRunID: fmt.Sprintf("sample-%s-s-%d", testStats.job, i),
 					Count: crtest.Count{
 						TotalCount:   1,
 						SuccessCount: 1,
@@ -1613,15 +1613,15 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 			}
 			for i := 0; i < testStats.Failure; i++ {
 				rawSampleStats[testStats.job] = append(rawSampleStats[testStats.job], crstatus.TestJobRunRows{
-					ProwJob:      testStats.job,
-					ProwJobRunID: fmt.Sprintf("sample-%s-f-%d", testStats.job, i),
+					CIJob:      testStats.job,
+					CIJobRunID: fmt.Sprintf("sample-%s-f-%d", testStats.job, i),
 					Count:        crtest.Count{TotalCount: 1},
 				})
 			}
 			for i := 0; i < testStats.Flake; i++ {
 				rawSampleStats[testStats.job] = append(rawSampleStats[testStats.job], crstatus.TestJobRunRows{
-					ProwJob:      testStats.job,
-					ProwJobRunID: fmt.Sprintf("sample-%s-fl-%d", testStats.job, i),
+					CIJob:      testStats.job,
+					CIJobRunID: fmt.Sprintf("sample-%s-fl-%d", testStats.job, i),
 					Count: crtest.Count{
 						TotalCount: 1,
 						FlakeCount: 1,
@@ -1657,7 +1657,7 @@ func TestGenerateComponentTestDetailsReport(t *testing.T) {
 	}
 }
 
-func Test_componentReportGenerator_normalizeProwJobName(t *testing.T) {
+func Test_componentReportGenerator_normalizeCIJobName(t *testing.T) {
 	tests := []struct {
 		name          string
 		sampleRelease string
@@ -1688,7 +1688,7 @@ func Test_componentReportGenerator_normalizeProwJobName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, utils.NormalizeProwJobName(tt.jobName), "normalizeProwJobName(%v)", tt.jobName)
+			assert.Equalf(t, tt.want, utils.NormalizeCIJobName(tt.jobName), "normalizeCIJobName(%v)", tt.jobName)
 		})
 	}
 }

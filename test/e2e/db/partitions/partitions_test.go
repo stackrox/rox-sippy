@@ -18,7 +18,7 @@ func TestPartitionLifecycle(t *testing.T) {
 	// Cleanup function to remove test data
 	t.Cleanup(func() {
 		// Clean up test prow jobs, runs, and tests
-		dbc.DB.Unscoped().Where("name LIKE ?", "test-partition-%").Delete(&models.ProwJob{})
+		dbc.DB.Unscoped().Where("name LIKE ?", "test-partition-%").Delete(&models.CIJob{})
 		dbc.DB.Unscoped().Where("name LIKE ?", "test-partition-%").Delete(&models.Test{})
 		// Note: CASCADE delete should clean up related records
 	})
@@ -39,7 +39,7 @@ func TestPartitionLifecycle(t *testing.T) {
 			FROM pg_inherits
 			JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
 			JOIN pg_class child ON pg_inherits.inhrelid = child.oid
-			WHERE parent.relname IN ('prow_job_run_tests', 'prow_job_run_test_outputs')
+			WHERE parent.relname IN ('ci_job_run_tests', 'ci_job_run_test_outputs')
 		`).Scan(&partitionCount).Error
 		require.NoError(t, err)
 		assert.Greater(t, partitionCount, int64(0), "should have created partitions")
@@ -56,32 +56,32 @@ func TestPartitionLifecycle(t *testing.T) {
 		require.Greater(t, count, 0, "should create old partitions for testing")
 
 		// Insert test data to ensure partitions are populated
-		prowJob := models.ProwJob{Name: "test-partition-detach-job"}
-		err = dbc.DB.Create(&prowJob).Error
+		ciJob := models.CIJob{Name: "test-partition-detach-job"}
+		err = dbc.DB.Create(&ciJob).Error
 		require.NoError(t, err, "should create test prow job")
 
-		prowJobRun := models.ProwJobRun{
-			ProwJobID:      prowJob.ID,
-			ProwJobRelease: "4.17",
+		ciJobRun := models.CIJobRun{
+			CIJobID:      ciJob.ID,
+			CIJobRelease: "4.17",
 			Timestamp:      oldDate,
 			Succeeded:      true,
 		}
-		err = dbc.DB.Create(&prowJobRun).Error
+		err = dbc.DB.Create(&ciJobRun).Error
 		require.NoError(t, err, "should create test prow job run")
 
 		test := models.Test{Name: "test-partition-detach-test"}
 		err = dbc.DB.Create(&test).Error
 		require.NoError(t, err, "should create test")
 
-		prowJobRunTest := models.ProwJobRunTest{
-			ProwJobRunID:        prowJobRun.ID,
-			ProwJobID:           prowJob.ID,
-			ProwJobRunTimestamp: oldDate,
-			ProwJobRunRelease:   "4.17",
+		ciJobRunTest := models.CIJobRunTest{
+			CIJobRunID:        ciJobRun.ID,
+			CIJobID:           ciJob.ID,
+			CIJobRunTimestamp: oldDate,
+			CIJobRunRelease:   "4.17",
 			TestID:              test.ID,
 			Status:              12, // Success
 		}
-		err = dbc.DB.Create(&prowJobRunTest).Error
+		err = dbc.DB.Create(&ciJobRunTest).Error
 		require.NoError(t, err, "should create test data in old partition")
 
 		// Detach partitions older than 100 days
@@ -96,7 +96,7 @@ func TestPartitionLifecycle(t *testing.T) {
 			FROM pg_inherits
 			JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
 			JOIN pg_class child ON pg_inherits.inhrelid = child.oid
-			WHERE parent.relname IN ('prow_job_run_tests', 'prow_job_run_test_outputs')
+			WHERE parent.relname IN ('ci_job_run_tests', 'ci_job_run_test_outputs')
 		`).Scan(&attachedPartitions).Error
 		require.NoError(t, err)
 
@@ -198,7 +198,7 @@ func TestPartitionLifecycle(t *testing.T) {
 					0 AS level
 				FROM pg_class c
 				JOIN pg_namespace n ON n.oid = c.relnamespace
-				WHERE c.relname IN ('prow_job_run_tests', 'prow_job_run_test_outputs')
+				WHERE c.relname IN ('ci_job_run_tests', 'ci_job_run_test_outputs')
 				  AND n.nspname = 'public'
 
 				UNION ALL
@@ -261,7 +261,7 @@ func TestPartitionLifecycle(t *testing.T) {
 					0 AS level
 				FROM pg_class c
 				JOIN pg_namespace n ON n.oid = c.relnamespace
-				WHERE c.relname IN ('prow_job_run_tests', 'prow_job_run_test_outputs')
+				WHERE c.relname IN ('ci_job_run_tests', 'ci_job_run_test_outputs')
 				  AND n.nspname = 'public'
 
 				UNION ALL
@@ -336,7 +336,7 @@ func TestPartitionLifecycle(t *testing.T) {
 				SELECT c.oid, c.relname AS table_name
 				FROM pg_class c
 				JOIN pg_namespace n ON n.oid = c.relnamespace
-				WHERE c.relname IN ('prow_job_run_tests', 'prow_job_run_test_outputs')
+				WHERE c.relname IN ('ci_job_run_tests', 'ci_job_run_test_outputs')
 				  AND n.nspname = 'public'
 				UNION ALL
 				SELECT child.oid, child.relname
@@ -369,7 +369,7 @@ func TestPartitionLifecycle(t *testing.T) {
 			SELECT COUNT(*)
 			FROM pg_inherits
 			JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
-			WHERE parent.relname IN ('prow_job_run_tests', 'prow_job_run_test_outputs')
+			WHERE parent.relname IN ('ci_job_run_tests', 'ci_job_run_test_outputs')
 		`).Scan(&partitionCountBefore).Error
 		require.NoError(t, err)
 
@@ -384,7 +384,7 @@ func TestPartitionLifecycle(t *testing.T) {
 			SELECT COUNT(*)
 			FROM pg_inherits
 			JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
-			WHERE parent.relname IN ('prow_job_run_tests', 'prow_job_run_test_outputs')
+			WHERE parent.relname IN ('ci_job_run_tests', 'ci_job_run_test_outputs')
 		`).Scan(&partitionCountAfter).Error
 		require.NoError(t, err)
 

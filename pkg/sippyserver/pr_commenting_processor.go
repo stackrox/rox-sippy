@@ -480,7 +480,7 @@ func (aw *AnalysisWorker) determinePrComment(ctx context.Context, prCommentProsp
 	// we will likely pull in PRs hours before the jobs finish,
 	// so there may be many cycles before a PR is ready for commenting.
 	// check to see if all jobs have completed before doing the more intensive query / gcs locate for analysis.
-	completedJobs := aw.getPrJobsIfFinished(logger, prCommentProspect.ProwJobRoot)
+	completedJobs := aw.getPrJobsIfFinished(logger, prCommentProspect.CIJobRoot)
 	if completedJobs == nil {
 		logger.Debug("Jobs are still active")
 
@@ -498,7 +498,7 @@ func (aw *AnalysisWorker) determinePrComment(ctx context.Context, prCommentProsp
 
 	// having determined the PR is ready, scan all the runs for each job so we can find the latest
 	for idx, jobInfo := range completedJobs {
-		completedJobs[idx].prowJobRuns = aw.buildProwJobRuns(logger, jobInfo.bucketPrefix)
+		completedJobs[idx].ciJobRuns = aw.buildCIJobRuns(logger, jobInfo.bucketPrefix)
 		completedJobs[idx].prShaSum = prCommentProspect.SHA // so we can check whether runs are against the expected PR commit
 	}
 
@@ -663,7 +663,7 @@ type prJobInfo struct {
 	bucketPrefix  string          // where the job is found in the GCS bucket
 	latestRunID   string          // sippy ID of the latest run
 	latestRunPath string          // path to the latest run in the GCS bucket
-	prowJobRuns   []*prow.ProwJob // sorted list of ProwJobs (runs for this job)
+	ciJobRuns   []*prow.ProwJob // sorted list of CIJobs (runs for this job)
 }
 
 // getPrJobsIfFinished walks the GCS path for this PR to find the most recent run of each PR job;
@@ -737,12 +737,12 @@ func (aw *AnalysisWorker) buildPRJobRiskAnalysis(ctx context.Context, logger *lo
 		// we don't report risk on jobs without 2 or more runs.
 		// this is so we can compare failed tests against latest and latest-1,
 		// only returning analysis on tests that have failed in both.
-		if len(jobInfo.prowJobRuns) < 2 {
+		if len(jobInfo.ciJobRuns) < 2 {
 			continue
 		}
 
-		latest := jobInfo.prowJobRuns[0]
-		previous := jobInfo.prowJobRuns[1]
+		latest := jobInfo.ciJobRuns[0]
+		previous := jobInfo.ciJobRuns[1]
 
 		if latest.Spec.Refs.Pulls[0].SHA != jobInfo.prShaSum {
 			logger.Infof(
@@ -777,10 +777,10 @@ func (aw *AnalysisWorker) buildPRJobRiskAnalysis(ctx context.Context, logger *lo
 	return riskAnalysisSummaries
 }
 
-// buildProwJobRuns Walks the GCS path for this job to find its job runs,
+// buildCIJobRuns Walks the GCS path for this job to find its job runs,
 // returning a list of completed runs sorted by decreasing completion time
-func (aw *AnalysisWorker) buildProwJobRuns(logger *log.Entry, prJobRoot string) []*prow.ProwJob {
-	logger = logger.WithField("func", "buildProwJobRuns").WithField("jobRoot", prJobRoot)
+func (aw *AnalysisWorker) buildCIJobRuns(logger *log.Entry, prJobRoot string) []*prow.ProwJob {
+	logger = logger.WithField("func", "buildCIJobRuns").WithField("jobRoot", prJobRoot)
 	// get the list of objects one level down from our root
 	it := aw.gcsBucket.Objects(context.Background(), &storage.Query{
 		Prefix:    prJobRoot,
@@ -832,7 +832,7 @@ func (aw *AnalysisWorker) buildProwJobRuns(logger *log.Entry, prJobRoot string) 
 	return jobRuns
 }
 
-func (aw *AnalysisWorker) getRiskSummary(ctx context.Context, jobRunID, jobRunIDPath string, priorRiskAnalysis *api.ProwJobRunRiskAnalysis) (api.RiskSummary, *api.ProwJobRunRiskAnalysis) {
+func (aw *AnalysisWorker) getRiskSummary(ctx context.Context, jobRunID, jobRunIDPath string, priorRiskAnalysis *api.CIJobRunRiskAnalysis) (api.RiskSummary, *api.CIJobRunRiskAnalysis) {
 	logger := log.WithField("jobRunID", jobRunID).WithField("func", "getRiskSummary")
 	logger.Infof("Summarize risks for job run at %s", jobRunIDPath)
 
@@ -854,7 +854,7 @@ func (aw *AnalysisWorker) getRiskSummary(ctx context.Context, jobRunID, jobRunID
 	return aw.getGCSOverallRiskLevel(jobRunIDPath)
 }
 
-func buildRiskSummary(riskAnalysis, priorRiskAnalysis *api.ProwJobRunRiskAnalysis) api.RiskSummary {
+func buildRiskSummary(riskAnalysis, priorRiskAnalysis *api.CIJobRunRiskAnalysis) api.RiskSummary {
 
 	riskSummary := api.RiskSummary{OverallRisk: api.JobFailureRisk{Level: riskAnalysis.OverallRisk.Level, Reasons: riskAnalysis.OverallRisk.Reasons}}
 
@@ -886,7 +886,7 @@ func buildRiskSummary(riskAnalysis, priorRiskAnalysis *api.ProwJobRunRiskAnalysi
 	return riskSummary
 }
 
-func isTestFiltered(test api.TestRiskAnalysis, priorRiskAnalysis *api.ProwJobRunRiskAnalysis) bool {
+func isTestFiltered(test api.TestRiskAnalysis, priorRiskAnalysis *api.CIJobRunRiskAnalysis) bool {
 	// TODO: Observe how restrictive this is
 	// Many PRs don't appear to have multiple runs
 	// Those that do don't have the same failures (because the failures are flakes and not regressions?)
@@ -905,7 +905,7 @@ func isTestFiltered(test api.TestRiskAnalysis, priorRiskAnalysis *api.ProwJobRun
 	return false
 }
 
-func (aw *AnalysisWorker) getGCSOverallRiskLevel(latestPath string) (api.RiskSummary, *api.ProwJobRunRiskAnalysis) {
+func (aw *AnalysisWorker) getGCSOverallRiskLevel(latestPath string) (api.RiskSummary, *api.CIJobRunRiskAnalysis) {
 	riskAnalysis, err := aw.getJobRunGCSRiskAnalysis(latestPath)
 	if err != nil {
 		log.WithError(err).Errorf("Error with fallback lookup of gcs RiskAnalysis for: %s", latestPath)
@@ -939,14 +939,14 @@ func (aw *AnalysisWorker) getGCSOverallRiskLevel(latestPath string) (api.RiskSum
 	}, nil
 }
 
-func (aw *AnalysisWorker) getJobRunGCSRiskAnalysis(jobPath string) (*api.ProwJobRunRiskAnalysis, error) {
+func (aw *AnalysisWorker) getJobRunGCSRiskAnalysis(jobPath string) (*api.CIJobRunRiskAnalysis, error) {
 	// create a new gcs job for each entry
 	// try to locate the risk analysis file
 	// if we can't find it then it is unknown
 	jobRun := gcs.NewGCSJobRun(aw.gcsBucket, "")
 	rawData := jobRun.FindFirstFile(jobPath, aw.riskAnalysisLocator)
 
-	ra := api.ProwJobRunRiskAnalysis{}
+	ra := api.CIJobRunRiskAnalysis{}
 	if rawData != nil {
 		err := json.Unmarshal(rawData, &ra)
 		if err != nil {

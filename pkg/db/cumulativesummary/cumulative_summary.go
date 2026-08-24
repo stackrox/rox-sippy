@@ -75,13 +75,13 @@ func (s *pgStore) Releases() ([]string, error) {
 const deleteSQL = `DELETE FROM test_cumulative_summaries WHERE release = ? AND date = ?`
 
 const insertSQL = `
-	INSERT INTO test_cumulative_summaries (date, test_id, prow_job_id, suite_id, lifecycle, release,
+	INSERT INTO test_cumulative_summaries (date, test_id, ci_job_id, suite_id, lifecycle, release,
 	                         prefix_sum_successes, prefix_sum_failures, prefix_sum_flakes, prefix_sum_runs,
 	                         prefix_max_last_failure, prefix_max_last_success)
 	SELECT
 		?,
 		COALESCE(prev.test_id, tds.test_id),
-		COALESCE(prev.prow_job_id, tds.prow_job_id),
+		COALESCE(prev.ci_job_id, tds.ci_job_id),
 		COALESCE(prev.suite_id, tds.suite_id),
 		COALESCE(prev.lifecycle, tds.lifecycle),
 		COALESCE(prev.release, tds.release),
@@ -94,7 +94,7 @@ const insertSQL = `
 	FROM (SELECT * FROM test_cumulative_summaries WHERE date = ?::date - 1 AND release = ?) prev
 	FULL OUTER JOIN (SELECT * FROM test_daily_totals WHERE date = ? AND release = ?) tds
 		ON prev.test_id = tds.test_id
-		AND prev.prow_job_id = tds.prow_job_id
+		AND prev.ci_job_id = tds.ci_job_id
 		AND prev.suite_id = tds.suite_id
 		AND prev.lifecycle = tds.lifecycle`
 

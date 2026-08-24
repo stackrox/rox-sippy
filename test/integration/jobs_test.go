@@ -46,10 +46,10 @@ func runTests(m *testing.M) int {
 	return m.Run()
 }
 
-func TestProwJobSimilarName(t *testing.T) {
+func TestCIJobSimilarName(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	jobs := []models.ProwJob{
+	jobs := []models.CIJob{
 		{Name: "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn", Release: "4.16", Variants: pq.StringArray{"aws", "ovn"}},
 		{Name: "pull-ci-openshift-origin-master-e2e-aws-ovn", Release: "4.16", Variants: pq.StringArray{"aws", "ovn"}},
 		{Name: "periodic-ci-openshift-release-master-nightly-4.16-e2e-gcp-ovn", Release: "4.16", Variants: pq.StringArray{"gcp", "ovn"}},
@@ -103,7 +103,7 @@ func TestProwJobSimilarName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := query.ProwJobSimilarName(dbc, tt.rootName, tt.release)
+			result, err := query.CIJobSimilarName(dbc, tt.rootName, tt.release)
 			require.NoError(t, err)
 
 			gotNames := make([]string, len(result))
@@ -128,7 +128,7 @@ func TestVariantReports(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws", "ovn"},
@@ -191,12 +191,12 @@ func TestVariantReports_MultipleJobs(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	jobA := models.ProwJob{
+	jobA := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws", "ovn"},
 	}
-	jobB := models.ProwJob{
+	jobB := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-gcp",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws", "gcp"},
@@ -264,7 +264,7 @@ func TestVariantReports_ZeroPreviousRuns(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws"},
@@ -302,7 +302,7 @@ func TestVariantReports_EmptyVariants(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-bare",
 		Release:  "4.16",
 		Variants: pq.StringArray{},
@@ -325,7 +325,7 @@ func TestVariantReports_BoundaryTimestamp(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws"},
@@ -364,12 +364,12 @@ func TestVariantReports_MultipleReleases(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job416 := models.ProwJob{
+	job416 := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws"},
 	}
-	job415 := models.ProwJob{
+	job415 := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.15-e2e-aws-ovn",
 		Release:  "4.15",
 		Variants: pq.StringArray{"aws"},
@@ -403,7 +403,7 @@ func TestJobReports(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws", "ovn"},
@@ -470,7 +470,7 @@ func TestJobReports_BriefNameWithMainBranch(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-main-nightly-4.16-e2e-azure-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"azure", "ovn"},
@@ -495,7 +495,7 @@ func TestJobReports_WithBugs(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws"},
@@ -538,7 +538,7 @@ func TestJobReports_WithPullRequests(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "pull-ci-openshift-origin-master-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws", "ovn"},
@@ -571,20 +571,20 @@ func TestJobReports_WithPullRequests(t *testing.T) {
 	run2b := createSingleRun(t, dbc, job.ID, "4.16", runSpec{timestamp: boundary.Add(70 * time.Hour), succeeded: true, duration: 20 * time.Minute})
 
 	// Link runs to PRs via the join table with denormalized fields
-	for _, run := range []models.ProwJobRun{run1a, run1b, run1c} {
-		require.NoError(t, dbc.DB.Create(&models.ProwJobRunProwPullRequest{
-			ProwJobRunID:        run.ID,
+	for _, run := range []models.CIJobRun{run1a, run1b, run1c} {
+		require.NoError(t, dbc.DB.Create(&models.CIJobRunProwPullRequest{
+			CIJobRunID:        run.ID,
 			ProwPullRequestID:   pr1.ID,
-			ProwJobRunRelease:   run.ProwJobRelease,
-			ProwJobRunTimestamp: run.Timestamp,
+			CIJobRunRelease:   run.CIJobRelease,
+			CIJobRunTimestamp: run.Timestamp,
 		}).Error)
 	}
-	for _, run := range []models.ProwJobRun{run2a, run2b} {
-		require.NoError(t, dbc.DB.Create(&models.ProwJobRunProwPullRequest{
-			ProwJobRunID:        run.ID,
+	for _, run := range []models.CIJobRun{run2a, run2b} {
+		require.NoError(t, dbc.DB.Create(&models.CIJobRunProwPullRequest{
+			CIJobRunID:        run.ID,
 			ProwPullRequestID:   pr2.ID,
-			ProwJobRunRelease:   run.ProwJobRelease,
-			ProwJobRunTimestamp: run.Timestamp,
+			CIJobRunRelease:   run.CIJobRelease,
+			CIJobRunTimestamp: run.Timestamp,
 		}).Error)
 	}
 
@@ -610,7 +610,7 @@ func TestJobReports_ZeroPreviousRuns(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws"},
@@ -645,12 +645,12 @@ func TestJobReports_WithFilters(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	jobAWS := models.ProwJob{
+	jobAWS := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws", "ovn"},
 	}
-	jobGCP := models.ProwJob{
+	jobGCP := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-gcp-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"gcp", "ovn"},
@@ -721,12 +721,12 @@ func TestJobReports_MultipleReleases(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	job416 := models.ProwJob{
+	job416 := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws"},
 	}
-	job415 := models.ProwJob{
+	job415 := models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.15-e2e-aws-ovn",
 		Release:  "4.15",
 		Variants: pq.StringArray{"aws"},
@@ -764,7 +764,7 @@ type runSpec struct {
 	url          string
 }
 
-// createRuns inserts ProwJobRun records for the given job using the provided specs.
+// createRuns inserts CIJobRun records for the given job using the provided specs.
 func createRuns(t *testing.T, dbc *db.DB, jobID uint, release string, specs []runSpec) {
 	t.Helper()
 	for _, r := range specs {
@@ -772,12 +772,12 @@ func createRuns(t *testing.T, dbc *db.DB, jobID uint, release string, specs []ru
 	}
 }
 
-// createSingleRun inserts a single ProwJobRun and returns it.
-func createSingleRun(t *testing.T, dbc *db.DB, jobID uint, release string, spec runSpec) models.ProwJobRun {
+// createSingleRun inserts a single CIJobRun and returns it.
+func createSingleRun(t *testing.T, dbc *db.DB, jobID uint, release string, spec runSpec) models.CIJobRun {
 	t.Helper()
-	run := models.ProwJobRun{
-		ProwJobID:             jobID,
-		ProwJobRelease:        release,
+	run := models.CIJobRun{
+		CIJobID:             jobID,
+		CIJobRelease:        release,
 		Timestamp:             spec.timestamp,
 		Succeeded:             spec.succeeded,
 		Failed:                !spec.succeeded,
@@ -801,16 +801,16 @@ func createSingleRun(t *testing.T, dbc *db.DB, jobID uint, release string, spec 
 func TestJobRunTestCount(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	timestamp := time.Date(2024, 6, 10, 12, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", timestamp, true, v1.JobSucceeded)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", timestamp, true, v1.JobSucceeded)
 	test1 := intutil.CreateTest(t, dbc, "test-alpha")
 	test2 := intutil.CreateTest(t, dbc, "test-beta")
 	test3 := intutil.CreateTest(t, dbc, "test-gamma")
 
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test1.ID, "4.16", timestamp, 1)
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test2.ID, "4.16", timestamp, 1)
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test3.ID, "4.16", timestamp, 12)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test1.ID, "4.16", timestamp, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test2.ID, "4.16", timestamp, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test3.ID, "4.16", timestamp, 12)
 
 	runID := int64(run.ID) //nolint:gosec
 	count, err := query.JobRunTestCount(dbc, runID, "4.16", timestamp)
@@ -821,23 +821,23 @@ func TestJobRunTestCount(t *testing.T) {
 func TestJobRunTestCountExcludesNonMatchingRecords(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	timestamp := time.Date(2024, 6, 10, 12, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", timestamp, true, v1.JobSucceeded)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", timestamp, true, v1.JobSucceeded)
 	test1 := intutil.CreateTest(t, dbc, "test-alpha")
 	test2 := intutil.CreateTest(t, dbc, "test-beta")
 	test3 := intutil.CreateTest(t, dbc, "test-gamma")
 
 	// Two records match the queried release and timestamp
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test1.ID, "4.16", timestamp, 1)
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test2.ID, "4.16", timestamp, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test1.ID, "4.16", timestamp, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test2.ID, "4.16", timestamp, 1)
 
 	// Record with a different release should be excluded
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test3.ID, "4.15", timestamp, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test3.ID, "4.15", timestamp, 1)
 
 	// Record with a different timestamp should be excluded
 	otherTimestamp := time.Date(2024, 6, 11, 12, 0, 0, 0, time.UTC)
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test1.ID, "4.16", otherTimestamp, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test1.ID, "4.16", otherTimestamp, 1)
 
 	runID := int64(run.ID) //nolint:gosec
 	count, err := query.JobRunTestCount(dbc, runID, "4.16", timestamp)
@@ -848,9 +848,9 @@ func TestJobRunTestCountExcludesNonMatchingRecords(t *testing.T) {
 func TestJobRunTestCountNoTests(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	timestamp := time.Date(2024, 6, 10, 12, 0, 0, 0, time.UTC)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", timestamp, true, v1.JobSucceeded)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", timestamp, true, v1.JobSucceeded)
 
 	runID := int64(run.ID) //nolint:gosec
 	count, err := query.JobRunTestCount(dbc, runID, "4.16", timestamp)
@@ -858,27 +858,27 @@ func TestJobRunTestCountNoTests(t *testing.T) {
 	assert.Equal(t, 0, count)
 }
 
-func TestProwJobRunCount(t *testing.T) {
+func TestCIJobRunCount(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
-	otherJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	otherJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp"})
 
-	intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC), true, v1.JobSucceeded)
-	intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", time.Date(2024, 6, 2, 12, 0, 0, 0, time.UTC), false, v1.JobTestFailure)
+	intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC), true, v1.JobSucceeded)
+	intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", time.Date(2024, 6, 2, 12, 0, 0, 0, time.UTC), false, v1.JobTestFailure)
 	// Run for the other job should not appear
-	intutil.CreateProwJobRun(t, dbc, otherJob.ID, "4.16", time.Date(2024, 6, 3, 12, 0, 0, 0, time.UTC), true, v1.JobSucceeded)
+	intutil.CreateCIJobRun(t, dbc, otherJob.ID, "4.16", time.Date(2024, 6, 3, 12, 0, 0, 0, time.UTC), true, v1.JobSucceeded)
 
 	since := time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC)
-	count, err := query.ProwJobRunCount(dbc, job.ID, "4.16", since)
+	count, err := query.CIJobRunCount(dbc, job.ID, "4.16", since)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
 
-func TestProwJobHistoricalTestCounts(t *testing.T) {
+func TestCIJobHistoricalTestCounts(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 
 	now := time.Now().UTC()
 	test1 := intutil.CreateTest(t, dbc, "test-alpha")
@@ -887,29 +887,29 @@ func TestProwJobHistoricalTestCounts(t *testing.T) {
 
 	// Run 1: 3 days ago with 2 tests
 	ts1 := now.Add(-3 * 24 * time.Hour)
-	run1 := intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", ts1, true, v1.JobSucceeded)
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job.ID, test1.ID, "4.16", ts1, 1)
-	intutil.CreateProwJobRunTest(t, dbc, run1.ID, job.ID, test2.ID, "4.16", ts1, 1)
+	run1 := intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", ts1, true, v1.JobSucceeded)
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job.ID, test1.ID, "4.16", ts1, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run1.ID, job.ID, test2.ID, "4.16", ts1, 1)
 
 	// Run 2: 1 day ago with 4 tests
 	test4 := intutil.CreateTest(t, dbc, "test-delta")
 	ts2 := now.Add(-1 * 24 * time.Hour)
-	run2 := intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", ts2, true, v1.JobSucceeded)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, test1.ID, "4.16", ts2, 1)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, test2.ID, "4.16", ts2, 1)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, test3.ID, "4.16", ts2, 1)
-	intutil.CreateProwJobRunTest(t, dbc, run2.ID, job.ID, test4.ID, "4.16", ts2, 12)
+	run2 := intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", ts2, true, v1.JobSucceeded)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, test1.ID, "4.16", ts2, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, test2.ID, "4.16", ts2, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, test3.ID, "4.16", ts2, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run2.ID, job.ID, test4.ID, "4.16", ts2, 12)
 
 	// avg(2, 4) = 3
-	avg, err := query.ProwJobHistoricalTestCounts(dbc, job.ID, "4.16")
+	avg, err := query.CIJobHistoricalTestCounts(dbc, job.ID, "4.16")
 	require.NoError(t, err)
 	assert.Equal(t, 3, avg)
 }
 
-func TestProwJobHistoricalTestCountsExcludesOldData(t *testing.T) {
+func TestCIJobHistoricalTestCountsExcludesOldData(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 
 	now := time.Now().UTC()
 	test1 := intutil.CreateTest(t, dbc, "test-alpha")
@@ -917,58 +917,58 @@ func TestProwJobHistoricalTestCountsExcludesOldData(t *testing.T) {
 
 	// Recent run (2 days ago): 2 tests, should be included
 	recentTS := now.Add(-2 * 24 * time.Hour)
-	recentRun := intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", recentTS, true, v1.JobSucceeded)
-	intutil.CreateProwJobRunTest(t, dbc, recentRun.ID, job.ID, test1.ID, "4.16", recentTS, 1)
-	intutil.CreateProwJobRunTest(t, dbc, recentRun.ID, job.ID, test2.ID, "4.16", recentTS, 1)
+	recentRun := intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", recentTS, true, v1.JobSucceeded)
+	intutil.CreateCIJobRunTest(t, dbc, recentRun.ID, job.ID, test1.ID, "4.16", recentTS, 1)
+	intutil.CreateCIJobRunTest(t, dbc, recentRun.ID, job.ID, test2.ID, "4.16", recentTS, 1)
 
 	// Old run (20 days ago): 6 tests, should be excluded by 14-day window
 	oldTS := now.Add(-20 * 24 * time.Hour)
-	oldRun := intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", oldTS, true, v1.JobSucceeded)
+	oldRun := intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", oldTS, true, v1.JobSucceeded)
 	for i := 0; i < 6; i++ {
 		testN := intutil.CreateTest(t, dbc, fmt.Sprintf("old-test-%d", i))
-		intutil.CreateProwJobRunTest(t, dbc, oldRun.ID, job.ID, testN.ID, "4.16", oldTS, 1)
+		intutil.CreateCIJobRunTest(t, dbc, oldRun.ID, job.ID, testN.ID, "4.16", oldTS, 1)
 	}
 
 	// Only the recent run's 2 tests should contribute: avg(2) = 2
-	avg, err := query.ProwJobHistoricalTestCounts(dbc, job.ID, "4.16")
+	avg, err := query.CIJobHistoricalTestCounts(dbc, job.ID, "4.16")
 	require.NoError(t, err)
 	assert.Equal(t, 2, avg)
 }
 
-func TestProwJobHistoricalTestCountsExcludesDifferentRelease(t *testing.T) {
+func TestCIJobHistoricalTestCountsExcludesDifferentRelease(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 
 	now := time.Now().UTC()
 	test1 := intutil.CreateTest(t, dbc, "test-alpha")
 	test2 := intutil.CreateTest(t, dbc, "test-beta")
 
 	ts := now.Add(-2 * 24 * time.Hour)
-	run := intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", ts, true, v1.JobSucceeded)
+	run := intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", ts, true, v1.JobSucceeded)
 
 	// 2 test records with matching release
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test1.ID, "4.16", ts, 1)
-	intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, test2.ID, "4.16", ts, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test1.ID, "4.16", ts, 1)
+	intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, test2.ID, "4.16", ts, 1)
 
 	// 3 test records with a different release should be excluded
 	for i := 0; i < 3; i++ {
 		testN := intutil.CreateTest(t, dbc, fmt.Sprintf("other-release-test-%d", i))
-		intutil.CreateProwJobRunTest(t, dbc, run.ID, job.ID, testN.ID, "4.15", ts, 1)
+		intutil.CreateCIJobRunTest(t, dbc, run.ID, job.ID, testN.ID, "4.15", ts, 1)
 	}
 
 	// Only 4.16 tests count: avg(2) = 2
-	avg, err := query.ProwJobHistoricalTestCounts(dbc, job.ID, "4.16")
+	avg, err := query.CIJobHistoricalTestCounts(dbc, job.ID, "4.16")
 	require.NoError(t, err)
 	assert.Equal(t, 2, avg)
 }
 
-func TestProwJobHistoricalTestCountsNoData(t *testing.T) {
+func TestCIJobHistoricalTestCountsNoData(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 
-	avg, err := query.ProwJobHistoricalTestCounts(dbc, job.ID, "4.16")
+	avg, err := query.CIJobHistoricalTestCounts(dbc, job.ID, "4.16")
 	require.NoError(t, err)
 	assert.Equal(t, 0, avg)
 }
@@ -980,12 +980,12 @@ func TestListFilteredJobIDs(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	awsJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws", "ovn"})
-	gcpJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp", "ovn"})
+	awsJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws", "ovn"})
+	gcpJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp", "ovn"})
 
 	for _, ts := range []time.Time{start, boundary, end} {
-		intutil.CreateProwJobRun(t, dbc, awsJob.ID, "4.16", ts, true, v1.JobSucceeded)
-		intutil.CreateProwJobRun(t, dbc, gcpJob.ID, "4.16", ts, true, v1.JobSucceeded)
+		intutil.CreateCIJobRun(t, dbc, awsJob.ID, "4.16", ts, true, v1.JobSucceeded)
+		intutil.CreateCIJobRun(t, dbc, gcpJob.ID, "4.16", ts, true, v1.JobSucceeded)
 	}
 
 	tests := []struct {
@@ -1083,14 +1083,14 @@ func TestListFilteredJobIDsNumericFilter(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	awsJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
-	gcpJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp"})
+	awsJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	gcpJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp"})
 
 	// AWS job: 1 pass out of 1 run in current period = 100%
-	intutil.CreateProwJobRun(t, dbc, awsJob.ID, "4.16", boundary, true, v1.JobSucceeded)
+	intutil.CreateCIJobRun(t, dbc, awsJob.ID, "4.16", boundary, true, v1.JobSucceeded)
 
 	// GCP job: 0 pass out of 1 run in current period = 0%
-	intutil.CreateProwJobRun(t, dbc, gcpJob.ID, "4.16", boundary, false, v1.JobTestFailure)
+	intutil.CreateCIJobRun(t, dbc, gcpJob.ID, "4.16", boundary, false, v1.JobTestFailure)
 
 	// Filter for current_pass_percentage >= 50 should only return the aws job
 	fil := &filter.Filter{
@@ -1110,12 +1110,12 @@ func TestListFilteredJobIDsOrFilter(t *testing.T) {
 	boundary := time.Date(2024, 6, 8, 12, 0, 0, 0, time.UTC)
 	end := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
 
-	awsJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
-	gcpJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp"})
-	azureJob := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-azure-4.16", "4.16", []string{"azure"})
+	awsJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	gcpJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp"})
+	azureJob := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-azure-4.16", "4.16", []string{"azure"})
 
-	for _, job := range []models.ProwJob{awsJob, gcpJob, azureJob} {
-		intutil.CreateProwJobRun(t, dbc, job.ID, "4.16", boundary, true, v1.JobSucceeded)
+	for _, job := range []models.CIJob{awsJob, gcpJob, azureJob} {
+		intutil.CreateCIJobRun(t, dbc, job.ID, "4.16", boundary, true, v1.JobSucceeded)
 	}
 
 	// OR filter: name contains "aws" OR name contains "gcp" should return both but not azure
@@ -1135,12 +1135,12 @@ func TestListFilteredJobIDsOrFilter(t *testing.T) {
 func TestLoadBugsForJobs(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	jobID := int(job.ID) //nolint:gosec
 
 	recentTime := time.Now().Add(-24 * time.Hour)
-	intutil.CreateBug(t, dbc, "BZ-1001", "NEW", "flaky aws test", recentTime, []models.ProwJob{job})
-	intutil.CreateBug(t, dbc, "BZ-1002", "ASSIGNED", "aws timeout", recentTime, []models.ProwJob{job})
+	intutil.CreateBug(t, dbc, "BZ-1001", "NEW", "flaky aws test", recentTime, []models.CIJob{job})
+	intutil.CreateBug(t, dbc, "BZ-1002", "ASSIGNED", "aws timeout", recentTime, []models.CIJob{job})
 
 	bugs, err := query.LoadBugsForJobs(dbc, []int{jobID}, false)
 	require.NoError(t, err)
@@ -1150,12 +1150,12 @@ func TestLoadBugsForJobs(t *testing.T) {
 func TestLoadBugsForJobsFiltersClosed(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	jobID := int(job.ID) //nolint:gosec
 
 	recentTime := time.Now().Add(-24 * time.Hour)
-	intutil.CreateBug(t, dbc, "BZ-2001", "NEW", "open bug", recentTime, []models.ProwJob{job})
-	intutil.CreateBug(t, dbc, "BZ-2002", "CLOSED", "closed bug", recentTime, []models.ProwJob{job})
+	intutil.CreateBug(t, dbc, "BZ-2001", "NEW", "open bug", recentTime, []models.CIJob{job})
+	intutil.CreateBug(t, dbc, "BZ-2002", "CLOSED", "closed bug", recentTime, []models.CIJob{job})
 
 	// With filterClosed=true, should only return the open bug
 	bugs, err := query.LoadBugsForJobs(dbc, []int{jobID}, true)
@@ -1172,14 +1172,14 @@ func TestLoadBugsForJobsFiltersClosed(t *testing.T) {
 func TestLoadBugsForJobsMultipleJobIDsReturnsFirstOnly(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job1 := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
-	job2 := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp"})
+	job1 := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job2 := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-gcp-4.16", "4.16", []string{"gcp"})
 	job1ID := int(job1.ID) //nolint:gosec
 	job2ID := int(job2.ID) //nolint:gosec
 
 	recentTime := time.Now().Add(-24 * time.Hour)
-	intutil.CreateBug(t, dbc, "BZ-6001", "NEW", "aws bug", recentTime, []models.ProwJob{job1})
-	intutil.CreateBug(t, dbc, "BZ-6002", "NEW", "gcp bug", recentTime, []models.ProwJob{job2})
+	intutil.CreateBug(t, dbc, "BZ-6001", "NEW", "aws bug", recentTime, []models.CIJob{job1})
+	intutil.CreateBug(t, dbc, "BZ-6002", "NEW", "gcp bug", recentTime, []models.CIJob{job2})
 
 	// LoadBugsForJobs uses First(), so it only returns bugs for the first matching job.
 	// This documents the current behavior (noted as a possible bug in the source).
@@ -1192,18 +1192,18 @@ func TestLoadBugsForJobsMultipleJobIDsReturnsFirstOnly(t *testing.T) {
 func TestLoadBugsForJobsExcludesStaleClosedBugs(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	jobID := int(job.ID) //nolint:gosec
 
 	recentTime := time.Now().Add(-24 * time.Hour)
 	// CLOSED bug at 20 days: within the 90-day open window but outside the 14-day closed window
 	staleClosed := time.Now().Add(-20 * 24 * time.Hour)
 
-	intutil.CreateBug(t, dbc, "BZ-4001", "NEW", "recent open bug", recentTime, []models.ProwJob{job})
-	intutil.CreateBug(t, dbc, "BZ-4002", "CLOSED", "stale closed bug", staleClosed, []models.ProwJob{job})
-	intutil.CreateBug(t, dbc, "BZ-4003", "VERIFIED", "stale verified bug", staleClosed, []models.ProwJob{job})
+	intutil.CreateBug(t, dbc, "BZ-4001", "NEW", "recent open bug", recentTime, []models.CIJob{job})
+	intutil.CreateBug(t, dbc, "BZ-4002", "CLOSED", "stale closed bug", staleClosed, []models.CIJob{job})
+	intutil.CreateBug(t, dbc, "BZ-4003", "VERIFIED", "stale verified bug", staleClosed, []models.CIJob{job})
 	// Recent CLOSED bug within 14 days should still appear when not filtering closed
-	intutil.CreateBug(t, dbc, "BZ-4004", "CLOSED", "recent closed bug", recentTime, []models.ProwJob{job})
+	intutil.CreateBug(t, dbc, "BZ-4004", "CLOSED", "recent closed bug", recentTime, []models.CIJob{job})
 
 	// Without filterClosed: stale CLOSED/VERIFIED bugs (20 days) should be excluded by the 14-day window
 	bugs, err := query.LoadBugsForJobs(dbc, []int{jobID}, false)
@@ -1225,13 +1225,13 @@ func TestLoadBugsForJobsExcludesStaleClosedBugs(t *testing.T) {
 func TestLoadBugsForJobsFiltersVerified(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	jobID := int(job.ID) //nolint:gosec
 
 	recentTime := time.Now().Add(-24 * time.Hour)
 
-	intutil.CreateBug(t, dbc, "BZ-5001", "NEW", "open bug", recentTime, []models.ProwJob{job})
-	intutil.CreateBug(t, dbc, "BZ-5002", "VERIFIED", "verified bug", recentTime, []models.ProwJob{job})
+	intutil.CreateBug(t, dbc, "BZ-5001", "NEW", "open bug", recentTime, []models.CIJob{job})
+	intutil.CreateBug(t, dbc, "BZ-5002", "VERIFIED", "verified bug", recentTime, []models.CIJob{job})
 
 	// filterClosed=true should exclude VERIFIED just like CLOSED
 	bugs, err := query.LoadBugsForJobs(dbc, []int{jobID}, true)
@@ -1243,11 +1243,11 @@ func TestLoadBugsForJobsFiltersVerified(t *testing.T) {
 func TestLoadBugsForJobsEmptyJobIDs(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	recentTime := time.Now().Add(-24 * time.Hour)
-	intutil.CreateBug(t, dbc, "BZ-7001", "NEW", "some bug", recentTime, []models.ProwJob{job})
+	intutil.CreateBug(t, dbc, "BZ-7001", "NEW", "some bug", recentTime, []models.CIJob{job})
 
-	// Empty job ID slice causes First() to find no matching ProwJob, returning an error
+	// Empty job ID slice causes First() to find no matching CIJob, returning an error
 	bugs, err := query.LoadBugsForJobs(dbc, []int{}, false)
 	require.Error(t, err)
 	assert.Empty(t, bugs)
@@ -1256,14 +1256,14 @@ func TestLoadBugsForJobsEmptyJobIDs(t *testing.T) {
 func TestLoadBugsForJobsExcludesStale(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := intutil.CreateProwJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
+	job := intutil.CreateCIJob(t, dbc, "periodic-ci-e2e-aws-4.16", "4.16", []string{"aws"})
 	jobID := int(job.ID) //nolint:gosec
 
 	recentTime := time.Now().Add(-24 * time.Hour)
 	staleOpenTime := time.Now().Add(-100 * 24 * time.Hour)
 
-	intutil.CreateBug(t, dbc, "BZ-3001", "NEW", "recent open bug", recentTime, []models.ProwJob{job})
-	intutil.CreateBug(t, dbc, "BZ-3002", "NEW", "stale open bug", staleOpenTime, []models.ProwJob{job})
+	intutil.CreateBug(t, dbc, "BZ-3001", "NEW", "recent open bug", recentTime, []models.CIJob{job})
+	intutil.CreateBug(t, dbc, "BZ-3002", "NEW", "stale open bug", staleOpenTime, []models.CIJob{job})
 
 	bugs, err := query.LoadBugsForJobs(dbc, []int{jobID}, false)
 	require.NoError(t, err)

@@ -234,7 +234,7 @@ func (ghc *GitHubCommenter) UpdatePendingCommentRecords(org, repo string, prNumb
 			SHA:         sha,
 			Org:         org,
 			Repo:        repo,
-			ProwJobRoot: prRoot,
+			CIJobRoot: prRoot,
 		})
 
 		if res.Error != nil {

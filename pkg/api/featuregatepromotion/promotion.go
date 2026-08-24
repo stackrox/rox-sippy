@@ -200,10 +200,10 @@ func getCapabilityRegressions(dbc *db.DB, release, featureGate string) ([]Capabi
 				/ SUM(COALESCE(e.prefix_sum_runs - COALESCE(s.prefix_sum_runs, 0), 0))
 			END AS working_percentage
 		FROM test_cumulative_summaries e
-		JOIN prow_jobs pj ON e.prow_job_id = pj.id
+		JOIN ci_jobs pj ON e.ci_job_id = pj.id
 		JOIN tests t ON e.test_id = t.id
 		LEFT JOIN test_cumulative_summaries s
-			ON s.test_id = e.test_id AND s.prow_job_id = e.prow_job_id
+			ON s.test_id = e.test_id AND s.ci_job_id = e.ci_job_id
 			AND s.suite_id = e.suite_id AND s.lifecycle = e.lifecycle
 			AND s.release = e.release AND s.date = ?
 		WHERE e.date = ? AND e.release = ?

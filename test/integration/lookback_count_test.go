@@ -33,8 +33,8 @@ func seedLookbackFixtures(t *testing.T, dbc *db.DB) lookbackFixtures {
 	intutil.CreateReleaseDefinition(t, dbc, "4.18", 4, 18)
 	intutil.CreateReleaseDefinition(t, dbc, "4.19", 4, 19)
 
-	jobA := intutil.CreateProwJob(t, dbc, "periodic-e2e-aws", "4.18", []string{"aws"})
-	jobB := intutil.CreateProwJob(t, dbc, "periodic-e2e-gcp", "4.19", []string{"gcp"})
+	jobA := intutil.CreateCIJob(t, dbc, "periodic-e2e-aws", "4.18", []string{"aws"})
+	jobB := intutil.CreateCIJob(t, dbc, "periodic-e2e-gcp", "4.19", []string{"gcp"})
 
 	suite := intutil.CreateSuite(t, dbc, "openshift-tests")
 
@@ -123,14 +123,14 @@ func TestLookbackCount_JobRunsCountExcludesDeleted(t *testing.T) {
 	outsideWindow := lookbackDate.AddDays(-15).In(time.UTC)
 
 	// Two runs within the 14-day window.
-	intutil.CreateProwJobRun(t, dbc, 1, "4.18", withinWindow, true, v1.JobSucceeded)
-	intutil.CreateProwJobRun(t, dbc, 1, "4.18", withinWindow.Add(-time.Hour), false, v1.JobTestFailure)
+	intutil.CreateCIJobRun(t, dbc, 1, "4.18", withinWindow, true, v1.JobSucceeded)
+	intutil.CreateCIJobRun(t, dbc, 1, "4.18", withinWindow.Add(-time.Hour), false, v1.JobTestFailure)
 
 	// One run outside the window.
-	intutil.CreateProwJobRun(t, dbc, 1, "4.18", outsideWindow, true, v1.JobSucceeded)
+	intutil.CreateCIJobRun(t, dbc, 1, "4.18", outsideWindow, true, v1.JobSucceeded)
 
 	// One soft-deleted run within the window.
-	deletedRun := intutil.CreateProwJobRun(t, dbc, 1, "4.18", withinWindow.Add(-2*time.Hour), true, v1.JobSucceeded)
+	deletedRun := intutil.CreateCIJobRun(t, dbc, 1, "4.18", withinWindow.Add(-2*time.Hour), true, v1.JobSucceeded)
 	require.NoError(t, dbc.DB.Delete(&deletedRun).Error)
 
 	jobRunsCount, _, err := api.GetJobRunTestsCountByLookbackAt(dbc, 14, lookbackDate)

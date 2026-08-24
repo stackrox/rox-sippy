@@ -34,7 +34,7 @@ func SummarizeTestJobRuns(rows map[string][]TestJobRunRows) map[string][]TestDet
 				summary = &TestDetailsSummary{
 					TestKey:    row.TestKey,
 					TestKeyStr: row.TestKeyStr,
-					ProwJob:    row.ProwJob,
+					CIJob:    row.CIJob,
 				}
 				byTestKey[row.TestKeyStr] = summary
 				orderedKeys = append(orderedKeys, row.TestKeyStr)
@@ -44,10 +44,10 @@ func SummarizeTestJobRuns(rows map[string][]TestJobRunRows) map[string][]TestDet
 			// with the request's FlakeAsFailure setting via Stats.Add().
 			summary.Stats = summary.Stats.AddTestCount(row.Count, false)
 
-			if row.ProwJobRunID != "" {
+			if row.CIJobRunID != "" {
 				summary.JobRuns = append(summary.JobRuns, JobRunDetail{
-					ProwJobRunID: row.ProwJobRunID,
-					ProwJobURL:   row.ProwJobURL,
+					CIJobRunID: row.CIJobRunID,
+					CIJobURL:   row.CIJobURL,
 					StartTime:    row.StartTime,
 					Count:        row.Count,
 					JobLabels:    row.JobLabels,

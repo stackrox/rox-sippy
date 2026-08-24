@@ -71,7 +71,7 @@ func withAggColumns(columns ...string) string {
 func testAnalysisBaseQuery(dbc *db.DB, filters *filter.Filter, release, testName string, since civil.Date) *gorm.DB {
 	q := dbc.DB.Table("test_daily_totals tds").
 		Joins("JOIN tests t ON t.id = tds.test_id").
-		Joins("JOIN prow_jobs pj ON pj.id = tds.prow_job_id").
+		Joins("JOIN ci_jobs pj ON pj.id = tds.ci_job_id").
 		Where("tds.release = ?", release).
 		Where("t.name = ?", testName).
 		Where("tds.date >= ?", since).
@@ -171,7 +171,7 @@ func GetTestAnalysisByVariantFromDB(dbc *db.DB, filters *filter.Filter, release,
 			"tds.release",
 		)).
 		Joins("JOIN tests t ON t.id = tds.test_id").
-		Joins("JOIN prow_jobs pj ON pj.id = tds.prow_job_id").
+		Joins("JOIN ci_jobs pj ON pj.id = tds.ci_job_id").
 		Joins("JOIN variant_combinations vc ON vc.id = pj.variant_combination_id").
 		Where("tds.release = ?", release).
 		Where("t.name = ?", testName).

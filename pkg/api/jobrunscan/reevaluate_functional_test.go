@@ -29,7 +29,7 @@ import (
 /* Example of invoking the API:
    curl -X POST http://localhost:8080/api/jobs/runs/reevaluate \
         -H 'Content-Type: application/json' \
-        -d '{"prow_job_build_ids": ["2061603073523978240"], "dry_run": true}'
+        -d '{"ci_job_build_ids": ["2061603073523978240"], "dry_run": true}'
 */
 
 func functionalTestReEvaluator(t *testing.T) *ReEvaluator {
@@ -83,8 +83,8 @@ func TestReEvaluateEndToEnd(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 	r := results[0]
-	if r.ProwJobBuildID != buildID {
-		t.Errorf("result build ID = %q, want %q", r.ProwJobBuildID, buildID)
+	if r.CIJobBuildID != buildID {
+		t.Errorf("result build ID = %q, want %q", r.CIJobBuildID, buildID)
 	}
 	t.Logf("result: status=%s, symptoms_evaluated=%d, symptoms_matched=%v, labels_applied=%v, bq=%d, gcs=%d, pg=%v",
 		r.Status, r.SymptomsEvaluated, r.SymptomsMatched, r.LabelsApplied, r.BQEntriesWritten, r.GCSArtifactsWritten, r.PostgresUpdated)

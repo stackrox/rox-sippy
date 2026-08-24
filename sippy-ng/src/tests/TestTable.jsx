@@ -100,7 +100,7 @@ function chooseVariantsToDisplay(variants) {
   })
 
   // Fill remaining slots with other variants, for non OCP sippy users it will
-  // just be whatever order their variants appear in the prow_jobs table.
+  // just be whatever order their variants appear in the ci_jobs table.
   let i = 0
   while (result.length < 8 && i < remainingVariants.length) {
     result.push(remainingVariants[i])

@@ -58,9 +58,9 @@ func TestFailedJobRunsFromTestDetails(t *testing.T) {
 			expectedCount:  1,
 			expectedRunIDs: []string{"run-1"},
 			checkFunc: func(t *testing.T, runs []models.RegressionJobRun) {
-				assert.Equal(t, "run-1", runs[0].ProwJobRunID)
-				assert.Equal(t, "periodic-ci-job-1", runs[0].ProwJobName)
-				assert.Equal(t, "https://prow.ci/run-1", runs[0].ProwJobURL)
+				assert.Equal(t, "run-1", runs[0].CIJobRunID)
+				assert.Equal(t, "periodic-ci-job-1", runs[0].CIJobName)
+				assert.Equal(t, "https://prow.ci/run-1", runs[0].CIJobURL)
 				assert.Equal(t, 15, runs[0].TestFailures)
 				assert.Equal(t, []string{"InfraFailure"}, []string(runs[0].JobLabels))
 			},
@@ -231,7 +231,7 @@ func TestFailedJobRunsFromTestDetails(t *testing.T) {
 			if tt.expectedRunIDs != nil {
 				var gotIDs []string
 				for _, r := range runs {
-					gotIDs = append(gotIDs, r.ProwJobRunID)
+					gotIDs = append(gotIDs, r.CIJobRunID)
 				}
 				assert.Equal(t, tt.expectedRunIDs, gotIDs)
 			}

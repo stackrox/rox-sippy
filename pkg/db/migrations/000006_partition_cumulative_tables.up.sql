@@ -17,7 +17,7 @@
 
 CREATE TABLE IF NOT EXISTS test_daily_totals (
     test_id BIGINT NOT NULL,
-    prow_job_id BIGINT NOT NULL,
+    ci_job_id BIGINT NOT NULL,
     suite_id BIGINT NOT NULL DEFAULT 0,
     release TEXT NOT NULL,
     date DATE NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS test_daily_totals (
 ) PARTITION BY LIST (release);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_test_daily_totals_unique
-    ON test_daily_totals (test_id, prow_job_id, suite_id, release, date);
+    ON test_daily_totals (test_id, ci_job_id, suite_id, release, date);
 
 CREATE INDEX IF NOT EXISTS idx_test_daily_totals_date
     ON test_daily_totals (date);
@@ -41,15 +41,15 @@ CREATE TABLE IF NOT EXISTS test_cumulative_summaries (
     date DATE NOT NULL,
     release TEXT NOT NULL,
     test_id BIGINT NOT NULL,
-    prow_job_id BIGINT NOT NULL,
+    ci_job_id BIGINT NOT NULL,
     suite_id BIGINT NOT NULL DEFAULT 0,
     prefix_sum_successes BIGINT NOT NULL DEFAULT 0,
     prefix_sum_failures BIGINT NOT NULL DEFAULT 0,
     prefix_sum_flakes BIGINT NOT NULL DEFAULT 0,
     prefix_sum_runs BIGINT NOT NULL DEFAULT 0,
 
-    PRIMARY KEY (date, release, test_id, prow_job_id, suite_id)
+    PRIMARY KEY (date, release, test_id, ci_job_id, suite_id)
 ) PARTITION BY LIST (release);
 
-CREATE INDEX IF NOT EXISTS idx_test_cumulative_summaries_prow_job_id
-    ON test_cumulative_summaries (prow_job_id);
+CREATE INDEX IF NOT EXISTS idx_test_cumulative_summaries_ci_job_id
+    ON test_cumulative_summaries (ci_job_id);

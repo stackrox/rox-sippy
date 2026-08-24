@@ -24,17 +24,17 @@ var (
 )
 
 type jobRunsTestData struct {
-	jobAWS   models.ProwJob
-	jobGCP   models.ProwJob
-	jobOther models.ProwJob
+	jobAWS   models.CIJob
+	jobGCP   models.CIJob
+	jobOther models.CIJob
 
-	runA1              models.ProwJobRun
-	runA2              models.ProwJobRun
-	runA3              models.ProwJobRun
-	runG1              models.ProwJobRun
-	runOther           models.ProwJobRun
-	runOutsideLookback models.ProwJobRun
-	runAtReportEnd     models.ProwJobRun
+	runA1              models.CIJobRun
+	runA2              models.CIJobRun
+	runA3              models.CIJobRun
+	runG1              models.CIJobRun
+	runOther           models.CIJobRun
+	runOutsideLookback models.CIJobRun
+	runAtReportEnd     models.CIJobRun
 
 	testEtcd    models.Test
 	testNetwork models.Test
@@ -47,22 +47,22 @@ func setupJobRunsTestData(t *testing.T, dbc *db.DB) jobRunsTestData {
 	t.Helper()
 	var td jobRunsTestData
 
-	td.jobAWS = models.ProwJob{
+	td.jobAWS = models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-aws-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"aws", "ovn"},
 	}
-	td.jobGCP = models.ProwJob{
+	td.jobGCP = models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.16-e2e-gcp-sdn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"gcp", "sdn"},
 	}
-	td.jobOther = models.ProwJob{
+	td.jobOther = models.CIJob{
 		Name:     "periodic-ci-openshift-release-master-nightly-4.15-e2e-aws-ovn",
 		Release:  "4.15",
 		Variants: pq.StringArray{"aws", "ovn"},
 	}
-	for _, job := range []*models.ProwJob{&td.jobAWS, &td.jobGCP, &td.jobOther} {
+	for _, job := range []*models.CIJob{&td.jobAWS, &td.jobGCP, &td.jobOther} {
 		require.NoError(t, dbc.DB.Create(job).Error)
 	}
 
@@ -116,9 +116,9 @@ func setupJobRunsTestData(t *testing.T, dbc *db.DB) jobRunsTestData {
 
 	// runA1: test_failures=2, test_flakes=1
 	testExtra1 := intutil.CreateTest(t, dbc, "openshift-tests.extra-failure-1")
-	intutil.CreateProwJobRunTest(t, dbc, td.runA1.ID, td.runA1.ProwJobID, td.testEtcd.ID, "4.16", td.runA1.Timestamp, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA1.ID, td.runA1.ProwJobID, testExtra1.ID, "4.16", td.runA1.Timestamp, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA1.ID, td.runA1.ProwJobID, td.testNetwork.ID, "4.16", td.runA1.Timestamp, int(v1.TestStatusFlake))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA1.ID, td.runA1.CIJobID, td.testEtcd.ID, "4.16", td.runA1.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA1.ID, td.runA1.CIJobID, testExtra1.ID, "4.16", td.runA1.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA1.ID, td.runA1.CIJobID, td.testNetwork.ID, "4.16", td.runA1.Timestamp, int(v1.TestStatusFlake))
 
 	// runA2: 5 failed, 3 flaked
 	testExtra2 := intutil.CreateTest(t, dbc, "openshift-tests.extra-failure-2")
@@ -126,20 +126,20 @@ func setupJobRunsTestData(t *testing.T, dbc *db.DB) jobRunsTestData {
 	testExtra4 := intutil.CreateTest(t, dbc, "openshift-tests.extra-failure-4")
 	testFlakeExtra1 := intutil.CreateTest(t, dbc, "openshift-tests.flake-extra-1")
 	testFlakeExtra2 := intutil.CreateTest(t, dbc, "openshift-tests.flake-extra-2")
-	intutil.CreateProwJobRunTest(t, dbc, td.runA2.ID, td.runA2.ProwJobID, td.testEtcd.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA2.ID, td.runA2.ProwJobID, td.testNetwork.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA2.ID, td.runA2.ProwJobID, testExtra2.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA2.ID, td.runA2.ProwJobID, testExtra3.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA2.ID, td.runA2.ProwJobID, testExtra4.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA2.ID, td.runA2.ProwJobID, td.testUpgrade.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFlake))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA2.ID, td.runA2.ProwJobID, testFlakeExtra1.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFlake))
-	intutil.CreateProwJobRunTest(t, dbc, td.runA2.ID, td.runA2.ProwJobID, testFlakeExtra2.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFlake))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA2.ID, td.runA2.CIJobID, td.testEtcd.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA2.ID, td.runA2.CIJobID, td.testNetwork.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA2.ID, td.runA2.CIJobID, testExtra2.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA2.ID, td.runA2.CIJobID, testExtra3.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA2.ID, td.runA2.CIJobID, testExtra4.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA2.ID, td.runA2.CIJobID, td.testUpgrade.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFlake))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA2.ID, td.runA2.CIJobID, testFlakeExtra1.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFlake))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA2.ID, td.runA2.CIJobID, testFlakeExtra2.ID, "4.16", td.runA2.Timestamp, int(v1.TestStatusFlake))
 
 	// runG1: 1 failed
-	intutil.CreateProwJobRunTest(t, dbc, td.runG1.ID, td.runG1.ProwJobID, td.testUpgrade.ID, "4.16", td.runG1.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runG1.ID, td.runG1.CIJobID, td.testUpgrade.ID, "4.16", td.runG1.Timestamp, int(v1.TestStatusFailure))
 
 	// runA3: upgrade passed
-	intutil.CreateProwJobRunTest(t, dbc, td.runA3.ID, td.runA3.ProwJobID, td.testUpgrade.ID, "4.16", td.runA3.Timestamp, int(v1.TestStatusSuccess))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA3.ID, td.runA3.CIJobID, td.testUpgrade.ID, "4.16", td.runA3.Timestamp, int(v1.TestStatusSuccess))
 
 	// Pull request linked to runA1
 	td.pr1 = jrCreatePullRequest(t, dbc, "openshift", "origin", 100, "dev1", "abc123", "https://github.com/openshift/origin/pull/100")
@@ -167,25 +167,25 @@ func jrCreatePullRequest(t *testing.T, dbc *db.DB, org, repo string, number int,
 	return pr
 }
 
-func jrLinkRunToPR(t *testing.T, dbc *db.DB, run models.ProwJobRun, prID uint) {
+func jrLinkRunToPR(t *testing.T, dbc *db.DB, run models.CIJobRun, prID uint) {
 	t.Helper()
-	link := models.ProwJobRunProwPullRequest{
-		ProwJobRunID:        run.ID,
+	link := models.CIJobRunProwPullRequest{
+		CIJobRunID:        run.ID,
 		ProwPullRequestID:   prID,
-		ProwJobRunRelease:   run.ProwJobRelease,
-		ProwJobRunTimestamp: run.Timestamp,
+		CIJobRunRelease:   run.CIJobRelease,
+		CIJobRunTimestamp: run.Timestamp,
 	}
 	require.NoError(t, dbc.DB.Create(&link).Error)
 }
 
 func jrCreateAnnotation(t *testing.T, dbc *db.DB, runID uint, release string, timestamp time.Time, key, value string) {
 	t.Helper()
-	ann := models.ProwJobRunAnnotation{
-		ProwJobRunID:        runID,
+	ann := models.CIJobRunAnnotation{
+		CIJobRunID:        runID,
 		Key:                 key,
 		Value:               value,
-		ProwJobRunRelease:   release,
-		ProwJobRunTimestamp: timestamp,
+		CIJobRunRelease:   release,
+		CIJobRunTimestamp: timestamp,
 	}
 	require.NoError(t, dbc.DB.Create(&ann).Error)
 }
@@ -269,7 +269,7 @@ func TestJobRunsReport_BasicQuery(t *testing.T) {
 func TestJobRunsReport_BriefNameWithMainBranch(t *testing.T) {
 	dbc := intutil.NewTestDB(t, pgContainer)
 
-	job := models.ProwJob{
+	job := models.CIJob{
 		Name:     "periodic-ci-openshift-release-main-nightly-4.16-e2e-azure-ovn",
 		Release:  "4.16",
 		Variants: pq.StringArray{"azure", "ovn"},
@@ -898,7 +898,7 @@ func TestJobRunsReport_SpecialCharactersInFilterValueAreLiteral(t *testing.T) {
 	td := setupJobRunsTestData(t, dbc)
 
 	specialTest := intutil.CreateTest(t, dbc, "openshift-tests.100%_coverage")
-	intutil.CreateProwJobRunTest(t, dbc, td.runA3.ID, td.runA3.ProwJobID, specialTest.ID, "4.16", td.runA3.Timestamp, int(v1.TestStatusFailure))
+	intutil.CreateCIJobRunTest(t, dbc, td.runA3.ID, td.runA3.CIJobID, specialTest.ID, "4.16", td.runA3.Timestamp, int(v1.TestStatusFailure))
 
 	t.Run("percent in filter is literal", func(t *testing.T) {
 		opts := &filter.FilterOptions{
