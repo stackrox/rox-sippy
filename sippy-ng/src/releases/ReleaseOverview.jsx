@@ -1,17 +1,8 @@
-import {
-  Box,
-  Card,
-  CircularProgress,
-  Container,
-  Tooltip,
-  Typography,
-} from '@mui/material'
-import { Link } from 'react-router-dom'
+import { Box, CircularProgress, Container, Typography } from '@mui/material'
 import { makeStyles } from '@mui/styles'
 import { ReleasesContext } from '../App'
 import Alert from '@mui/material/Alert'
 import Grid from '@mui/material/Grid'
-import InfoIcon from '@mui/icons-material/Info'
 import PropTypes from 'prop-types'
 import React, { Fragment, useEffect } from 'react'
 import RecentTestFailures from './RecentTestFailures'
@@ -104,7 +95,7 @@ export default function ReleaseOverview(props) {
   }
 
   useEffect(() => {
-    document.title = `Sippy > ${props.release} > Health Summary`
+    document.title = `ACS Sippy > ${props.release} > Health Summary`
     fetchData()
   }, [])
 
@@ -116,17 +107,7 @@ export default function ReleaseOverview(props) {
     setPageContextForChat({
       page: 'release-overview',
       url: window.location.href,
-      suggestions: [
-        'How is the overall health of the release?',
-        {
-          prompt: 'payload-report',
-          label: 'Payload Status Report',
-          args: {
-            releases: [props.release],
-            streams: ['nightly', 'ci'],
-          },
-        },
-      ],
+      suggestions: ['How is the overall health of the release?'],
       data: {
         release: props.release,
         indicators: {

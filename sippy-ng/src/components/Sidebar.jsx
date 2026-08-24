@@ -10,7 +10,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { ListItemButton, ListSubheader, useTheme } from '@mui/material'
 import {
   pathForJobsWithFilter,
-  pathForTestByVariant,
   pathForTestsWithFilter,
   safeEncodeURIComponent,
   withoutUnstable,
@@ -48,8 +47,8 @@ function groupReleasesByProduct(releases, releaseAttrs) {
   })
 
   const sortedProducts = Object.keys(groups).sort((a, b) => {
-    if (a === 'OCP') return -1
-    if (b === 'OCP') return 1
+    if (a === 'ACS') return -1
+    if (b === 'ACS') return 1
     return a.localeCompare(b)
   })
 
@@ -82,7 +81,7 @@ export default function Sidebar(props) {
     const tmpOpenGroups = {}
 
     productGroups.forEach(({ product }) => {
-      tmpOpenGroups[product] = product === 'OCP'
+      tmpOpenGroups[product] = product === 'ACS'
     })
 
     if (parts.length >= 3) {
@@ -228,7 +227,7 @@ export default function Sidebar(props) {
       </List>
       <SippyCapabilitiesContext.Consumer>
         {(value) => {
-          if (value.includes('openshift_releases')) {
+          if (value.includes('local_db')) {
             return (
               <Fragment>
                 <Divider />
@@ -362,7 +361,7 @@ export default function Sidebar(props) {
         <ListItem
           component="a"
           target="_blank"
-          href="https://www.github.com/openshift/sippy"
+          href="https://www.github.com/stackrox/acs-sippy"
           key="GitHub"
         >
           <ListItemIcon>

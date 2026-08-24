@@ -24,7 +24,6 @@ import {
   Navigate,
   Route,
   Routes,
-  useLocation,
   useNavigate,
   useParams,
 } from 'react-router-dom'
@@ -35,7 +34,6 @@ import { TestAnalysis } from './tests/TestAnalysis'
 import { useCookies } from 'react-cookie'
 import AccessibilityToggle from './components/AccessibilityToggle'
 import AIDisclaimerDialog from './components/AIDisclaimerDialog'
-import RefreshButton from './components/RefreshButton'
 import Alert from '@mui/material/Alert'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -47,6 +45,7 @@ import MenuIcon from '@mui/icons-material/Menu'
 import MuiAppBar from '@mui/material/AppBar'
 import PullRequests from './pull_requests/PullRequests'
 import React, { Fragment, useEffect } from 'react'
+import RefreshButton from './components/RefreshButton'
 import ReleaseOverview from './releases/ReleaseOverview'
 import Sidebar from './components/Sidebar'
 import Tests from './tests/Tests'
@@ -447,7 +446,7 @@ function App(_props) {
                             alignItems="center"
                           >
                             <Typography variant="h6" className={classes.title}>
-                              Sippy
+                              ACS Sippy
                             </Typography>
                             {showWithCapability(
                               'local_db',

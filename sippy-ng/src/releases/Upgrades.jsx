@@ -8,7 +8,7 @@ import SimpleBreadcrumbs from '../components/SimpleBreadcrumbs'
 import TestByVariantTable from '../tests/TestByVariantTable'
 
 /**
- *  Upgrades is the landing page for upgrades.
+ *  Upgrades is the landing page for ACS upgrade tests.
  */
 export default function Upgrades(props) {
   const basePath = `/upgrade/${props.release}`
@@ -39,7 +39,7 @@ export default function Upgrades(props) {
   }
 
   useEffect(() => {
-    document.title = `Sippy > ${props.release} > Upgrade health`
+    document.title = `ACS Sippy > ${props.release} > Upgrade health`
     fetchData()
   }, [])
 
@@ -56,7 +56,7 @@ export default function Upgrades(props) {
       <SimpleBreadcrumbs release={props.release} currentPage="Upgrades" />
       <Grid>
         <Typography variant="h4" style={{ margin: 10 }} align="center">
-          Upgrade health for {props.release}
+          ACS Upgrade Test Health for {props.release}
         </Typography>
       </Grid>
       <Fragment>

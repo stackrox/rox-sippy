@@ -231,13 +231,9 @@ export default function TopLevelIndicators(props) {
           <VerifiedIcon sx={{ fontSize: 28, color: 'text.secondary' }} />,
           props.indicators.tests,
           TEST_THRESHOLDS,
-          pathForTestByVariant(
-            props.release,
-            '[sig-sippy] openshift-tests should work'
-          ),
-          'How often e2e tests complete successfully. Sippy tries to figure out which runs ran an e2e test ' +
-            'suite, and then determine which failed. A low pass rate could be due to any number of temporary ' +
-            'problems, most of the utility from this noisy metric is monitoring changes over time.'
+          '/tests/' + props.release,
+          'How often e2e tests complete successfully. A low pass rate could be due to any number of temporary ' +
+            'problems, most of the utility from this metric is monitoring changes over time.'
         )}
 
       {hasComponentReadiness && (

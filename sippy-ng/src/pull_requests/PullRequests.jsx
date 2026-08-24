@@ -9,7 +9,7 @@ import SimpleBreadcrumbs from '../components/SimpleBreadcrumbs'
  */
 export default function PullRequests(props) {
   useEffect(() => {
-    document.title = `Sippy > ${props.release} > Pull Requests`
+    document.title = `ACS Sippy > ${props.release} > Pull Requests`
   }, [])
 
   return (

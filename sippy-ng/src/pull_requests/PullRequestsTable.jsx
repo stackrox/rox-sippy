@@ -1,19 +1,6 @@
 import './PullRequestsTable.css'
-import {
-  Backdrop,
-  Button,
-  CircularProgress,
-  Grid,
-  Tooltip,
-  Typography,
-} from '@mui/material'
+import { Backdrop, Button, CircularProgress, Tooltip } from '@mui/material'
 import { BOOKMARKS } from '../constants'
-import {
-  CheckCircle,
-  Error as ErrorIcon,
-  GitHub,
-  History,
-} from '@mui/icons-material'
 import { DataGrid } from '@mui/x-data-grid'
 import {
   getReportStartDate,
@@ -21,9 +8,9 @@ import {
   safeEncodeURIComponent,
   useStableJSONQueryParam,
 } from '../helpers'
+import { GitHub, History } from '@mui/icons-material'
 import { GridView } from '../datagrid/GridView'
-import { Link } from 'react-router-dom'
-import { makeStyles, useTheme } from '@mui/styles'
+import { makeStyles } from '@mui/styles'
 import { ReportEndContext } from '../App'
 import { StringParam, useQueryParam } from 'use-query-params'
 import Alert from '@mui/material/Alert'
@@ -63,7 +50,6 @@ const useStyles = makeStyles((_theme) => ({
 export default function PullRequestsTable(props) {
   const _classes = props.classes
   const gridClasses = useStyles()
-  const theme = useTheme()
 
   const [fetchError, setFetchError] = React.useState('')
   const [isLoaded, setLoaded] = React.useState(false)
@@ -108,10 +94,6 @@ export default function PullRequestsTable(props) {
         {
           field: 'merged_at',
           flex: 1,
-        },
-        {
-          field: 'release_payload',
-          flex: 1.5,
         },
         {
           field: 'history',
@@ -179,81 +161,6 @@ export default function PullRequestsTable(props) {
       field: 'sha',
       headerName: 'SHA',
     },
-    first_ci_payload: {
-      field: 'first_ci_payload',
-      headerName: 'First CI Payload',
-    },
-    first_nightly_payload: {
-      field: 'first_nightly_payload',
-      headerName: 'First Nightly Payload',
-    },
-    release_payload: {
-      field: 'release_payload',
-      headerName: 'First release payload',
-      sortable: false,
-      filterable: false,
-      renderCell: (params) => {
-        let result = []
-
-        if (
-          params.row.first_ci_payload !== undefined &&
-          params.row.first_ci_payload !== ''
-        ) {
-          result.push(
-            <Grid
-              justifyContent="space-between"
-              wrap="nowrap"
-              container
-              direction="row"
-              alignItems="center"
-            >
-              <Typography>
-                <Link
-                  to={`/release/${params.row.first_ci_payload_release}/tags/${params.row.first_ci_payload}`}
-                >
-                  {params.row.first_ci_payload}
-                </Link>
-              </Typography>
-              {params.row.first_ci_payload_phase === 'Accepted' ? (
-                <CheckCircle style={{ color: theme.palette.success.light }} />
-              ) : (
-                <ErrorIcon style={{ color: theme.palette.error.light }} />
-              )}
-            </Grid>
-          )
-        }
-
-        if (
-          params.row.first_nightly_payload !== undefined &&
-          params.row.first_nightly_payload !== ''
-        ) {
-          result.push(
-            <Grid
-              wrap="nowrap"
-              container
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              <Typography>
-                <Link
-                  to={`/release/${params.row.first_nightly_payload_release}/tags/${params.row.first_nightly_payload}`}
-                >
-                  {params.row.first_nightly_payload}
-                </Link>
-              </Typography>
-              {params.row.first_nightly_payload_phase === 'Accepted' ? (
-                <CheckCircle style={{ color: theme.palette.success.light }} />
-              ) : (
-                <ErrorIcon style={{ color: theme.palette.error.light }} />
-              )}
-            </Grid>
-          )
-        }
-
-        return <Grid>{result}</Grid>
-      },
-    },
     merged_at: {
       type: 'date',
       field: 'merged_at',
@@ -280,13 +187,13 @@ export default function PullRequestsTable(props) {
       filterable: false,
       renderCell: (params) => {
         return (
-          <Tooltip title="View job run history">
+          <Tooltip title="View PR on GitHub">
             <Button
               color="inherit"
               style={{ justifyContent: 'center' }}
               target="_blank"
               startIcon={<History />}
-              href={`https://prow.ci.openshift.org/pr-history/?org=${params.row.org}&repo=${params.row.repo}&pr=${params.row.number}`}
+              href={`https://github.com/${params.row.org}/${params.row.repo}/pull/${params.row.number}`}
             />
           </Tooltip>
         )
