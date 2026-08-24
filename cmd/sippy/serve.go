@@ -16,10 +16,12 @@ import (
 	"github.com/spf13/pflag"
 
 	resources "github.com/openshift/sippy"
+	"github.com/openshift/sippy/pkg/api"
 	"github.com/openshift/sippy/pkg/api/componentreadiness/dataprovider"
 	"github.com/openshift/sippy/pkg/apis/cache"
 	"github.com/openshift/sippy/pkg/bigquery"
 	"github.com/openshift/sippy/pkg/bigquery/bqlabel"
+	"github.com/openshift/sippy/pkg/dataloader/bqloader"
 	"github.com/openshift/sippy/pkg/db/models"
 	"github.com/openshift/sippy/pkg/flags"
 	"github.com/openshift/sippy/pkg/flags/configflags"
@@ -167,6 +169,25 @@ func NewServeCommand() *cobra.Command {
 				log.WithError(err).Warn("unable to initialize Jira client, bug filing will be disabled")
 			}
 
+			// Initialize BQLoader for data sync (if BigQuery is available)
+			var dataSyncer api.DataSyncer
+			if bigQueryClient != nil && f.BigQueryFlags.BigQueryProject != "" && f.BigQueryFlags.BigQueryDataset != "" {
+				bqLoader, err := bqloader.NewBQLoader(
+					context.Background(),
+					dbc.DB,
+					bigQueryClient,
+					f.BigQueryFlags.BigQueryProject,
+					f.BigQueryFlags.BigQueryDataset,
+				)
+				if err != nil {
+					log.WithError(err).Warn("unable to initialize BQLoader, /api/refresh will be unavailable")
+				} else {
+					// TODO(ACS): Wire up variant classifier once ACS variant registry is implemented
+					// The BQLoader will work without it - jobs just won't have variants assigned
+					dataSyncer = bqLoader
+				}
+			}
+
 			server := sippyserver.NewServer(
 				f.ModeFlags.GetServerMode(),
 				f.APIFlags.ListenAddr,
@@ -188,6 +209,7 @@ func NewServeCommand() *cobra.Command {
 				f.APIFlags.EnableWriteEndpoints,
 				f.APIFlags.ChatAPIURL,
 				jiraClient,
+				dataSyncer,
 			)
 
 			if f.APIFlags.MetricsAddr != "" {

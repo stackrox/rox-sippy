@@ -96,13 +96,14 @@ func NewServer(
 	enableWriteEndpoints bool,
 	chatAPIURL string,
 	jiraClient *jira.Client,
+	dataSyncer api.DataSyncer,
 ) *Server {
 
 	server := &Server{
-		mode:              mode,
-		listenAddr:        listenAddr,
-		corsAllowedOrigin: corsAllowedOrigin,
-		variantManager:    variantManager,
+		mode:                 mode,
+		listenAddr:           listenAddr,
+		corsAllowedOrigin:    corsAllowedOrigin,
+		variantManager:       variantManager,
 		jobartifactsManager:  jobartifacts.NewManager(context.Background()),
 		sippyNG:              sippyNG,
 		static:               static,
@@ -120,6 +121,7 @@ func NewServer(
 		enableWriteAPIs:      enableWriteEndpoints,
 		chatAPIURL:           chatAPIURL,
 		jiraClient:           jiraClient,
+		dataSyncer:           dataSyncer,
 	}
 
 	if crDataProvider != nil {
@@ -157,10 +159,10 @@ var matViewUniqueNumberOfJobRuns = promauto.NewGaugeVec(prometheus.GaugeOpts{
 }, []string{"lookback_days"})
 
 type Server struct {
-	mode              Mode
-	listenAddr        string
-	corsAllowedOrigin string
-	variantManager    testidentification.VariantManager
+	mode                 Mode
+	listenAddr           string
+	corsAllowedOrigin    string
+	variantManager       testidentification.VariantManager
 	jobartifactsManager  *jobartifacts.Manager
 	sippyNG              fs.FS
 	static               fs.FS
@@ -181,6 +183,7 @@ type Server struct {
 	chatAPIURL           string
 	jiraClient           *jira.Client
 	rateLimiters         map[string]*rateLimiter
+	dataSyncer           api.DataSyncer // BQLoader or other data sync component
 }
 
 // getReleases returns release data via the configured data provider.
@@ -1531,6 +1534,10 @@ func (s *Server) jsonPullRequestTestResults(w http.ResponseWriter, req *http.Req
 	api.PrintPRTestResultsJSON(w, req, s.db)
 }
 
+func (s *Server) jsonRefresh(w http.ResponseWriter, req *http.Request) {
+	api.HandleRefreshRequest(w, req, s.dataSyncer)
+}
+
 func (s *Server) jsonJobRunSummary(w http.ResponseWriter, req *http.Request) {
 	jobRunIDStr := s.getParamOrFail(w, req, "ci_job_run_id")
 	if jobRunIDStr == "" {
@@ -2837,6 +2844,12 @@ func (s *Server) Serve() {
 			Capabilities: []string{LocalDBCapability},
 			CacheTime:    1 * time.Hour,
 			HandlerFunc:  s.jsonHealthReportFromDB,
+		},
+		{
+			EndpointPath: "/api/refresh",
+			Description:  "Triggers on-demand data sync from BigQuery (rate-limited to once per 15 minutes)",
+			Capabilities: []string{},
+			HandlerFunc:  s.jsonRefresh,
 		},
 		{
 			EndpointPath: "/api/variants",

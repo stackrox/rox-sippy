@@ -208,6 +208,7 @@ func (f *ComponentReadinessFlags) runServerMode() error {
 		f.APIFlags.EnableWriteEndpoints,
 		"", // No chat API in Component Readiness
 		jiraClient,
+		nil, // No data syncer in Component Readiness mode
 	)
 
 	if f.APIFlags.MetricsAddr != "" {
