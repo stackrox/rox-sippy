@@ -32,8 +32,9 @@ type CIJob struct {
 	VariantCombinationID *uint `gorm:"column:variant_combination_id"`
 	VariantCombination   *VariantCombination
 	TestGridURL          string
+	CISystem             string // gha, prow, konflux
 	// Bugs maps to all the bugs we scanned and found this prowjob name mentioned in the description or any comment.
-	Bugs    []Bug        `gorm:"many2many:bug_jobs;"`
+	Bugs    []Bug      `gorm:"many2many:bug_jobs;"`
 	JobRuns []CIJobRun `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
@@ -57,12 +58,21 @@ type CIJobRun struct {
 	// Cluster is the cluster where the prow job was run.
 	Cluster string
 
+	// ACS BQ loader fields
+	BQID      string `gorm:"column:bq_id;uniqueIndex"` // BigQuery job ID
+	CommitSHA string
+	Branch    string
+	PRNumber  *int
+	StartedAt time.Time
+	StoppedAt *time.Time
+	Repo      string
+
 	GCSBucket    string
 	URL          string
 	TestFailures int
 	TestFlakes   int `gorm:"not null;default:0"`
 	Tests        []CIJobRunTest
-	PullRequests []ProwPullRequest      `gorm:"many2many:ci_job_run_pull_requests;constraint:OnDelete:CASCADE;"`
+	PullRequests []ProwPullRequest    `gorm:"many2many:ci_job_run_pull_requests;constraint:OnDelete:CASCADE;"`
 	Annotations  []CIJobRunAnnotation `gorm:"constraint:OnDelete:CASCADE;"`
 	Failed       bool
 	// InfrastructureFailure is true if the job run failed, for reasons which appear to be related to test/CI infra.
@@ -86,7 +96,7 @@ type CIJobRun struct {
 // CIJobRun for query optimization.
 type CIJobRunProwPullRequest struct {
 	CIJobRunID        uint      `gorm:"primaryKey"`
-	ProwPullRequestID   uint      `gorm:"primaryKey;index:idx_ci_job_run_pull_requests_pr_id"`
+	ProwPullRequestID uint      `gorm:"primaryKey;index:idx_ci_job_run_pull_requests_pr_id"`
 	CIJobRunRelease   string    `gorm:"index:idx_ci_job_run_pull_requests_release_timestamp"`
 	CIJobRunTimestamp time.Time `gorm:"index:idx_ci_job_run_pull_requests_release_timestamp"`
 }
@@ -95,8 +105,8 @@ type CIJobRunProwPullRequest struct {
 type CIJobRunAnnotation struct {
 	gorm.Model
 	CIJobRunID        uint   `gorm:"index;uniqueIndex:idx_ci_job_run_annotations_key"`
-	Key                 string `gorm:"uniqueIndex:idx_ci_job_run_annotations_key"`
-	Value               string
+	Key               string `gorm:"uniqueIndex:idx_ci_job_run_annotations_key"`
+	Value             string
 	CIJobRunRelease   string    `gorm:"index:idx_ci_job_run_annotations_release_timestamp"`
 	CIJobRunTimestamp time.Time `gorm:"index:idx_ci_job_run_annotations_release_timestamp"`
 }
@@ -122,8 +132,8 @@ type CIJobRunTest struct {
 	CIJobRunTimestamp time.Time `gorm:"primaryKey"`
 	// denormalized for query optimization and LIST partitioning
 	CIJobRunRelease string `gorm:"primaryKey"`
-	TestID            uint
-	Test              Test
+	TestID          uint
+	Test            Test
 	// SuiteID may be nil if no suite name could be parsed from the testgrid test name.
 	SuiteID   *uint
 	Suite     Suite
@@ -169,7 +179,7 @@ type TestDailyTotal struct {
 	TestID                uint       `gorm:"column:test_id;not null;uniqueIndex:idx_test_daily_totals_key,priority:3"`
 	SuiteID               uint       `gorm:"column:suite_id;not null;default:0;uniqueIndex:idx_test_daily_totals_key,priority:4"`
 	Lifecycle             string     `gorm:"column:lifecycle;not null;default:blocking;uniqueIndex:idx_test_daily_totals_key,priority:5"`
-	CIJobID             uint       `gorm:"column:ci_job_id;not null;uniqueIndex:idx_test_daily_totals_key,priority:6"`
+	CIJobID               uint       `gorm:"column:ci_job_id;not null;uniqueIndex:idx_test_daily_totals_key,priority:6"`
 	Successes             int32      `gorm:"column:successes;not null;default:0"`
 	Failures              int32      `gorm:"column:failures;not null;default:0"`
 	Flakes                int32      `gorm:"column:flakes;not null;default:0"`
@@ -193,7 +203,7 @@ type TestCumulativeSummary struct {
 	TestID               uint       `gorm:"column:test_id;not null;uniqueIndex:idx_test_cumulative_summaries_key,priority:3"`
 	SuiteID              uint       `gorm:"column:suite_id;not null;default:0;uniqueIndex:idx_test_cumulative_summaries_key,priority:4"`
 	Lifecycle            string     `gorm:"column:lifecycle;not null;default:blocking;uniqueIndex:idx_test_cumulative_summaries_key,priority:5"`
-	CIJobID            uint       `gorm:"column:ci_job_id;not null;uniqueIndex:idx_test_cumulative_summaries_key,priority:6;index:idx_test_cumulative_summaries_ci_job_id"`
+	CIJobID              uint       `gorm:"column:ci_job_id;not null;uniqueIndex:idx_test_cumulative_summaries_key,priority:6;index:idx_test_cumulative_summaries_ci_job_id"`
 	PrefixSumSuccesses   int64      `gorm:"column:prefix_sum_successes;not null;default:0"`
 	PrefixSumFailures    int64      `gorm:"column:prefix_sum_failures;not null;default:0"`
 	PrefixSumFlakes      int64      `gorm:"column:prefix_sum_flakes;not null;default:0"`
@@ -210,7 +220,7 @@ type ProwGARawTestDatum struct {
 	Release    string `gorm:"not null;index:idx_prow_ga_raw_release_window"`
 	WindowDays int    `gorm:"not null;default:30;index:idx_prow_ga_raw_release_window"`
 	TestID     uint   `gorm:"not null"`
-	CIJobID  uint   `gorm:"not null"`
+	CIJobID    uint   `gorm:"not null"`
 	SuiteID    uint   `gorm:"not null;default:0"`
 	Passes     int64  `gorm:"not null;default:0"`
 	Failures   int64  `gorm:"not null;default:0"`
@@ -236,7 +246,7 @@ type Bug struct {
 	URL             string         `json:"url"`
 	ReleaseBlocker  string         `json:"release_blocker"`
 	Tests           []Test         `json:"-" gorm:"many2many:bug_tests;constraint:OnDelete:CASCADE;"`
-	Jobs            []CIJob      `json:"-" gorm:"many2many:bug_jobs;constraint:OnDelete:CASCADE;"`
+	Jobs            []CIJob        `json:"-" gorm:"many2many:bug_jobs;constraint:OnDelete:CASCADE;"`
 }
 
 // ProwPullRequest represents a GitHub pull request, there can be multiple entries
